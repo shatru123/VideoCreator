@@ -572,6 +572,33 @@ public partial class EditorViewModel : ViewModelBase
         NotifyAll();
     }
 
+    public void RemovePhotoFromTimeline(Asset? asset)
+    {
+        if (asset == null) return;
+        var videoTrack = CurrentProject.Timeline.GetOrCreateTrack(TrackType.Video, "Video Track");
+        var toRemove = videoTrack.Clips.OfType<ImageClip>().Where(c => c.SourceFilePath == asset.FilePath).ToList();
+        foreach (var c in toRemove)
+        {
+            videoTrack.Clips.Remove(c);
+        }
+
+        // Compact remaining
+        TimeSpan currentStart = TimeSpan.Zero;
+        foreach (var clip in videoTrack.Clips)
+        {
+            clip.StartTime = currentStart;
+            currentStart += clip.Duration;
+        }
+
+        if (SelectedClip != null && toRemove.Contains(SelectedClip))
+        {
+            SelectedClip = null;
+        }
+
+        _previewRenderer.InvalidateCache();
+        NotifyAll();
+    }
+
     private async Task SaveProjectAsync()
     {
         if (string.IsNullOrEmpty(_projectService.CurrentFilePath))

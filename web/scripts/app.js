@@ -952,41 +952,107 @@
     // Photos
     const photoList = document.getElementById('library-photos-list');
     photoList.innerHTML = '';
+    const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+    const timelineClips = videoTrack ? videoTrack.clips : [];
+
     currentProject.assets.filter(a => a.type === 'image').forEach(asset => {
+      const isAdded = timelineClips.some(c => c.source === asset.source);
+      const count = timelineClips.filter(c => c.source === asset.source).length;
+
       const item = document.createElement('div');
-      item.className = 'asset-item';
+      item.className = `asset-item ${isAdded ? 'asset-item-added' : ''}`;
       item.innerHTML = `
-        <span class="asset-name">📷 ${asset.name}</span>
-        <div style="display:flex; gap:4px;">
-          <button class="btn btn-secondary btn-sm insert-btn">+ Insert</button>
-          <button class="btn btn-danger btn-sm remove-btn">🗑</button>
+        <div style="display:flex; align-items:center; gap:8px; overflow:hidden; flex:1;">
+          <img src="${asset.source}" style="width:36px; height:36px; object-fit:cover; border-radius:4px; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);">
+          <div style="display:flex; flex-direction:column; overflow:hidden;">
+            <span class="asset-name" title="${asset.name}">${asset.name}</span>
+            ${isAdded ? `<span style="font-size:10px; color:#10B981; font-weight:700;">✓ In Video (${count})</span>` : `<span style="font-size:10px; color:#64748B;">Not in timeline</span>`}
+          </div>
+        </div>
+        <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
+          <button class="btn ${isAdded ? 'btn-danger' : 'btn-secondary'} btn-sm toggle-timeline-btn" style="min-width:68px;">
+            ${isAdded ? '− Remove' : '+ Insert'}
+          </button>
+          <button class="btn btn-secondary btn-sm delete-asset-btn" title="Delete file from project">🗑</button>
         </div>
       `;
-      item.querySelector('.insert-btn').addEventListener('click', () => {
+
+      item.querySelector('.toggle-timeline-btn').addEventListener('click', () => {
         pushHistory();
-        insertPhotoAtPlayhead(asset.source);
+        if (isAdded) {
+          // Remove from timeline
+          if (videoTrack) {
+            videoTrack.clips = videoTrack.clips.filter(c => c.source !== asset.source);
+            // Compact remaining
+            let t = 0;
+            videoTrack.clips.forEach(c => {
+              c.startTime = t;
+              t += c.duration;
+            });
+            if (selectedClip && selectedClip.source === asset.source) {
+              selectedClip = null;
+            }
+            recalculateDuration();
+            refreshTimeline();
+            refreshMediaLibrary();
+            updateInspector();
+          }
+        } else {
+          // Insert at playhead
+          insertPhotoAtPlayhead(asset.source);
+          refreshMediaLibrary();
+        }
       });
-      item.querySelector('.remove-btn').addEventListener('click', () => {
+
+      item.querySelector('.delete-asset-btn').addEventListener('click', () => {
         pushHistory();
         removeAsset(asset);
       });
+
       photoList.appendChild(item);
     });
 
     // Music
     const musicList = document.getElementById('library-music-list');
     musicList.innerHTML = '';
+    const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+    const audioClips = audioTrack ? audioTrack.clips : [];
+
     currentProject.assets.filter(a => a.type === 'audio').forEach(asset => {
+      const isAdded = audioClips.some(c => c.source === asset.source);
+
       const item = document.createElement('div');
       item.className = 'asset-item';
       item.innerHTML = `
-        <span class="asset-name">🎵 ${asset.name}</span>
-        <button class="btn btn-danger btn-sm remove-btn">🗑</button>
+        <div style="display:flex; flex-direction:column; overflow:hidden; flex:1;">
+          <span class="asset-name">🎵 ${asset.name}</span>
+          ${isAdded ? `<span style="font-size:10px; color:#10B981; font-weight:700;">✓ Active Track</span>` : `<span style="font-size:10px; color:#64748B;">Not in timeline</span>`}
+        </div>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <button class="btn ${isAdded ? 'btn-danger' : 'btn-secondary'} btn-sm toggle-audio-btn" style="min-width:68px;">
+            ${isAdded ? '− Remove' : '+ Use'}
+          </button>
+          <button class="btn btn-secondary btn-sm delete-audio-btn" title="Delete audio file">🗑</button>
+        </div>
       `;
-      item.querySelector('.remove-btn').addEventListener('click', () => {
+
+      item.querySelector('.toggle-audio-btn').addEventListener('click', () => {
+        pushHistory();
+        if (isAdded) {
+          if (audioTrack) audioTrack.clips = [];
+          audio.pause();
+        } else {
+          setProjectMusic(asset.source, asset.name);
+        }
+        refreshMediaLibrary();
+        refreshTimeline();
+      });
+
+      item.querySelector('.delete-audio-btn').addEventListener('click', () => {
         pushHistory();
         removeAsset(asset);
       });
+
       musicList.appendChild(item);
     });
   }

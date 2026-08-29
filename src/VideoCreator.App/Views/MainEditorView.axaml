@@ -77,7 +77,9 @@
                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
                                                         <Button Content="+ Insert" Background="#1E293B" Foreground="#60A5FA" Padding="8,4" CornerRadius="4" FontSize="11"
                                                                 Click="OnAddLibraryAssetClicked"/>
-                                                        <Button Content="🗑" Background="#1E293B" Foreground="#EF4444" Padding="6,4" CornerRadius="4" FontSize="11"
+                                                        <Button Content="− Remove" Background="#261A22" Foreground="#F87171" Padding="8,4" CornerRadius="4" FontSize="11"
+                                                                Click="OnRemovePhotoFromTimelineClicked"/>
+                                                        <Button Content="🗑" Background="#1E293B" Foreground="#94A3B8" Padding="6,4" CornerRadius="4" FontSize="11"
                                                                 Click="OnRemoveAssetClicked"/>
                                                     </StackPanel>
                                                 </Grid>
