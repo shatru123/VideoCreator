@@ -118,4 +118,12 @@ public partial class MainEditorView : UserControl
             vm.ApplyTemplateToProject(template);
         }
     }
+
+    private void OnRemoveAssetClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is Asset asset && DataContext is EditorViewModel vm)
+        {
+            vm.RemoveAsset(asset);
+        }
+    }
 }

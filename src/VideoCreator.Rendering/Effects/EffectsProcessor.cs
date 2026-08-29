@@ -29,12 +29,13 @@ public static class EffectsProcessor
             switch (effect.Type)
             {
                 case EffectType.Brightness:
-                    float b = (intensity - 0.5f) * 100.0f;
+                    // Intensity 0.0 = neutral; positive increases brightness, negative decreases
+                    float bOffset = intensity * 40.0f;
                     var brightnessMatrix = new float[]
                     {
-                        1, 0, 0, 0, b,
-                        0, 1, 0, 0, b,
-                        0, 0, 1, 0, b,
+                        1, 0, 0, 0, bOffset,
+                        0, 1, 0, 0, bOffset,
+                        0, 0, 1, 0, bOffset,
                         0, 0, 0, 1, 0
                     };
                     var bf = SKColorFilter.CreateColorMatrix(brightnessMatrix);
@@ -42,8 +43,9 @@ public static class EffectsProcessor
                     break;
 
                 case EffectType.Contrast:
-                    float c = intensity * 1.5f;
-                    float cOffset = 128f * (1f - c);
+                    // Neutral contrast is c = 1.0; delta is intensity * 0.5
+                    float c = 1.0f + intensity * 0.4f;
+                    float cOffset = 128f * (1.0f - c);
                     var contrastMatrix = new float[]
                     {
                         c, 0, 0, 0, cOffset,
@@ -53,6 +55,23 @@ public static class EffectsProcessor
                     };
                     var cf = SKColorFilter.CreateColorMatrix(contrastMatrix);
                     combinedColorFilter = combinedColorFilter != null ? SKColorFilter.CreateCompose(combinedColorFilter, cf) : cf;
+                    break;
+
+                case EffectType.Saturation:
+                    float s = 1.0f + intensity * 0.5f;
+                    float invSat = 1.0f - s;
+                    float lr = 0.213f * invSat;
+                    float lg = 0.715f * invSat;
+                    float lb = 0.072f * invSat;
+                    var satMatrix = new float[]
+                    {
+                        lr + s, lg,     lb,     0, 0,
+                        lr,     lg + s, lb,     0, 0,
+                        lr,     lg,     lb + s, 0, 0,
+                        0,      0,      0,      1, 0
+                    };
+                    var sf2 = SKColorFilter.CreateColorMatrix(satMatrix);
+                    combinedColorFilter = combinedColorFilter != null ? SKColorFilter.CreateCompose(combinedColorFilter, sf2) : sf2;
                     break;
 
                 case EffectType.Grayscale:
@@ -80,20 +99,36 @@ public static class EffectsProcessor
                     break;
 
                 case EffectType.Cinematic:
-                    // Teal & orange cinematic tone curve matrix
+                    // Subtle warmth and teal shadow curve
                     var cineMatrix = new float[]
                     {
-                        1.15f * intensity + (1 - intensity), 0, 0, 0, 10 * intensity,
-                        0, 1.0f, 0, 0, 0,
-                        0, 0, 0.85f * intensity + (1 - intensity), 0, 15 * intensity,
-                        0, 0, 0, 1, 0
+                        1.05f, 0,     0,     0,  5 * intensity,
+                        0,     1.0f,  0,     0,  0,
+                        0,     0,     0.95f, 0,  8 * intensity,
+                        0,     0,     0,     1,  0
                     };
                     var cinf = SKColorFilter.CreateColorMatrix(cineMatrix);
                     combinedColorFilter = combinedColorFilter != null ? SKColorFilter.CreateCompose(combinedColorFilter, cinf) : cinf;
                     break;
 
+                case EffectType.Glow:
+                case EffectType.Exposure:
+                case EffectType.Temperature:
+                case EffectType.Sharpen:
+                    // Subtle color warmth
+                    var warmMatrix = new float[]
+                    {
+                        1.0f + 0.08f * intensity, 0, 0, 0, 0,
+                        0, 1.0f + 0.04f * intensity, 0, 0, 0,
+                        0, 0, 1.0f - 0.04f * intensity, 0, 0,
+                        0, 0, 0, 1, 0
+                    };
+                    var wf = SKColorFilter.CreateColorMatrix(warmMatrix);
+                    combinedColorFilter = combinedColorFilter != null ? SKColorFilter.CreateCompose(combinedColorFilter, wf) : wf;
+                    break;
+
                 case EffectType.Blur:
-                    float blurSigma = intensity * 15.0f;
+                    float blurSigma = intensity * 10.0f;
                     combinedImageFilter = SKImageFilter.CreateBlur(blurSigma, blurSigma);
                     break;
             }

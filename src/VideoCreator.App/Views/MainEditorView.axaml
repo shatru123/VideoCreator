@@ -74,8 +74,12 @@
                                                         <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss}'}" FontSize="10" Foreground="#64748B"/>
                                                     </StackPanel>
-                                                    <Button Grid.Column="2" Content="+ Insert" Background="#1E293B" Foreground="#60A5FA" Padding="8,4" CornerRadius="4" FontSize="11"
-                                                            Click="OnAddLibraryAssetClicked"/>
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                                        <Button Content="+ Insert" Background="#1E293B" Foreground="#60A5FA" Padding="8,4" CornerRadius="4" FontSize="11"
+                                                                Click="OnAddLibraryAssetClicked"/>
+                                                        <Button Content="🗑" Background="#1E293B" Foreground="#EF4444" Padding="6,4" CornerRadius="4" FontSize="11"
+                                                                Click="OnRemoveAssetClicked"/>
+                                                    </StackPanel>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -97,7 +101,8 @@
                                                         <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss}'}" FontSize="10" Foreground="#64748B"/>
                                                     </StackPanel>
-                                                    <Button Grid.Column="2" Content="Active" Background="#1E293B" Foreground="#10B981" Padding="8,4" CornerRadius="4" FontSize="11"/>
+                                                    <Button Grid.Column="2" Content="🗑" Background="#1E293B" Foreground="#EF4444" Padding="6,4" CornerRadius="4" FontSize="11"
+                                                            Click="OnRemoveAssetClicked"/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>

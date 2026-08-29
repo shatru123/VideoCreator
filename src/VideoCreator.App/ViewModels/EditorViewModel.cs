@@ -37,6 +37,7 @@ public partial class EditorViewModel : ViewModelBase
     private readonly ITimelineService _timelineService;
     private readonly IMediaEngine _mediaEngine;
     private readonly IPreviewRenderer _previewRenderer;
+    private readonly IAudioPlayerService _audioPlayer;
     private readonly Action _openExportModal;
     private readonly DispatcherTimer _playbackTimer;
 
@@ -115,19 +116,22 @@ public partial class EditorViewModel : ViewModelBase
     public ICommand ChangeAspectCommand { get; }
     public ICommand SetActiveTabCommand { get; }
     public ICommand ApplyTemplateCommand { get; }
+    public ICommand RemoveAssetCommand { get; }
 
     public EditorViewModel(
         IProjectService projectService,
         ITimelineService timelineService,
         IMediaEngine mediaEngine,
         IPreviewRenderer previewRenderer,
-        Action openExportModal)
+        Action openExportModal,
+        IAudioPlayerService? audioPlayer = null)
     {
         _projectService = projectService;
         _timelineService = timelineService;
         _mediaEngine = mediaEngine;
         _previewRenderer = previewRenderer;
         _openExportModal = openExportModal;
+        _audioPlayer = audioPlayer ?? new AudioPlayerService();
 
         _currentProject = _projectService.CurrentProject;
 
@@ -148,6 +152,7 @@ public partial class EditorViewModel : ViewModelBase
         ChangeAspectCommand = new RelayCommand<AspectRatio>(ChangeAspectRatio);
         SetActiveTabCommand = new RelayCommand<string>(tab => ActiveLibraryTab = tab ?? "Photos");
         ApplyTemplateCommand = new RelayCommand<Template>(ApplyTemplateToProject);
+        RemoveAssetCommand = new RelayCommand<Asset>(RemoveAsset);
 
         _playbackTimer = new DispatcherTimer
         {
@@ -157,6 +162,7 @@ public partial class EditorViewModel : ViewModelBase
 
         _projectService.ProjectChanged += (s, proj) =>
         {
+            _audioPlayer.Stop();
             CurrentProject = proj;
             CurrentTime = TimeSpan.Zero;
             SelectedClip = null;
@@ -245,11 +251,28 @@ public partial class EditorViewModel : ViewModelBase
         {
             if (CurrentTime >= CurrentProject.Timeline.TotalDuration)
                 CurrentTime = TimeSpan.Zero;
+
+            StartAudioPlayback();
             _playbackTimer.Start();
         }
         else
         {
             _playbackTimer.Stop();
+            _audioPlayer.Stop();
+        }
+    }
+
+    private void StartAudioPlayback()
+    {
+        var audioTrack = CurrentProject.Timeline.Tracks.FirstOrDefault(t => t.Type == TrackType.Audio && !t.IsMuted);
+        if (audioTrack != null)
+        {
+            var audioClip = audioTrack.Clips.OfType<AudioClip>().FirstOrDefault(c => CurrentTime >= c.StartTime && CurrentTime < c.EndTime);
+            if (audioClip != null)
+            {
+                TimeSpan offset = CurrentTime - audioClip.StartTime;
+                _audioPlayer.Play(audioClip.SourceFilePath, offset, audioClip.AudioSettings.Volume);
+            }
         }
     }
 
@@ -263,6 +286,7 @@ public partial class EditorViewModel : ViewModelBase
             CurrentTime = CurrentProject.Timeline.TotalDuration;
             IsPlaying = false;
             _playbackTimer.Stop();
+            _audioPlayer.Stop();
         }
         else
         {
@@ -279,6 +303,15 @@ public partial class EditorViewModel : ViewModelBase
         CurrentTime = time;
         CurrentProject.Timeline.PlayheadPosition = time;
         OnPropertyChanged(nameof(TimecodeDisplay));
+
+        if (IsPlaying)
+        {
+            StartAudioPlayback();
+        }
+        else
+        {
+            _audioPlayer.Stop();
+        }
     }
 
     public void SelectClip(Clip? clip)
@@ -311,11 +344,40 @@ public partial class EditorViewModel : ViewModelBase
         }
     }
 
+    public void RemoveAsset(Asset? asset)
+    {
+        if (asset == null) return;
+
+        // Remove from assets list
+        CurrentProject.Assets.Remove(asset);
+
+        // Remove clips referencing this asset
+        foreach (var track in CurrentProject.Timeline.Tracks)
+        {
+            var matchingClips = track.Clips.Where(c => (c as ImageClip)?.SourceFilePath == asset.FilePath || (c as AudioClip)?.SourceFilePath == asset.FilePath).ToList();
+            foreach (var clip in matchingClips)
+            {
+                track.Clips.Remove(clip);
+            }
+
+            // Compact remaining clips on track
+            TimeSpan currentStart = TimeSpan.Zero;
+            foreach (var clip in track.Clips)
+            {
+                clip.StartTime = currentStart;
+                currentStart += clip.Duration;
+            }
+        }
+
+        SelectedClip = null;
+        RefreshLibrary();
+        NotifyAll();
+    }
+
     public void AddPhotoToTimeline(string? filePath)
     {
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
-        // Register in project assets if not present
         if (!CurrentProject.Assets.Any(a => a.FilePath == filePath))
         {
             CurrentProject.Assets.Add(new Asset
@@ -366,6 +428,7 @@ public partial class EditorViewModel : ViewModelBase
                 }
 
                 var audioTrack = CurrentProject.Timeline.GetOrCreateTrack(TrackType.Audio, "Audio Track");
+                audioTrack.Clips.Clear(); // Replace audio track with new music
                 var audioClip = new AudioClip(filePath, info.Duration > TimeSpan.Zero ? info.Duration : TimeSpan.FromSeconds(30))
                 {
                     StartTime = TimeSpan.Zero,
@@ -387,7 +450,7 @@ public partial class EditorViewModel : ViewModelBase
         var overlayTrack = CurrentProject.Timeline.GetOrCreateTrack(TrackType.Overlay, "Overlay Track");
         var textClip = new TextClip("Your Title Here", TimeSpan.FromSeconds(3.0))
         {
-            StartTime = CurrentTime // Add exactly at current playhead position
+            StartTime = CurrentTime
         };
         textClip.Transform.AnchorX = 0.5;
         textClip.Transform.AnchorY = 0.85;
