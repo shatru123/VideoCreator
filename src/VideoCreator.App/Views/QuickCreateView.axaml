@@ -49,8 +49,7 @@
                                                 Foreground="#EF4444"
                                                 Padding="4,0"
                                                 FontSize="11"
-                                                Command="{Binding #QuickCreateRoot.((vm:QuickCreateViewModel)DataContext).RemovePhotoCommand}"
-                                                CommandParameter="{Binding}"/>
+                                                Click="OnRemovePhotoClicked"/>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

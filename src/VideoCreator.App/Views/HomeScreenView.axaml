@@ -130,8 +130,7 @@
                                             Padding="12,6"
                                             Margin="0,6,0,0"
                                             CornerRadius="6"
-                                            Command="{Binding #HomeScreenRoot.((vm:HomeViewModel)DataContext).OpenRecentProjectCommand}"
-                                            CommandParameter="{Binding}"/>
+                                            Click="OnOpenRecentProjectClicked"/>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>

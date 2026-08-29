@@ -63,4 +63,12 @@ public partial class QuickCreateView : UserControl
             vm.SetMusic(selected.Path.LocalPath);
         }
     }
+
+    private void OnRemovePhotoClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is PhotoItem item && DataContext is QuickCreateViewModel vm)
+        {
+            vm.RemovePhotoCommand.Execute(item);
+        }
+    }
 }

@@ -53,4 +53,12 @@ public partial class MainEditorView : UserControl
             vm.AddPhotoToTimeline(file.Path.LocalPath);
         }
     }
+
+    private void OnAddLibraryAssetClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is VideoCreator.Core.Models.Asset asset && DataContext is EditorViewModel vm)
+        {
+            vm.AddPhotoToTimeline(asset.FilePath);
+        }
+    }
 }

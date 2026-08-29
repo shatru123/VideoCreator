@@ -71,8 +71,7 @@
                                                     <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss}'}" FontSize="10" Foreground="#64748B"/>
                                                 </StackPanel>
                                                 <Button Grid.Column="2" Content="+" Background="#1E293B" Foreground="#60A5FA" Padding="8,2" CornerRadius="4"
-                                                        Command="{Binding #EditorRoot.((vm:EditorViewModel)DataContext).AddPhotoToTimelineCommand}"
-                                                        CommandParameter="{Binding FilePath}"/>
+                                                        Click="OnAddLibraryAssetClicked"/>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
