@@ -107,6 +107,14 @@ public static class PhotoMotionEngine
         matrix = SKMatrix.Concat(matrix, SKMatrix.CreateScale(scale, scale));
         matrix = SKMatrix.Concat(SKMatrix.CreateTranslation(centerX, centerY), matrix);
 
+        if (customTransform.FlipX || customTransform.FlipY)
+        {
+            float flipScaleX = customTransform.FlipX ? -1.0f : 1.0f;
+            float flipScaleY = customTransform.FlipY ? -1.0f : 1.0f;
+            var flipMatrix = SKMatrix.CreateScale(flipScaleX, flipScaleY, canvasWidth * 0.5f, canvasHeight * 0.5f);
+            matrix = SKMatrix.Concat(flipMatrix, matrix);
+        }
+
         if (Math.Abs(customTransform.RotationDegrees) > 0.01)
         {
             var rotMatrix = SKMatrix.CreateRotationDegrees((float)customTransform.RotationDegrees, canvasWidth * 0.5f, canvasHeight * 0.5f);

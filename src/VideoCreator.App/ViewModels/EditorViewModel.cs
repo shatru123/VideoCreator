@@ -117,6 +117,10 @@ public partial class EditorViewModel : ViewModelBase
     public ICommand SetActiveTabCommand { get; }
     public ICommand ApplyTemplateCommand { get; }
     public ICommand RemoveAssetCommand { get; }
+    public ICommand RotateSelectedClipCommand { get; }
+    public ICommand FlipHorizontalSelectedClipCommand { get; }
+    public ICommand FlipVerticalSelectedClipCommand { get; }
+    public ICommand ResetTransformSelectedClipCommand { get; }
 
     public EditorViewModel(
         IProjectService projectService,
@@ -153,6 +157,10 @@ public partial class EditorViewModel : ViewModelBase
         SetActiveTabCommand = new RelayCommand<string>(tab => ActiveLibraryTab = tab ?? "Photos");
         ApplyTemplateCommand = new RelayCommand<Template>(ApplyTemplateToProject);
         RemoveAssetCommand = new RelayCommand<Asset>(RemoveAsset);
+        RotateSelectedClipCommand = new RelayCommand<string>(dir => RotateSelectedClip(dir == "left" ? -90 : 90));
+        FlipHorizontalSelectedClipCommand = new RelayCommand(FlipHorizontalSelectedClip);
+        FlipVerticalSelectedClipCommand = new RelayCommand(FlipVerticalSelectedClip);
+        ResetTransformSelectedClipCommand = new RelayCommand(ResetTransformSelectedClip);
 
         _playbackTimer = new DispatcherTimer
         {
@@ -510,6 +518,51 @@ public partial class EditorViewModel : ViewModelBase
         CurrentProject.Canvas.ApplyAspectRatio(template.RecommendedAspectRatio);
         _previewRenderer.InvalidateCache();
         NotifyAll();
+    }
+
+    public void RotateSelectedClip(double deltaDegrees)
+    {
+        if (SelectedClip != null)
+        {
+            SelectedClip.Transform.RotationDegrees = (SelectedClip.Transform.RotationDegrees + deltaDegrees) % 360.0;
+            if (SelectedClip.Transform.RotationDegrees < -180.0) SelectedClip.Transform.RotationDegrees += 360.0;
+            if (SelectedClip.Transform.RotationDegrees > 180.0) SelectedClip.Transform.RotationDegrees -= 360.0;
+            NotifyAll();
+        }
+    }
+
+    public void FlipHorizontalSelectedClip()
+    {
+        if (SelectedClip != null)
+        {
+            SelectedClip.Transform.ToggleFlipX();
+            NotifyAll();
+        }
+    }
+
+    public void FlipVerticalSelectedClip()
+    {
+        if (SelectedClip != null)
+        {
+            SelectedClip.Transform.ToggleFlipY();
+            NotifyAll();
+        }
+    }
+
+    public void ResetTransformSelectedClip()
+    {
+        if (SelectedClip != null)
+        {
+            SelectedClip.Transform.RotationDegrees = 0.0;
+            SelectedClip.Transform.FlipX = false;
+            SelectedClip.Transform.FlipY = false;
+            SelectedClip.Transform.ScaleX = 1.0;
+            SelectedClip.Transform.ScaleY = 1.0;
+            SelectedClip.Transform.PositionX = 0.0;
+            SelectedClip.Transform.PositionY = 0.0;
+            SelectedClip.Transform.Opacity = 1.0;
+            NotifyAll();
+        }
     }
 
     public void ChangeAspectRatio(AspectRatio ratio)

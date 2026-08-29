@@ -262,7 +262,37 @@
 
                         <!-- Inspector Panel: PHOTO CLIP -->
                         <StackPanel Spacing="12" IsVisible="{Binding IsImageClipSelected}">
-                            <TextBlock Text="📸 Photo Properties &amp; Motion" FontSize="12" FontWeight="Bold" Foreground="#38BDF8"/>
+                            <TextBlock Text="📸 Photo Properties &amp; Transforms" FontSize="12" FontWeight="Bold" Foreground="#38BDF8"/>
+
+                            <!-- Quick Rotate & Flip Toolbar -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Rotate &amp; Flip" FontSize="11" Foreground="#94A3B8"/>
+                                <Grid ColumnDefinitions="*,*,*,*,*">
+                                    <Button Grid.Column="0" Command="{Binding RotateSelectedClipCommand}" CommandParameter="left" Content="↺ -90°" Background="#161B26" Foreground="#CBD5E1" Padding="2,6" Margin="0,0,3,0" CornerRadius="6" FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                    <Button Grid.Column="1" Command="{Binding RotateSelectedClipCommand}" CommandParameter="right" Content="↻ +90°" Background="#161B26" Foreground="#CBD5E1" Padding="2,6" Margin="0,0,3,0" CornerRadius="6" FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                    <Button Grid.Column="2" Command="{Binding FlipHorizontalSelectedClipCommand}" Content="⇄ Flip H" Background="#161B26" Foreground="#CBD5E1" Padding="2,6" Margin="0,0,3,0" CornerRadius="6" FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                    <Button Grid.Column="3" Command="{Binding FlipVerticalSelectedClipCommand}" Content="⇅ Flip V" Background="#161B26" Foreground="#CBD5E1" Padding="2,6" Margin="0,0,3,0" CornerRadius="6" FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                    <Button Grid.Column="4" Command="{Binding ResetTransformSelectedClipCommand}" Content="⟲ Reset" Background="#1E2433" Foreground="#94A3B8" Padding="2,6" CornerRadius="6" FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Rotation Angle Slider -->
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Rotation Angle" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedImageClip.Transform.RotationDegrees, StringFormat='{}{0:F0}°'}" FontSize="11" Foreground="#64748B"/>
+                                </Grid>
+                                <Slider Minimum="-180" Maximum="180" Value="{Binding SelectedImageClip.Transform.RotationDegrees}"/>
+                            </StackPanel>
+
+                            <!-- Scale / Zoom Slider -->
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Scale / Zoom" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedImageClip.Transform.ScaleX, StringFormat='{}{0:F2}x'}" FontSize="11" Foreground="#64748B"/>
+                                </Grid>
+                                <Slider Minimum="0.5" Maximum="2.5" Value="{Binding SelectedImageClip.Transform.ScaleX}"/>
+                            </StackPanel>
 
                             <!-- Motion Preset -->
                             <StackPanel Spacing="4">

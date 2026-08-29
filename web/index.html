@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VideoCreator — Web Video Creation Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;600;700;800;900&family=Montserrat:wght@700&family=Playfair+Display:wght@700&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/app.css">
+</head>
+<body>
+  <!-- Top App Global Header -->
+  <header class="app-header">
+    <div class="logo-group">
+      <span style="font-size: 20px;">🎬</span>
+      <span class="logo-text">VideoCreator</span>
+      <span class="badge">Web Studio</span>
+    </div>
+
+    <div class="nav-tabs">
+      <button id="nav-home" class="nav-btn active">🏠 Home</button>
+      <button id="nav-wizard" class="nav-btn">⚡ Quick Create</button>
+      <button id="nav-editor" class="nav-btn">🎞 Studio Editor</button>
+    </div>
+
+    <div class="header-actions">
+      <button id="btn-new-project" class="btn btn-secondary btn-sm">+ New</button>
+      <button id="btn-open-project" class="btn btn-secondary btn-sm">📂 Open (.vcproj)</button>
+    </div>
+  </header>
+
+  <!-- Screens Container -->
+  <main class="screen-container">
+
+    <!-- Screen 1: Home View -->
+    <section id="screen-home" class="screen home-screen active">
+      <div class="hero-banner">
+        <div class="hero-content">
+          <span class="badge" style="background:#3730A3; color:#C7D2FE;">Cross-Platform AI-Assisted Creator</span>
+          <h1>Create Stunning Videos in Seconds</h1>
+          <p>Drop your photos and favorite music, choose an Instagram Reel or Cinematic style, and export high-definition video directly in your browser.</p>
+          <div class="hero-cta">
+            <button id="hero-quick-create" class="btn btn-primary">⚡ Start Quick Create</button>
+            <button id="hero-blank-project" class="btn btn-secondary">🎞 Open Studio Editor</button>
+          </div>
+        </div>
+        <div class="hero-features">
+          <div>✨ <strong>13 Dynamic Templates</strong> (Reels, TikTok, Vlogs)</div>
+          <div>📸 <strong>Smart Ken Burns Motion</strong> &amp; Blur Background</div>
+          <div>🔄 <strong>Rotate, Flip &amp; Image Editing</strong> Controls</div>
+          <div>🎵 <strong>Web Audio Beat Sync</strong> &amp; Waveforms</div>
+          <div>🚀 <strong>Zero Server Uploads</strong> — 100% Client-Side Privacy</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span>Featured Instagram Reel &amp; Video Styles</span>
+        </div>
+        <div id="home-templates-grid" class="templates-grid"></div>
+      </div>
+    </section>
+
+    <!-- Screen 2: Quick Create Wizard -->
+    <section id="screen-wizard" class="screen wizard-screen">
+      <div class="wizard-step-card">
+        <div class="step-header">
+          <span class="step-number">1</span>
+          <span>Upload Photos</span>
+        </div>
+        <div id="photo-dropzone" class="dropzone">
+          <div style="font-size:32px; margin-bottom:8px;">📸</div>
+          <div style="font-weight:600; margin-bottom:4px;">Drag &amp; drop photos here, or click to browse</div>
+          <div style="font-size:11px; color:var(--text-muted);">Supports JPG, PNG, WEBP, HEIC</div>
+          <input type="file" id="photo-file-input" multiple accept="image/*" style="display:none;">
+        </div>
+        <div id="wizard-photo-chips" class="uploaded-chips"></div>
+      </div>
+
+      <div class="wizard-step-card">
+        <div class="step-header">
+          <span class="step-number">2</span>
+          <span>Upload Background Music (Optional)</span>
+        </div>
+        <div id="music-dropzone" class="dropzone" style="padding:20px;">
+          <div style="font-size:24px; margin-bottom:6px;">🎵</div>
+          <div id="wizard-music-name" style="font-size:12px; font-weight:600;">Click to select an audio file (MP3, WAV, AAC, M4A)</div>
+          <input type="file" id="music-file-input" accept="audio/*" style="display:none;">
+        </div>
+      </div>
+
+      <div class="wizard-step-card">
+        <div class="step-header">
+          <span class="step-number">3</span>
+          <span>Choose Style &amp; Aspect Ratio</span>
+        </div>
+        <div class="control-row">
+          <div style="flex:1;">
+            <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Video Style Template</label>
+            <select id="wizard-template-select" class="input-control"></select>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:12px;">
+        <button id="wizard-generate-btn" class="btn btn-primary" style="padding:10px 24px; font-size:14px;">⚡ Generate Video Timeline &rarr;</button>
+      </div>
+    </section>
+
+    <!-- Screen 3: Studio Editor -->
+    <section id="screen-editor" class="screen editor-screen">
+      <!-- Editor Top Toolbar -->
+      <div class="editor-toolbar">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <input type="text" id="editor-project-title" value="My Web Video" style="font-weight:700; width:180px; padding:4px 8px; font-size:12px; background:#161B26; border:1px solid #242C3E; border-radius:6px; color:#FFF;">
+          <select id="editor-aspect-select" style="width:90px; padding:4px 6px; font-size:11px;">
+            <option value="9:16">9:16 Reel</option>
+            <option value="16:9">16:9 Wide</option>
+            <option value="1:1">1:1 Square</option>
+          </select>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button id="btn-save-project" class="btn btn-secondary btn-sm">💾 Save Project</button>
+          <button id="btn-open-export" class="btn btn-primary btn-sm">🚀 Export Video</button>
+        </div>
+      </div>
+
+      <!-- Editor 3-Pane Body -->
+      <div class="editor-body">
+        <!-- Left Panel: Media Library -->
+        <aside class="left-panel">
+          <div class="panel-tabs">
+            <button class="panel-tab-btn active" data-tab="photos">📷 Photos</button>
+            <button class="panel-tab-btn" data-tab="music">🎵 Music</button>
+            <button class="panel-tab-btn" data-tab="text">🔤 Text</button>
+          </div>
+
+          <!-- Tab 1: Photos -->
+          <div id="tab-content-photos" class="panel-tab-content">
+            <button id="editor-add-photo-btn" class="btn btn-primary btn-sm" style="width:100%;">+ Add Photos</button>
+            <input type="file" id="editor-photo-input" multiple accept="image/*" style="display:none;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-top:6px;">Project Photos</div>
+            <div id="library-photos-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+          </div>
+
+          <!-- Tab 2: Music -->
+          <div id="tab-content-music" class="panel-tab-content" style="display:none;">
+            <button id="editor-add-music-btn" class="btn btn-primary btn-sm" style="width:100%; background:#059669;">+ Upload Music</button>
+            <input type="file" id="editor-music-input" accept="audio/*" style="display:none;">
+          </div>
+
+          <!-- Tab 3: Text Presets -->
+          <div id="tab-content-text" class="panel-tab-content" style="display:none;">
+            <button id="editor-add-text-btn" class="btn btn-primary btn-sm" style="width:100%; background:#7C3AED;">➕ Add Text at Playhead</button>
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-top:6px;">Animated Title Presets</div>
+            <div id="text-presets-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+          </div>
+        </aside>
+
+        <!-- Center Viewport: Video Canvas -->
+        <section class="center-viewport">
+          <div id="canvas-wrapper" class="canvas-wrapper">
+            <canvas id="videoCanvas" width="1080" height="1920"></canvas>
+          </div>
+
+          <!-- Floating Transport Bar -->
+          <div class="transport-bar">
+            <button id="btn-step-backward" class="btn btn-secondary btn-sm">⏮</button>
+            <button id="btn-play-pause" class="btn btn-primary btn-sm" style="min-width:76px;">▶ Play</button>
+            <button id="btn-step-forward" class="btn btn-secondary btn-sm">⏭</button>
+            <div id="editor-timecode" class="timecode">00:00.00</div>
+          </div>
+        </section>
+
+        <!-- Right Panel: Contextual Inspector -->
+        <aside class="right-panel">
+          <div style="font-size:13px; font-weight:700; color:var(--accent-blue);">Clip Inspector</div>
+
+          <!-- Inspector: Photo Clip Options (Rotate, Flip, Scale, Motion, Crop, Filters) -->
+          <div id="inspector-photo-group" class="inspector-group" style="display:none;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-secondary);">Image Transforms &amp; Rotation</div>
+
+            <!-- Quick Rotate & Flip Toolbar -->
+            <div class="control-row">
+              <button id="btn-rotate-left" class="btn btn-secondary btn-sm" style="flex:1;" title="Rotate 90° Counter-Clockwise">↺ -90°</button>
+              <button id="btn-rotate-right" class="btn btn-secondary btn-sm" style="flex:1;" title="Rotate 90° Clockwise">↻ +90°</button>
+              <button id="btn-flip-h" class="btn btn-secondary btn-sm" style="flex:1;" title="Flip Horizontal">⇄ Flip H</button>
+              <button id="btn-flip-v" class="btn btn-secondary btn-sm" style="flex:1;" title="Flip Vertical">⇅ Flip V</button>
+              <button id="btn-reset-transform" class="btn btn-secondary btn-sm" style="flex:1;" title="Reset">⟲</button>
+            </div>
+
+            <!-- Rotation Angle Slider -->
+            <div class="inspector-group">
+              <div class="control-row">
+                <label>Rotation Angle</label>
+                <span id="val-rotation-angle" style="font-size:11px; color:var(--text-muted);">0°</span>
+              </div>
+              <input type="range" id="input-rotation-angle" min="-180" max="180" value="0">
+            </div>
+
+            <!-- Scale / Zoom Slider -->
+            <div class="inspector-group">
+              <div class="control-row">
+                <label>Scale / Zoom</label>
+                <span id="val-scale-zoom" style="font-size:11px; color:var(--text-muted);">1.00x</span>
+              </div>
+              <input type="range" id="input-scale-zoom" min="0.5" max="2.5" step="0.05" value="1.0">
+            </div>
+
+            <!-- Opacity Slider -->
+            <div class="inspector-group">
+              <div class="control-row">
+                <label>Opacity</label>
+                <span id="val-opacity" style="font-size:11px; color:var(--text-muted);">100%</span>
+              </div>
+              <input type="range" id="input-opacity" min="0" max="100" value="100">
+            </div>
+
+            <!-- Motion Preset -->
+            <div class="inspector-group">
+              <label>Photo Motion (Ken Burns)</label>
+              <select id="select-clip-motion" class="input-control">
+                <option value="None">None (Static)</option>
+                <option value="ZoomIn">Zoom In</option>
+                <option value="ZoomOut">Zoom Out</option>
+                <option value="PanLeft">Pan Left</option>
+                <option value="PanRight">Pan Right</option>
+                <option value="PanUp">Pan Up</option>
+                <option value="PanDown">Pan Down</option>
+                <option value="Diagonal">Diagonal</option>
+                <option value="Cinematic">Cinematic</option>
+              </select>
+            </div>
+
+            <!-- Crop Mode -->
+            <div class="inspector-group">
+              <label>Crop Mode</label>
+              <select id="select-clip-crop" class="input-control">
+                <option value="BlurBackground">Blur Background (Smart)</option>
+                <option value="Fit">Fit (Letterbox)</option>
+                <option value="Fill">Fill (Zoom Crop)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Inspector: Text Clip Options (Typography, Animations) -->
+          <div id="inspector-text-group" class="inspector-group" style="display:none;">
+            <div style="font-size:11px; font-weight:700; color:#A78BFA;">Text &amp; Typography</div>
+
+            <div class="inspector-group">
+              <label>Text Content</label>
+              <input type="text" id="input-text-content">
+            </div>
+
+            <div class="inspector-group">
+              <label>Font Family</label>
+              <select id="select-text-font" class="input-control">
+                <option value="Inter">Inter (Modern Clean)</option>
+                <option value="Impact">Impact (Viral Reels)</option>
+                <option value="Cinzel">Cinzel (Luxury Serif)</option>
+                <option value="Playfair Display">Playfair Display (Chic Vlog)</option>
+                <option value="Georgia">Georgia (Editorial)</option>
+                <option value="Courier New">Courier New (Typewriter)</option>
+                <option value="Arial">Arial (Standard Sans)</option>
+                <option value="Montserrat">Montserrat (Bold)</option>
+                <option value="Roboto">Roboto</option>
+              </select>
+            </div>
+
+            <div class="inspector-group">
+              <div class="control-row">
+                <label>Font Size</label>
+                <span id="val-text-size" style="font-size:11px; color:var(--text-muted);">48px</span>
+              </div>
+              <input type="range" id="input-text-size" min="16" max="120" value="48">
+            </div>
+
+            <div class="inspector-group">
+              <label>Text Color (Hex)</label>
+              <input type="text" id="input-text-color" value="#FFFFFF">
+            </div>
+
+            <div class="inspector-group">
+              <label>Background Pill (Hex / RGBA)</label>
+              <input type="text" id="input-text-bg" value="rgba(0,0,0,0.6)">
+            </div>
+
+            <div class="inspector-group">
+              <label>Entry Animation</label>
+              <select id="select-text-anim" class="input-control">
+                <option value="Slide">Slide In</option>
+                <option value="Pop">Pop</option>
+                <option value="Fade">Fade</option>
+                <option value="Zoom">Zoom</option>
+                <option value="Typewriter">Typewriter</option>
+                <option value="None">None</option>
+              </select>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Bottom Timeline Area -->
+      <footer class="timeline-container">
+        <div class="timeline-ruler"></div>
+        <div id="timeline-tracks-area" class="timeline-tracks-area">
+          <div id="timeline-playhead" class="playhead"></div>
+          <div id="timeline-video-track" class="timeline-track"></div>
+          <div id="timeline-text-track" class="timeline-track" style="height:36px;"></div>
+          <div id="timeline-audio-track" class="timeline-track" style="height:32px;"></div>
+        </div>
+      </footer>
+    </section>
+
+  </main>
+
+  <!-- Export Video Modal -->
+  <div id="export-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:16px; font-weight:700;">🚀 Export Video</h3>
+        <button id="btn-close-export" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--text-secondary); line-height:1.4;">
+        Renders and encodes your complete video composition in-browser at 1080p Full HD.
+      </p>
+
+      <div id="export-progress-group" style="display:none;">
+        <div class="progress-bar-track">
+          <div id="export-progress-fill" class="progress-bar-fill"></div>
+        </div>
+        <div id="export-progress-label" style="font-size:11px; color:var(--text-secondary); margin-top:6px; text-align:center;">Rendering: 0%</div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button id="btn-start-export" class="btn btn-primary" style="width:100%; padding:10px;">Render &amp; Download Video</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="scripts/templates.js"></script>
+  <script src="scripts/engine.js"></script>
+  <script src="scripts/audio.js"></script>
+  <script src="scripts/export.js"></script>
+  <script src="scripts/app.js"></script>
+</body>
+</html>
