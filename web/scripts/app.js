@@ -1,13 +1,17 @@
 (function () {
   'use strict';
 
-  // --- Project State ---
+  // --- Project State & Undo/Redo Stack ---
   let currentProject = createDefaultProject('My Web Video', '9:16');
   let currentTime = 0.0;
   let isPlaying = false;
   let selectedClip = null;
   let animFrameId = null;
   let lastPlayTimestamp = 0;
+  let timelineZoom = 80; // px per second
+
+  const undoStack = [];
+  const redoStack = [];
 
   // --- Services ---
   const canvas = document.getElementById('videoCanvas');
@@ -36,12 +40,39 @@
     setupEditor();
     setupInspector();
     setupExportModal();
+    setupAutosaveAndRecovery();
 
     // Default to Home Screen
     switchScreen('home');
 
     // Canvas render loop
     startRenderLoop();
+  }
+
+  function pushHistory() {
+    undoStack.push(JSON.stringify(currentProject));
+    if (undoStack.length > 30) undoStack.shift();
+    redoStack.length = 0;
+  }
+
+  function undo() {
+    if (undoStack.length === 0) return;
+    redoStack.push(JSON.stringify(currentProject));
+    const previous = undoStack.pop();
+    currentProject = JSON.parse(previous);
+    refreshTimeline();
+    refreshMediaLibrary();
+    updateInspector();
+  }
+
+  function redo() {
+    if (redoStack.length === 0) return;
+    undoStack.push(JSON.stringify(currentProject));
+    const next = redoStack.pop();
+    currentProject = JSON.parse(next);
+    refreshTimeline();
+    refreshMediaLibrary();
+    updateInspector();
   }
 
   // --- Screen Switching ---
@@ -58,6 +89,8 @@
       refreshMediaLibrary();
       updateInspector();
       resizeCanvasWrapper();
+    } else if (screenName === 'home') {
+      renderRecentProjects();
     }
   }
 
@@ -66,7 +99,11 @@
     navBtns.wizard.addEventListener('click', () => switchScreen('wizard'));
     navBtns.editor.addEventListener('click', () => switchScreen('editor'));
 
+    document.getElementById('btn-undo').addEventListener('click', undo);
+    document.getElementById('btn-redo').addEventListener('click', redo);
+
     document.getElementById('btn-new-project').addEventListener('click', () => {
+      pushHistory();
       currentProject = createDefaultProject('New Video Story', '9:16');
       currentTime = 0;
       selectedClip = null;
@@ -83,10 +120,12 @@
         const reader = new FileReader();
         reader.onload = (evt) => {
           try {
+            pushHistory();
             const data = JSON.parse(evt.target.result);
             currentProject = convertVcprojToWeb(data);
             currentTime = 0;
             selectedClip = null;
+            saveRecentProject(currentProject);
             switchScreen('editor');
           } catch (err) {
             alert('Failed to load project file.');
@@ -98,7 +137,7 @@
     });
   }
 
-  // --- Home Screen ---
+  // --- Home Screen & Recent Projects ---
   function setupHomeScreen() {
     document.getElementById('hero-quick-create').addEventListener('click', () => switchScreen('wizard'));
     document.getElementById('hero-blank-project').addEventListener('click', () => {
@@ -127,6 +166,93 @@
       });
       container.appendChild(card);
     });
+
+    renderRecentProjects();
+  }
+
+  function renderRecentProjects() {
+    const recentSection = document.getElementById('home-recent-section');
+    const recentGrid = document.getElementById('home-recent-grid');
+    const recentList = getRecentProjects();
+
+    if (recentList.length === 0) {
+      recentSection.style.display = 'none';
+      return;
+    }
+
+    recentSection.style.display = 'block';
+    recentGrid.innerHTML = '';
+
+    recentList.forEach((proj, idx) => {
+      const card = document.createElement('div');
+      card.className = 'template-card';
+      card.innerHTML = `
+        <div style="font-size:24px;">🎞</div>
+        <h4>${proj.metadata?.name || 'Untitled Project'}</h4>
+        <p>Saved on ${new Date(proj.savedAt || Date.now()).toLocaleDateString()}</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto;">
+          <span class="badge">${proj.canvas?.width > proj.canvas?.height ? '16:9' : '9:16'}</span>
+          <button class="btn btn-primary btn-sm">Open</button>
+        </div>
+      `;
+      card.addEventListener('click', () => {
+        pushHistory();
+        currentProject = proj;
+        currentTime = 0;
+        selectedClip = null;
+        switchScreen('editor');
+      });
+      recentGrid.appendChild(card);
+    });
+  }
+
+  function getRecentProjects() {
+    try {
+      const raw = localStorage.getItem('vc_recent_projects');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveRecentProject(proj) {
+    try {
+      const list = getRecentProjects().filter(p => p.metadata?.name !== proj.metadata?.name);
+      proj.savedAt = Date.now();
+      list.unshift(proj);
+      if (list.length > 6) list.pop();
+      localStorage.setItem('vc_recent_projects', JSON.stringify(list));
+    } catch { }
+  }
+
+  function setupAutosaveAndRecovery() {
+    // Check for recovery snapshot
+    try {
+      const snapshot = localStorage.getItem('vc_autosave_snapshot');
+      if (snapshot) {
+        const banner = document.getElementById('recovery-banner');
+        banner.style.display = 'flex';
+
+        document.getElementById('btn-restore-recovery').addEventListener('click', () => {
+          pushHistory();
+          currentProject = JSON.parse(snapshot);
+          banner.style.display = 'none';
+          switchScreen('editor');
+        });
+
+        document.getElementById('btn-discard-recovery').addEventListener('click', () => {
+          localStorage.removeItem('vc_autosave_snapshot');
+          banner.style.display = 'none';
+        });
+      }
+    } catch { }
+
+    // Periodic Autosave every 10s
+    setInterval(() => {
+      try {
+        localStorage.setItem('vc_autosave_snapshot', JSON.stringify(currentProject));
+      } catch { }
+    }, 10000);
   }
 
   // --- Quick Create Wizard ---
@@ -210,6 +336,11 @@
       wizardState.template = window.VideoCreatorTemplates.find(t => t.id === e.target.value);
     });
 
+    // Aspect Ratio
+    document.getElementById('wizard-aspect-select').addEventListener('change', (e) => {
+      wizardState.aspectRatio = e.target.value;
+    });
+
     // Generate Button
     document.getElementById('wizard-generate-btn').addEventListener('click', () => {
       if (wizardState.photos.length === 0) {
@@ -217,8 +348,10 @@
         return;
       }
 
+      pushHistory();
       currentProject = generateProjectFromWizard(wizardState);
       currentTime = 0;
+      saveRecentProject(currentProject);
       switchScreen('editor');
     });
   }
@@ -228,6 +361,16 @@
     document.getElementById('btn-play-pause').addEventListener('click', togglePlayPause);
     document.getElementById('btn-step-backward').addEventListener('click', () => seek(currentTime - 1 / 30));
     document.getElementById('btn-step-forward').addEventListener('click', () => seek(currentTime + 1 / 30));
+
+    // Split and Delete
+    document.getElementById('btn-split-clip').addEventListener('click', splitSelectedClip);
+    document.getElementById('btn-delete-clip').addEventListener('click', deleteSelectedClip);
+
+    // Zoom Slider
+    document.getElementById('input-timeline-zoom').addEventListener('input', (e) => {
+      timelineZoom = parseInt(e.target.value);
+      refreshTimeline();
+    });
 
     // Global Hotkeys
     window.addEventListener('keydown', (e) => {
@@ -239,11 +382,14 @@
         splitSelectedClip();
       } else if (e.code === 'Delete' || e.code === 'Backspace') {
         deleteSelectedClip();
+      } else if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) {
+        if (e.shiftKey) redo(); else undo();
       }
     });
 
     // Aspect ratio switcher in toolbar
     document.getElementById('editor-aspect-select').addEventListener('change', (e) => {
+      pushHistory();
       setAspectRatio(e.target.value);
     });
 
@@ -255,6 +401,7 @@
 
     // Save project JSON (.vcproj)
     document.getElementById('btn-save-project').addEventListener('click', () => {
+      saveRecentProject(currentProject);
       const json = JSON.stringify(currentProject, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const a = document.createElement('a');
@@ -283,6 +430,7 @@
     const editorPhotoInput = document.getElementById('editor-photo-input');
     document.getElementById('editor-add-photo-btn').addEventListener('click', () => editorPhotoInput.click());
     editorPhotoInput.addEventListener('change', (e) => {
+      pushHistory();
       Array.from(e.target.files).forEach(file => {
         const url = URL.createObjectURL(file);
         currentProject.assets.push({ id: `asset-${Date.now()}-${Math.random()}`, name: file.name, type: 'image', source: url });
@@ -296,27 +444,32 @@
     editorMusicInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
+        pushHistory();
         const url = URL.createObjectURL(file);
         currentProject.assets.push({ id: `asset-audio-${Date.now()}`, name: file.name, type: 'audio', source: url });
-        setProjectMusic(url);
+        setProjectMusic(url, file.name);
         refreshMediaLibrary();
       }
     });
 
     // Add Text Overlay at playhead
     document.getElementById('editor-add-text-btn').addEventListener('click', () => {
+      pushHistory();
       addTextAtPlayhead('New Title', 'Inter', 48, '#FFFFFF');
     });
 
     // Text Presets list
     setupTextPresets();
 
+    // Styles Library in Editor
+    setupStylesLibrary();
+
     // Timeline Scrubbing
     const timelineArea = document.getElementById('timeline-tracks-area');
     timelineArea.addEventListener('click', (e) => {
       const rect = timelineArea.getBoundingClientRect();
       const clickX = e.clientX - rect.left + timelineArea.scrollLeft;
-      const sec = Math.max(0, clickX / 80); // 80px per second
+      const sec = Math.max(0, clickX / timelineZoom);
       seek(sec);
     });
   }
@@ -340,10 +493,46 @@
         <button class="btn btn-secondary btn-sm">+ Insert</button>
       `;
       div.querySelector('button').addEventListener('click', () => {
+        pushHistory();
         addTextAtPlayhead(p.name.replace(/[^a-zA-Z0-9 ]/g, '').trim(), p.font, p.size, p.color, p.bg, p.anim);
       });
       container.appendChild(div);
     });
+  }
+
+  function setupStylesLibrary() {
+    const container = document.getElementById('library-styles-list');
+    container.innerHTML = '';
+    window.VideoCreatorTemplates.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'asset-item';
+      div.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <span style="font-size:12px; font-weight:700;">${t.name}</span>
+          <span style="font-size:10px; color:var(--text-muted);">${t.category}</span>
+        </div>
+        <button class="btn btn-secondary btn-sm">Apply</button>
+      `;
+      div.querySelector('button').addEventListener('click', () => {
+        pushHistory();
+        applyStyleToAllClips(t);
+      });
+      container.appendChild(div);
+    });
+  }
+
+  function applyStyleToAllClips(template) {
+    const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+    if (videoTrack) {
+      videoTrack.clips.forEach(c => {
+        c.motion = template.motion || 'ZoomIn';
+        c.cropMode = template.cropMode || 'BlurBackground';
+        c.transitionOut = { type: template.transition || 'CrossDissolve', duration: template.transitionDuration || 0.5 };
+        c.effects = template.effects || [];
+      });
+    }
+    refreshTimeline();
+    updateInspector();
   }
 
   function addTextAtPlayhead(text, fontFamily = 'Inter', fontSize = 48, colorHex = '#FFFFFF', bgHex = 'rgba(0,0,0,0.6)', entryAnim = 'Slide') {
@@ -376,7 +565,7 @@
     updateInspector();
   }
 
-  function setProjectMusic(url) {
+  function setProjectMusic(url, trackName = 'Music Track') {
     audio.loadAudio(url);
     let audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
     if (!audioTrack) {
@@ -385,6 +574,7 @@
     }
     audioTrack.clips = [{
       id: `clip-audio-${Date.now()}`,
+      name: trackName,
       startTime: 0,
       duration: currentProject.timeline.totalDuration || 10.0,
       source: url,
@@ -393,34 +583,42 @@
     refreshTimeline();
   }
 
-  // --- Inspector Setup (Rotate, Flip, Scale, Pan, Filters, Typography) ---
+  // --- Inspector Setup ---
   function setupInspector() {
-    // Rotate Buttons
     document.getElementById('btn-rotate-left').addEventListener('click', () => rotateSelectedClip(-90));
     document.getElementById('btn-rotate-right').addEventListener('click', () => rotateSelectedClip(90));
     document.getElementById('btn-flip-h').addEventListener('click', () => toggleFlipSelectedClip('flipX'));
     document.getElementById('btn-flip-v').addEventListener('click', () => toggleFlipSelectedClip('flipY'));
     document.getElementById('btn-reset-transform').addEventListener('click', () => resetSelectedClipTransform());
 
-    // Sliders
     bindSlider('input-rotation-angle', 'val-rotation-angle', (val) => {
       if (selectedClip && selectedClip.transform) selectedClip.transform.rotationDegrees = parseFloat(val);
-    });
+    }, '°');
 
     bindSlider('input-scale-zoom', 'val-scale-zoom', (val) => {
       if (selectedClip && selectedClip.transform) selectedClip.transform.scaleX = parseFloat(val);
     }, 'x');
 
+    bindSlider('input-clip-duration', 'val-clip-duration', (val) => {
+      if (selectedClip) {
+        selectedClip.duration = parseFloat(val);
+        recalculateDuration();
+        refreshTimeline();
+      }
+    }, 's');
+
     bindSlider('input-opacity', 'val-opacity', (val) => {
       if (selectedClip && selectedClip.transform) selectedClip.transform.opacity = parseFloat(val) / 100;
     }, '%');
 
-    // Motion & Crop select
     document.getElementById('select-clip-motion').addEventListener('change', (e) => {
       if (selectedClip) selectedClip.motion = e.target.value;
     });
     document.getElementById('select-clip-crop').addEventListener('change', (e) => {
       if (selectedClip) selectedClip.cropMode = e.target.value;
+    });
+    document.getElementById('select-clip-trans').addEventListener('change', (e) => {
+      if (selectedClip) selectedClip.transitionOut = { type: e.target.value, duration: 0.6 };
     });
 
     // Text Inspector Inputs
@@ -450,6 +648,14 @@
     document.getElementById('select-text-anim').addEventListener('change', (e) => {
       if (selectedClip && selectedClip.overlay) selectedClip.overlay.entryAnimation = e.target.value;
     });
+
+    // Audio Volume
+    bindSlider('input-audio-vol', 'val-audio-vol', (val) => {
+      if (selectedClip && selectedClip.volume !== undefined) {
+        selectedClip.volume = parseFloat(val) / 100;
+        audio.setVolume(selectedClip.volume);
+      }
+    }, '%');
   }
 
   function bindSlider(sliderId, valId, onChange, unit = '') {
@@ -463,6 +669,7 @@
 
   function rotateSelectedClip(delta) {
     if (!selectedClip || !selectedClip.transform) return;
+    pushHistory();
     selectedClip.transform.rotationDegrees = ((selectedClip.transform.rotationDegrees || 0) + delta) % 360;
     if (selectedClip.transform.rotationDegrees < -180) selectedClip.transform.rotationDegrees += 360;
     if (selectedClip.transform.rotationDegrees > 180) selectedClip.transform.rotationDegrees -= 360;
@@ -471,12 +678,14 @@
 
   function toggleFlipSelectedClip(prop) {
     if (!selectedClip || !selectedClip.transform) return;
+    pushHistory();
     selectedClip.transform[prop] = !selectedClip.transform[prop];
     updateInspector();
   }
 
   function resetSelectedClipTransform() {
     if (!selectedClip || !selectedClip.transform) return;
+    pushHistory();
     selectedClip.transform.rotationDegrees = 0;
     selectedClip.transform.flipX = false;
     selectedClip.transform.flipY = false;
@@ -490,33 +699,33 @@
   function updateInspector() {
     const photoGroup = document.getElementById('inspector-photo-group');
     const textGroup = document.getElementById('inspector-text-group');
+    const audioGroup = document.getElementById('inspector-audio-group');
 
-    if (!selectedClip) {
-      photoGroup.style.display = 'none';
-      textGroup.style.display = 'none';
-      return;
-    }
+    photoGroup.style.display = 'none';
+    textGroup.style.display = 'none';
+    audioGroup.style.display = 'none';
 
-    if (selectedClip.source) {
+    if (!selectedClip) return;
+
+    if (selectedClip.source && !selectedClip.volume) {
       // Photo Clip
       photoGroup.style.display = 'flex';
-      textGroup.style.display = 'none';
-
       const tf = selectedClip.transform || { rotationDegrees: 0, scaleX: 1.0, opacity: 1.0 };
       document.getElementById('input-rotation-angle').value = tf.rotationDegrees || 0;
       document.getElementById('val-rotation-angle').textContent = `${Math.round(tf.rotationDegrees || 0)}°`;
       document.getElementById('input-scale-zoom').value = tf.scaleX || 1.0;
       document.getElementById('val-scale-zoom').textContent = `${(tf.scaleX || 1.0).toFixed(2)}x`;
+      document.getElementById('input-clip-duration').value = selectedClip.duration || 3.0;
+      document.getElementById('val-clip-duration').textContent = `${(selectedClip.duration || 3.0).toFixed(1)}s`;
       document.getElementById('input-opacity').value = Math.round((tf.opacity !== undefined ? tf.opacity : 1.0) * 100);
       document.getElementById('val-opacity').textContent = `${Math.round((tf.opacity !== undefined ? tf.opacity : 1.0) * 100)}%`;
 
       document.getElementById('select-clip-motion').value = selectedClip.motion || 'ZoomIn';
       document.getElementById('select-clip-crop').value = selectedClip.cropMode || 'BlurBackground';
+      document.getElementById('select-clip-trans').value = selectedClip.transitionOut?.type || 'CrossDissolve';
     } else if (selectedClip.overlay) {
       // Text Clip
-      photoGroup.style.display = 'none';
       textGroup.style.display = 'flex';
-
       const ov = selectedClip.overlay;
       document.getElementById('input-text-content').value = ov.text || '';
       document.getElementById('select-text-font').value = ov.fontFamily || 'Inter';
@@ -525,6 +734,11 @@
       document.getElementById('input-text-color').value = ov.colorHex || '#FFFFFF';
       document.getElementById('input-text-bg').value = ov.backgroundColorHex || 'rgba(0,0,0,0.6)';
       document.getElementById('select-text-anim').value = ov.entryAnimation || 'Slide';
+    } else if (selectedClip.volume !== undefined) {
+      // Audio Clip
+      audioGroup.style.display = 'flex';
+      document.getElementById('input-audio-vol').value = Math.round(selectedClip.volume * 100);
+      document.getElementById('val-audio-vol').textContent = `${Math.round(selectedClip.volume * 100)}%`;
     }
   }
 
@@ -572,10 +786,9 @@
 
   function updatePlayheadPosition() {
     const playhead = document.getElementById('timeline-playhead');
-    const px = currentTime * 80; // 80px per sec
+    const px = currentTime * timelineZoom;
     playhead.style.left = `${px + 10}px`;
 
-    // Timecode
     const mins = Math.floor(currentTime / 60);
     const secs = Math.floor(currentTime % 60);
     const ms = Math.floor((currentTime % 1) * 100);
@@ -623,8 +836,8 @@
   function createClipBlock(clip, className, label) {
     const div = document.createElement('div');
     div.className = `clip-block ${className} ${selectedClip === clip ? 'selected' : ''}`;
-    div.style.left = `${clip.startTime * 80}px`;
-    div.style.width = `${clip.duration * 80}px`;
+    div.style.left = `${clip.startTime * timelineZoom}px`;
+    div.style.width = `${clip.duration * timelineZoom}px`;
     div.textContent = label;
 
     div.addEventListener('click', (e) => {
@@ -643,6 +856,7 @@
     const splitPoint = currentTime - selectedClip.startTime;
     if (splitPoint <= 0.2 || splitPoint >= selectedClip.duration - 0.2) return;
 
+    pushHistory();
     const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
     const idx = videoTrack.clips.indexOf(selectedClip);
     if (idx === -1) return;
@@ -666,6 +880,7 @@
 
   function deleteSelectedClip() {
     if (!selectedClip) return;
+    pushHistory();
     currentProject.timeline.tracks.forEach(t => {
       const idx = t.clips.indexOf(selectedClip);
       if (idx !== -1) {
@@ -734,6 +949,7 @@
   }
 
   function refreshMediaLibrary() {
+    // Photos
     const photoList = document.getElementById('library-photos-list');
     photoList.innerHTML = '';
     currentProject.assets.filter(a => a.type === 'image').forEach(asset => {
@@ -747,12 +963,31 @@
         </div>
       `;
       item.querySelector('.insert-btn').addEventListener('click', () => {
+        pushHistory();
         insertPhotoAtPlayhead(asset.source);
       });
       item.querySelector('.remove-btn').addEventListener('click', () => {
+        pushHistory();
         removeAsset(asset);
       });
       photoList.appendChild(item);
+    });
+
+    // Music
+    const musicList = document.getElementById('library-music-list');
+    musicList.innerHTML = '';
+    currentProject.assets.filter(a => a.type === 'audio').forEach(asset => {
+      const item = document.createElement('div');
+      item.className = 'asset-item';
+      item.innerHTML = `
+        <span class="asset-name">🎵 ${asset.name}</span>
+        <button class="btn btn-danger btn-sm remove-btn">🗑</button>
+      `;
+      item.querySelector('.remove-btn').addEventListener('click', () => {
+        pushHistory();
+        removeAsset(asset);
+      });
+      musicList.appendChild(item);
     });
   }
 
@@ -782,8 +1017,12 @@
   function removeAsset(asset) {
     currentProject.assets = currentProject.assets.filter(a => a !== asset);
     const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
-    if (videoTrack) {
+    if (videoTrack && asset.type === 'image') {
       videoTrack.clips = videoTrack.clips.filter(c => c.source !== asset.source);
+    }
+    const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+    if (audioTrack && asset.type === 'audio') {
+      audioTrack.clips = audioTrack.clips.filter(c => c.source !== asset.source);
     }
     recalculateDuration();
     refreshMediaLibrary();
@@ -917,7 +1156,6 @@
   }
 
   function convertVcprojToWeb(vcproj) {
-    // Schema adapter
     return {
       metadata: { name: vcproj.Metadata?.Name || 'Imported Project' },
       canvas: {

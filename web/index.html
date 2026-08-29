@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VideoCreator — Web Video Creation Studio</title>
+  <title>VideoCreator — Professional Web Video Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;600;700;800;900&family=Montserrat:wght@700&family=Playfair+Display:wght@700&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
@@ -25,10 +25,24 @@
     </div>
 
     <div class="header-actions">
+      <button id="btn-undo" class="btn btn-secondary btn-sm" title="Undo (Ctrl+Z)">↶</button>
+      <button id="btn-redo" class="btn btn-secondary btn-sm" title="Redo (Ctrl+Shift+Z)">↷</button>
       <button id="btn-new-project" class="btn btn-secondary btn-sm">+ New</button>
       <button id="btn-open-project" class="btn btn-secondary btn-sm">📂 Open (.vcproj)</button>
     </div>
   </header>
+
+  <!-- Autosave Recovery Banner -->
+  <div id="recovery-banner" style="display:none; background:#1E1B4B; padding:10px 20px; border-bottom:1px solid #3730A3; justify-content:space-between; align-items:center;">
+    <div style="font-size:12px; font-weight:600; color:#EEF2FF; display:flex; align-items:center; gap:8px;">
+      <span>⚠️</span>
+      <span>Found an autosaved recovery version of your project from a previous session.</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button id="btn-restore-recovery" class="btn btn-primary btn-sm">Restore Project</button>
+      <button id="btn-discard-recovery" class="btn btn-secondary btn-sm">Discard</button>
+    </div>
+  </div>
 
   <!-- Screens Container -->
   <main class="screen-container">
@@ -39,7 +53,7 @@
         <div class="hero-content">
           <span class="badge" style="background:#3730A3; color:#C7D2FE;">Cross-Platform AI-Assisted Creator</span>
           <h1>Create Stunning Videos in Seconds</h1>
-          <p>Drop your photos and favorite music, choose an Instagram Reel or Cinematic style, and export high-definition video directly in your browser.</p>
+          <p>Drop your photos and favorite music, choose an Instagram Reel or Cinematic style, customize transforms, and export high-definition video directly in your browser.</p>
           <div class="hero-cta">
             <button id="hero-quick-create" class="btn btn-primary">⚡ Start Quick Create</button>
             <button id="hero-blank-project" class="btn btn-secondary">🎞 Open Studio Editor</button>
@@ -54,6 +68,15 @@
         </div>
       </div>
 
+      <!-- Recent Projects Section -->
+      <div id="home-recent-section" style="display:none;">
+        <div class="section-title">
+          <span>Recent Projects</span>
+        </div>
+        <div id="home-recent-grid" class="templates-grid" style="margin-bottom:24px;"></div>
+      </div>
+
+      <!-- Template Styles Gallery -->
       <div>
         <div class="section-title">
           <span>Featured Instagram Reel &amp; Video Styles</span>
@@ -100,6 +123,14 @@
             <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Video Style Template</label>
             <select id="wizard-template-select" class="input-control"></select>
           </div>
+          <div style="width:140px;">
+            <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Aspect Ratio</label>
+            <select id="wizard-aspect-select" class="input-control">
+              <option value="9:16">9:16 Reel/TikTok</option>
+              <option value="16:9">16:9 Landscape</option>
+              <option value="1:1">1:1 Square Feed</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -122,7 +153,7 @@
         </div>
 
         <div style="display:flex; align-items:center; gap:8px;">
-          <button id="btn-save-project" class="btn btn-secondary btn-sm">💾 Save Project</button>
+          <button id="btn-save-project" class="btn btn-secondary btn-sm">💾 Save (.vcproj)</button>
           <button id="btn-open-export" class="btn btn-primary btn-sm">🚀 Export Video</button>
         </div>
       </div>
@@ -135,6 +166,7 @@
             <button class="panel-tab-btn active" data-tab="photos">📷 Photos</button>
             <button class="panel-tab-btn" data-tab="music">🎵 Music</button>
             <button class="panel-tab-btn" data-tab="text">🔤 Text</button>
+            <button class="panel-tab-btn" data-tab="styles">✨ Styles</button>
           </div>
 
           <!-- Tab 1: Photos -->
@@ -149,6 +181,8 @@
           <div id="tab-content-music" class="panel-tab-content" style="display:none;">
             <button id="editor-add-music-btn" class="btn btn-primary btn-sm" style="width:100%; background:#059669;">+ Upload Music</button>
             <input type="file" id="editor-music-input" accept="audio/*" style="display:none;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-top:6px;">Audio Tracks</div>
+            <div id="library-music-list" style="display:flex; flex-direction:column; gap:6px;"></div>
           </div>
 
           <!-- Tab 3: Text Presets -->
@@ -156,6 +190,12 @@
             <button id="editor-add-text-btn" class="btn btn-primary btn-sm" style="width:100%; background:#7C3AED;">➕ Add Text at Playhead</button>
             <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-top:6px;">Animated Title Presets</div>
             <div id="text-presets-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+          </div>
+
+          <!-- Tab 4: Reel Styles & Templates -->
+          <div id="tab-content-styles" class="panel-tab-content" style="display:none;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted);">Apply Style to Project</div>
+            <div id="library-styles-list" style="display:flex; flex-direction:column; gap:8px;"></div>
           </div>
         </aside>
 
@@ -167,9 +207,9 @@
 
           <!-- Floating Transport Bar -->
           <div class="transport-bar">
-            <button id="btn-step-backward" class="btn btn-secondary btn-sm">⏮</button>
+            <button id="btn-step-backward" class="btn btn-secondary btn-sm" title="Step Back 1 Frame">⏮</button>
             <button id="btn-play-pause" class="btn btn-primary btn-sm" style="min-width:76px;">▶ Play</button>
-            <button id="btn-step-forward" class="btn btn-secondary btn-sm">⏭</button>
+            <button id="btn-step-forward" class="btn btn-secondary btn-sm" title="Step Forward 1 Frame">⏭</button>
             <div id="editor-timecode" class="timecode">00:00.00</div>
           </div>
         </section>
@@ -178,7 +218,7 @@
         <aside class="right-panel">
           <div style="font-size:13px; font-weight:700; color:var(--accent-blue);">Clip Inspector</div>
 
-          <!-- Inspector: Photo Clip Options (Rotate, Flip, Scale, Motion, Crop, Filters) -->
+          <!-- Inspector: Photo Clip Options -->
           <div id="inspector-photo-group" class="inspector-group" style="display:none;">
             <div style="font-size:11px; font-weight:700; color:var(--text-secondary);">Image Transforms &amp; Rotation</div>
 
@@ -207,6 +247,15 @@
                 <span id="val-scale-zoom" style="font-size:11px; color:var(--text-muted);">1.00x</span>
               </div>
               <input type="range" id="input-scale-zoom" min="0.5" max="2.5" step="0.05" value="1.0">
+            </div>
+
+            <!-- Duration Slider -->
+            <div class="inspector-group">
+              <div class="control-row">
+                <label>Clip Duration</label>
+                <span id="val-clip-duration" style="font-size:11px; color:var(--text-muted);">3.0s</span>
+              </div>
+              <input type="range" id="input-clip-duration" min="0.5" max="15.0" step="0.1" value="3.0">
             </div>
 
             <!-- Opacity Slider -->
@@ -243,9 +292,23 @@
                 <option value="Fill">Fill (Zoom Crop)</option>
               </select>
             </div>
+
+            <!-- Transition Out -->
+            <div class="inspector-group">
+              <label>Transition Out</label>
+              <select id="select-clip-trans" class="input-control">
+                <option value="None">None (Hard Cut)</option>
+                <option value="CrossDissolve">Cross Dissolve</option>
+                <option value="Fade">Fade</option>
+                <option value="SlideLeft">Slide Left</option>
+                <option value="SlideUp">Slide Up</option>
+                <option value="Push">Push</option>
+                <option value="Zoom">Zoom</option>
+              </select>
+            </div>
           </div>
 
-          <!-- Inspector: Text Clip Options (Typography, Animations) -->
+          <!-- Inspector: Text Clip Options -->
           <div id="inspector-text-group" class="inspector-group" style="display:none;">
             <div style="font-size:11px; font-weight:700; color:#A78BFA;">Text &amp; Typography</div>
 
@@ -299,11 +362,35 @@
               </select>
             </div>
           </div>
+
+          <!-- Inspector: Audio Clip Options -->
+          <div id="inspector-audio-group" class="inspector-group" style="display:none;">
+            <div style="font-size:11px; font-weight:700; color:#34D399;">Audio &amp; Volume</div>
+            <div class="inspector-group">
+              <div class="control-row">
+                <label>Track Volume</label>
+                <span id="val-audio-vol" style="font-size:11px; color:var(--text-muted);">100%</span>
+              </div>
+              <input type="range" id="input-audio-vol" min="0" max="200" value="100">
+            </div>
+          </div>
         </aside>
       </div>
 
       <!-- Bottom Timeline Area -->
       <footer class="timeline-container">
+        <!-- Timeline Control Toolbar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 16px; background:#11151E; border-bottom:1px solid var(--border-color);">
+          <div style="display:flex; gap:8px;">
+            <button id="btn-split-clip" class="btn btn-secondary btn-sm" title="Split Clip at Playhead (S)">✂️ Split</button>
+            <button id="btn-delete-clip" class="btn btn-danger btn-sm" title="Delete Selected Clip (Del)">🗑 Delete</button>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:11px; color:var(--text-muted);">Zoom</span>
+            <input type="range" id="input-timeline-zoom" min="40" max="200" value="80" style="width:90px;">
+          </div>
+        </div>
+
         <div class="timeline-ruler"></div>
         <div id="timeline-tracks-area" class="timeline-tracks-area">
           <div id="timeline-playhead" class="playhead"></div>
@@ -320,12 +407,20 @@
   <div id="export-modal" class="modal-overlay">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="font-size:16px; font-weight:700;">🚀 Export Video</h3>
+        <h3 style="font-size:16px; font-weight:700;">🚀 Universal Video Export</h3>
         <button id="btn-close-export" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer;">✕</button>
       </div>
       <p style="font-size:12px; color:var(--text-secondary); line-height:1.4;">
-        Renders and encodes your complete video composition in-browser at 1080p Full HD.
+        Renders your video directly in your browser with universal player compatibility (playable on QuickTime, Windows Media Player, iPhone, Android, and Web).
       </p>
+
+      <div class="inspector-group">
+        <label>Export Resolution</label>
+        <select id="export-resolution-select" class="input-control">
+          <option value="1080">1080p Full HD (Crisp Quality)</option>
+          <option value="720">720p HD (Faster Render)</option>
+        </select>
+      </div>
 
       <div id="export-progress-group" style="display:none;">
         <div class="progress-bar-track">

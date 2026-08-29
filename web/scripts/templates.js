@@ -126,17 +126,45 @@ window.VideoCreatorTemplates = [
     effects: []
   },
   {
-    id: "template-festival",
-    name: "Festival of Lights / Utsav",
-    description: "Warm festive brilliance with glowing highlights and rhythmic transitions.",
-    category: "Festival",
-    aspectRatio: "9:16",
-    photoDuration: 3.0,
+    id: "template-wedding",
+    name: "Wedding & Love Story",
+    description: "Romantic slow dissolves, warm gentle zoom, and classic elegant typography.",
+    category: "Romance",
+    aspectRatio: "16:9",
+    photoDuration: 4.0,
     motion: "ZoomIn",
     transition: "CrossDissolve",
-    transitionDuration: 0.7,
+    transitionDuration: 1.0,
     cropMode: "BlurBackground",
-    suggestedTitle: "Festive Blessings 🪔",
-    effects: [{ type: "Glow", intensity: 0.5 }]
+    suggestedTitle: "Our Love Story 💍",
+    effects: [{ type: "Glow", intensity: 0.3 }]
+  },
+  {
+    id: "template-promo",
+    name: "Modern Commercial / Promo",
+    description: "High-impact fast cuts, snappy push transitions, and bold high-contrast text overlays.",
+    category: "Business",
+    aspectRatio: "16:9",
+    photoDuration: 2.0,
+    motion: "PanRight",
+    transition: "Push",
+    transitionDuration: 0.4,
+    cropMode: "Fill",
+    suggestedTitle: "INTRODUCING THE FUTURE",
+    effects: [{ type: "Contrast", intensity: 0.2 }]
+  },
+  {
+    id: "template-retro",
+    name: "Retro 90s Film",
+    description: "Classic sepia & film grain tone grading, subtle vignettes, and typewriter typography.",
+    category: "Vintage",
+    aspectRatio: "1:1",
+    photoDuration: 3.5,
+    motion: "PanLeft",
+    transition: "Fade",
+    transitionDuration: 0.6,
+    cropMode: "BlurBackground",
+    suggestedTitle: "Vintage Memories",
+    effects: [{ type: "Vintage", intensity: 0.5 }, { type: "Vignette", intensity: 0.4 }]
   }
 ];
