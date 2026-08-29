@@ -23,19 +23,55 @@ class VideoWebExporter {
       }
     }
 
-    // Determine supported mime type
-    let mimeType = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'video/webm; codecs=vp9,opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm';
+    // Determine universal supported mime type (H.264 / AAC preferred for universal playback)
+    const mimeTypes = [
+      'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
+      'video/mp4; codecs="avc1.42E01E"',
+      'video/mp4',
+      'video/webm; codecs=vp9,opus',
+      'video/webm; codecs=vp8,opus',
+      'video/webm'
+    ];
+
+    let selectedMime = 'video/webm';
+    for (const mime of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(mime)) {
+        selectedMime = mime;
+        break;
       }
     }
 
     const stream = exportCanvas.captureStream(fps);
+
+    // Audio Muxing
+    const audioTrack = project.timeline.tracks.find(t => t.type === 'audio');
+    let audioElem = null;
+    let actx = null;
+
+    if (audioTrack && audioTrack.clips.length > 0 && audioTrack.clips[0].source) {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          actx = new AudioContextClass();
+          const dest = actx.createMediaStreamDestination();
+          audioElem = new Audio();
+          audioElem.crossOrigin = 'anonymous';
+          audioElem.src = audioTrack.clips[0].source;
+          const srcNode = actx.createMediaElementSource(audioElem);
+          srcNode.connect(dest);
+
+          dest.stream.getAudioTracks().forEach(track => {
+            stream.addTrack(track);
+          });
+        }
+      } catch (e) {
+        console.warn('Audio capture stream fallback:', e);
+      }
+    }
+
     const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: mimeType,
-      videoBitsPerSecond: options.bitrate || 6000000
+      mimeType: selectedMime,
+      videoBitsPerSecond: options.bitrate || 8000000
     });
 
     const chunks = [];
@@ -47,9 +83,12 @@ class VideoWebExporter {
 
     return new Promise((resolve, reject) => {
       mediaRecorder.onstop = () => {
-        const isMp4 = mimeType.includes('mp4');
+        if (audioElem) audioElem.pause();
+        if (actx) actx.close();
+
+        const isMp4 = selectedMime.includes('mp4');
         const ext = isMp4 ? 'mp4' : 'webm';
-        const blob = new Blob(chunks, { type: mimeType });
+        const blob = new Blob(chunks, { type: selectedMime });
         const url = URL.createObjectURL(blob);
         resolve({ url, ext, blob });
       };
@@ -57,6 +96,10 @@ class VideoWebExporter {
       mediaRecorder.onerror = (err) => reject(err);
 
       mediaRecorder.start();
+      if (audioElem) {
+        audioElem.currentTime = 0;
+        audioElem.play().catch(() => {});
+      }
 
       let currentFrame = 0;
       const frameInterval = 1000 / fps;

@@ -87,6 +87,7 @@ public class FFmpegExportEngine : IExportEngine
                          $"-filter_complex \"[1:a]{audioFilter}[aout]\" " +
                          $"-map 0:v:0 -map \"[aout]\" " +
                          $"-c:v {options.VideoCodec} -profile:v high -level 4.1 -pix_fmt yuv420p -b:v {options.VideoBitrate} " +
+                         $"-g {fps * 2} -keyint_min {fps} -video_track_timescale 90000 " +
                          $"-colorspace bt709 -color_primaries bt709 -color_trc bt709 " +
                          $"-c:a {options.AudioCodec} -b:a {options.AudioBitrate} -ar 44100 -ac 2 " +
                          $"-movflags +faststart -t {totalDurStr} \"{options.OutputPath}\"";
@@ -97,6 +98,7 @@ public class FFmpegExportEngine : IExportEngine
             ffmpegArgs = $"-y -f rawvideo -vcodec rawvideo -pix_fmt rgba -s {width}x{height} -r {fps} -i - " +
                          $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 " +
                          $"-c:v {options.VideoCodec} -profile:v high -level 4.1 -pix_fmt yuv420p -b:v {options.VideoBitrate} " +
+                         $"-g {fps * 2} -keyint_min {fps} -video_track_timescale 90000 " +
                          $"-colorspace bt709 -color_primaries bt709 -color_trc bt709 " +
                          $"-c:a aac -b:a 128k -ar 44100 -ac 2 " +
                          $"-movflags +faststart -t {totalDurStr} \"{options.OutputPath}\"";
