@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using VideoCreator.Application.AutoCreation;
 using VideoCreator.Application.Export;
 using VideoCreator.Application.Services;
+using VideoCreator.Core.Enums;
 using VideoCreator.Infrastructure.Autosave;
 using VideoCreator.Media.Audio;
 using VideoCreator.Media.Services;
@@ -55,6 +56,7 @@ public partial class MainViewModel : ViewModelBase
     public ICommand NavigateToHomeCommand { get; }
     public ICommand NavigateToQuickCreateCommand { get; }
     public ICommand NavigateToEditorCommand { get; }
+    public ICommand CreateNewProjectCommand { get; }
     public ICommand RestoreRecoverySnapshotCommand { get; }
     public ICommand DiscardRecoverySnapshotCommand { get; }
 
@@ -79,12 +81,26 @@ public partial class MainViewModel : ViewModelBase
         NavigateToHomeCommand = new RelayCommand(() => SwitchScreen(AppScreen.Home));
         NavigateToQuickCreateCommand = new RelayCommand(() => SwitchScreen(AppScreen.QuickCreate));
         NavigateToEditorCommand = new RelayCommand(() => SwitchScreen(AppScreen.Editor));
+        CreateNewProjectCommand = new RelayCommand(CreateNewProject);
         RestoreRecoverySnapshotCommand = new AsyncRelayCommand(RestoreRecoverySnapshotAsync);
         DiscardRecoverySnapshotCommand = new AsyncRelayCommand(DiscardRecoverySnapshotAsync);
 
         SwitchScreen(AppScreen.Home);
         _autosaveService.StartAutosave(TimeSpan.FromSeconds(15));
         CheckForRecoverySnapshot();
+    }
+
+    public void CreateNewProject()
+    {
+        _projectService.CreateNewProject("New Video Story", AspectRatio.Ratio16x9);
+        SwitchScreen(AppScreen.Editor);
+    }
+
+    public async Task OpenProjectFromFileAsync(string filePath)
+    {
+        if (string.IsNullOrEmpty(filePath)) return;
+        await _projectService.LoadProjectAsync(filePath);
+        SwitchScreen(AppScreen.Editor);
     }
 
     public void SwitchScreen(AppScreen screen)

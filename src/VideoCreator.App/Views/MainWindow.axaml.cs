@@ -1,6 +1,9 @@
 using System;
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using VideoCreator.App.ViewModels;
 
 namespace VideoCreator.App.Views;
@@ -11,6 +14,34 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnGlobalKeyDown, handledEventsToo: false);
+    }
+
+    private async void OnOpenProjectFileClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Open VideoCreator Project",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("VideoCreator Project (*.vcproj)")
+                {
+                    Patterns = new[] { "*.vcproj", "*.json" }
+                },
+                new FilePickerFileType("All Files (*.*)")
+                {
+                    Patterns = new[] { "*.*" }
+                }
+            }
+        });
+
+        var selected = files.FirstOrDefault();
+        if (selected != null)
+        {
+            await vm.OpenProjectFromFileAsync(selected.Path.LocalPath);
+        }
     }
 
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)

@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using VideoCreator.Core.Enums;
 using VideoCreator.Core.Models;
@@ -13,6 +16,8 @@ public class ProjectService : IProjectService
     private Project _currentProject;
     private string? _currentFilePath;
     private bool _isDirty;
+    private readonly List<string> _recentProjects = new();
+    private readonly string _recentProjectsConfigPath;
 
     public Project CurrentProject
     {
@@ -43,11 +48,20 @@ public class ProjectService : IProjectService
         }
     }
 
+    public IReadOnlyList<string> RecentProjects => _recentProjects.AsReadOnly();
+
     public event EventHandler<Project>? ProjectChanged;
     public event EventHandler? DirtyStateChanged;
+    public event EventHandler? RecentProjectsChanged;
 
     public ProjectService()
     {
+        string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        string configDir = Path.Combine(appData, "VideoCreator");
+        Directory.CreateDirectory(configDir);
+        _recentProjectsConfigPath = Path.Combine(configDir, "recent_projects.json");
+
+        LoadRecentProjectsConfig();
         _currentProject = CreateNewProject();
     }
 
@@ -67,6 +81,7 @@ public class ProjectService : IProjectService
         string json = await File.ReadAllTextAsync(filePath);
         var project = _serializer.Deserialize(json);
         SetCurrentProject(project, filePath);
+        AddRecentProject(filePath);
         IsDirty = false;
         return project;
     }
@@ -84,6 +99,7 @@ public class ProjectService : IProjectService
 
         await File.WriteAllTextAsync(targetPath, json);
         _currentFilePath = targetPath;
+        AddRecentProject(targetPath);
         IsDirty = false;
     }
 
@@ -92,7 +108,55 @@ public class ProjectService : IProjectService
         _currentProject = project ?? throw new ArgumentNullException(nameof(project));
         _currentFilePath = filePath;
         _isDirty = false;
+        if (!string.IsNullOrEmpty(filePath))
+        {
+            AddRecentProject(filePath);
+        }
         ProjectChanged?.Invoke(this, _currentProject);
         DirtyStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void AddRecentProject(string filePath)
+    {
+        if (string.IsNullOrEmpty(filePath)) return;
+
+        _recentProjects.Remove(filePath);
+        _recentProjects.Insert(0, filePath);
+
+        if (_recentProjects.Count > 10)
+        {
+            _recentProjects.RemoveAt(_recentProjects.Count - 1);
+        }
+
+        SaveRecentProjectsConfig();
+        RecentProjectsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void LoadRecentProjectsConfig()
+    {
+        try
+        {
+            if (File.Exists(_recentProjectsConfigPath))
+            {
+                string json = File.ReadAllText(_recentProjectsConfigPath);
+                var items = JsonSerializer.Deserialize<List<string>>(json);
+                if (items != null)
+                {
+                    _recentProjects.Clear();
+                    _recentProjects.AddRange(items.Where(File.Exists));
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SaveRecentProjectsConfig()
+    {
+        try
+        {
+            string json = JsonSerializer.Serialize(_recentProjects);
+            File.WriteAllText(_recentProjectsConfigPath, json);
+        }
+        catch { }
     }
 }

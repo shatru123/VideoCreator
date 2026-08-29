@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using VideoCreator.Core.Enums;
 using VideoCreator.Core.Models;
@@ -10,12 +11,14 @@ public interface IProjectService
     Project CurrentProject { get; set; }
     string? CurrentFilePath { get; set; }
     bool IsDirty { get; set; }
-
     event EventHandler<Project>? ProjectChanged;
     event EventHandler? DirtyStateChanged;
+    event EventHandler? RecentProjectsChanged;
+    IReadOnlyList<string> RecentProjects { get; }
 
     Project CreateNewProject(string name = "Untitled Project", AspectRatio ratio = AspectRatio.Ratio16x9, int fps = 30);
     Task<Project> LoadProjectAsync(string filePath);
     Task SaveProjectAsync(string? filePath = null);
     void SetCurrentProject(Project project, string? filePath = null);
+    void AddRecentProject(string filePath);
 }

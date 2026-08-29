@@ -22,19 +22,21 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <TextBlock Text="🎬 VideoCreator" FontWeight="Black" FontSize="16" Foreground="#60A5FA"/>
                     <Border Background="#1E293B" CornerRadius="6" Padding="6,2">
-                        <TextBlock Text="v1.0" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
+                        <TextBlock Text="Studio" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
                     </Border>
                 </StackPanel>
 
                 <!-- Screen Switcher Tabs -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-                    <Button Command="{Binding NavigateToHomeCommand}" Content="🏠 Home" Background="#161B26" Foreground="#CBD5E1" Padding="14,6" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
-                    <Button Command="{Binding NavigateToQuickCreateCommand}" Content="⚡ Quick Create" Background="#161B26" Foreground="#CBD5E1" Padding="14,6" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
-                    <Button Command="{Binding NavigateToEditorCommand}" Content="🎞 Studio Editor" Background="#161B26" Foreground="#CBD5E1" Padding="14,6" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
+                    <Button Command="{Binding NavigateToHomeCommand}" Content="🏠 Home" Background="#161B26" Foreground="#CBD5E1" Padding="12,6" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
+                    <Button Command="{Binding NavigateToQuickCreateCommand}" Content="⚡ Quick Create" Background="#161B26" Foreground="#CBD5E1" Padding="12,6" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
+                    <Button Command="{Binding NavigateToEditorCommand}" Content="🎞 Studio Editor" Background="#161B26" Foreground="#CBD5E1" Padding="12,6" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <TextBlock Text="Cross-Platform .NET Media Engine" FontSize="11" Foreground="#475569" VerticalAlignment="Center"/>
+                <!-- Project Switcher & File Actions -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Command="{Binding CreateNewProjectCommand}" Content="+ New" Background="#1E293B" Foreground="#E2E8F0" Padding="10,6" CornerRadius="6" FontSize="11" FontWeight="SemiBold"/>
+                    <Button Click="OnOpenProjectFileClicked" Content="📂 Open (.vcproj)" Background="#1E293B" Foreground="#60A5FA" Padding="10,6" CornerRadius="6" FontSize="11" FontWeight="SemiBold"/>
                 </StackPanel>
             </Grid>
         </Border>

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -45,6 +47,8 @@ public partial class HomeViewModel : ViewModelBase
         StartQuickCreateCommand = new RelayCommand(_navigateToQuickCreate);
         OpenRecentProjectCommand = new RelayCommand<RecentProjectItem>(OpenRecentProject);
 
+        _projectService.RecentProjectsChanged += (s, e) => LoadRecentProjects();
+
         LoadTemplates();
         LoadRecentProjects();
     }
@@ -55,16 +59,26 @@ public partial class HomeViewModel : ViewModelBase
         _navigateToEditor();
     }
 
-    private void OpenRecentProject(RecentProjectItem? item)
+    public void OpenRecentProject(RecentProjectItem? item)
     {
-        if (item == null) return;
-        _projectService.LoadProjectAsync(item.FilePath).ContinueWith(t =>
+        if (item == null || string.IsNullOrEmpty(item.FilePath)) return;
+
+        if (File.Exists(item.FilePath))
         {
-            if (t.IsCompletedSuccessfully)
+            _projectService.LoadProjectAsync(item.FilePath).ContinueWith(t =>
             {
-                Avalonia.Threading.Dispatcher.UIThread.Post(_navigateToEditor);
-            }
-        });
+                if (t.IsCompletedSuccessfully)
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(_navigateToEditor);
+                }
+            });
+        }
+        else
+        {
+            // If dummy demo item, initialize new project with that name
+            _projectService.CreateNewProject(item.Name, item.AspectRatio);
+            _navigateToEditor();
+        }
     }
 
     private void LoadTemplates()
@@ -76,22 +90,40 @@ public partial class HomeViewModel : ViewModelBase
         }
     }
 
-    private void LoadRecentProjects()
+    public void LoadRecentProjects()
     {
         RecentProjects.Clear();
-        RecentProjects.Add(new RecentProjectItem
+
+        foreach (var path in _projectService.RecentProjects)
         {
-            Name = "Cinematic Vacation 2026",
-            FilePath = "vacation.vcproj",
-            AspectRatio = AspectRatio.Ratio16x9,
-            LastModified = DateTime.UtcNow.AddDays(-1)
-        });
-        RecentProjects.Add(new RecentProjectItem
+            if (File.Exists(path))
+            {
+                var fi = new FileInfo(path);
+                RecentProjects.Add(new RecentProjectItem
+                {
+                    Name = Path.GetFileNameWithoutExtension(path),
+                    FilePath = path,
+                    LastModified = fi.LastWriteTimeUtc
+                });
+            }
+        }
+
+        if (RecentProjects.Count == 0)
         {
-            Name = "Birthday Reel Highlights",
-            FilePath = "birthday.vcproj",
-            AspectRatio = AspectRatio.Ratio9x16,
-            LastModified = DateTime.UtcNow.AddDays(-3)
-        });
+            RecentProjects.Add(new RecentProjectItem
+            {
+                Name = "Cinematic Vacation 2026",
+                FilePath = "",
+                AspectRatio = AspectRatio.Ratio16x9,
+                LastModified = DateTime.UtcNow.AddDays(-1)
+            });
+            RecentProjects.Add(new RecentProjectItem
+            {
+                Name = "Viral Reel Highlights",
+                FilePath = "",
+                AspectRatio = AspectRatio.Ratio9x16,
+                LastModified = DateTime.UtcNow.AddDays(-3)
+            });
+        }
     }
 }
