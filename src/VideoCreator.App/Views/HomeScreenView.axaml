@@ -7,11 +7,16 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel MaxWidth="1100" Margin="40,30,40,40" Spacing="36">
             <!-- Hero Section -->
-            <Border Background="LinearGradient(45deg, #1E1B4B, #0F172A)"
-                    CornerRadius="16"
+            <Border CornerRadius="16"
                     Padding="48,40"
                     BorderBrush="#312E81"
                     BorderThickness="1">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0.0" Color="#1E1B4B"/>
+                        <GradientStop Offset="1.0" Color="#0F172A"/>
+                    </LinearGradientBrush>
+                </Border.Background>
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="16">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -49,7 +54,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <Border Grid.Column="1" Background="#00000040" CornerRadius="12" Padding="24" Margin="20,0,0,0" Width="260">
+                    <Border Grid.Column="1" Background="#40000000" CornerRadius="12" Padding="24" Margin="20,0,0,0" Width="260">
                         <StackPanel Spacing="12">
                             <TextBlock Text="⚡ Highlights" FontWeight="Bold" Foreground="#F8FAFC" FontSize="13"/>
                             <TextBlock Text="✓ Automatic Beat-Sync Timing" FontSize="12" Foreground="#CBD5E1"/>
