@@ -137,6 +137,20 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
+
+            <!-- Creator / Author Footer -->
+            <Border Background="#121620" CornerRadius="12" Padding="20,16" Margin="0,16,0,0" BorderBrush="#1E2638" BorderThickness="1">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="VideoCreator Studio" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
+                        <TextBlock Text="Created with ❤️ by Shatrughna Ambhore" FontSize="12" Foreground="#94A3B8"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                        <TextBlock Text="📧 ambhoreshtrughna@gmail.com" FontSize="12" Foreground="#60A5FA"/>
+                        <TextBlock Text="📞 +91 9604466334" FontSize="12" Foreground="#34D399"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
