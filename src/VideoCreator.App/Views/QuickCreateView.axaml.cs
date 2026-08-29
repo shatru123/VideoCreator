@@ -28,7 +28,13 @@ public partial class QuickCreateView : UserControl
             {
                 new FilePickerFileType("Images")
                 {
-                    Patterns = new[] { "*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp" }
+                    Patterns = new[] { "*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp", "*.heic", "*.JPG", "*.JPEG", "*.PNG" },
+                    MimeTypes = new[] { "image/*" },
+                    AppleUniformTypeIdentifiers = new[] { "public.image" }
+                },
+                new FilePickerFileType("All Files (*.*)")
+                {
+                    Patterns = new[] { "*.*" }
                 }
             }
         });
@@ -50,9 +56,15 @@ public partial class QuickCreateView : UserControl
             AllowMultiple = false,
             FileTypeFilter = new[]
             {
-                new FilePickerFileType("Audio Files")
+                new FilePickerFileType("Audio Files (*.mp3, *.wav, *.m4a, *.aac, *.flac, *.ogg)")
                 {
-                    Patterns = new[] { "*.mp3", "*.wav", "*.m4a", "*.aac", "*.flac" }
+                    Patterns = new[] { "*.mp3", "*.wav", "*.m4a", "*.aac", "*.flac", "*.ogg", "*.MP3", "*.WAV", "*.M4A" },
+                    MimeTypes = new[] { "audio/*" },
+                    AppleUniformTypeIdentifiers = new[] { "public.audio" }
+                },
+                new FilePickerFileType("All Files (*.*)")
+                {
+                    Patterns = new[] { "*.*" }
                 }
             }
         });

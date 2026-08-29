@@ -1,20 +1,22 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:VideoCreator.App.ViewModels"
-             xmlns:controls="using:VideoCreator.App.Controls"
-             xmlns:clips="using:VideoCreator.Core.Models.Clips"
-             xmlns:enums="using:VideoCreator.Core.Enums"
+             xmlns:vm="clr-namespace:VideoCreator.App.ViewModels;assembly=VideoCreator.App"
+             xmlns:controls="clr-namespace:VideoCreator.App.Controls;assembly=VideoCreator.App"
+             xmlns:converters="clr-namespace:VideoCreator.App.Converters;assembly=VideoCreator.App"
+             xmlns:clips="clr-namespace:VideoCreator.Core.Models.Clips;assembly=VideoCreator.Core"
+             xmlns:enums="clr-namespace:VideoCreator.Core.Enums;assembly=VideoCreator.Core"
              x:Class="VideoCreator.App.Views.MainEditorView"
              x:DataType="vm:EditorViewModel"
              x:Name="EditorRoot"
              Background="#0B0E14">
+
     <Grid RowDefinitions="Auto,*,Auto,240">
         <!-- 1. Top Application Toolbar -->
         <Border Grid.Row="0" Background="#11141D" Padding="16,10" BorderBrush="#1E2330" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                 <!-- Project Name & Navigation -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                    <TextBlock Text="🎬 VideoCreator" FontWeight="ExtraBold" FontSize="16" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                    <TextBlock Text="🎬 VideoCreator Studio" FontWeight="Black" FontSize="16" Foreground="#60A5FA" VerticalAlignment="Center"/>
                     <Border Background="#1E2433" CornerRadius="6" Padding="10,4">
                         <TextBox Text="{Binding CurrentProject.Metadata.Name}" Foreground="#FFFFFF" Background="Transparent" BorderThickness="0" FontSize="13" FontWeight="SemiBold"/>
                     </Border>
@@ -27,11 +29,9 @@
 
                     <Border Width="1" Height="20" Background="#262D3D" Margin="8,0"/>
 
-                    <ComboBox SelectedIndex="0" Background="#1E2433" Foreground="#FFFFFF" CornerRadius="6" FontSize="12">
-                        <ComboBoxItem Content="16:9 Landscape"/>
-                        <ComboBoxItem Content="9:16 Vertical"/>
-                        <ComboBoxItem Content="1:1 Square"/>
-                    </ComboBox>
+                    <Button Command="{Binding ChangeAspectCommand}" CommandParameter="{x:Static enums:AspectRatio.Ratio16x9}" Content="16:9 Landscape" Background="#1E2433" Foreground="#CBD5E1" Padding="10,6" CornerRadius="6" FontSize="11"/>
+                    <Button Command="{Binding ChangeAspectCommand}" CommandParameter="{x:Static enums:AspectRatio.Ratio9x16}" Content="9:16 Reel/Shorts" Background="#1E2433" Foreground="#60A5FA" Padding="10,6" CornerRadius="6" FontSize="11" FontWeight="Bold"/>
+                    <Button Command="{Binding ChangeAspectCommand}" CommandParameter="{x:Static enums:AspectRatio.Ratio1x1}" Content="1:1 Square" Background="#1E2433" Foreground="#CBD5E1" Padding="10,6" CornerRadius="6" FontSize="11"/>
                 </StackPanel>
 
                 <!-- Right Action Buttons -->
@@ -43,40 +43,113 @@
         </Border>
 
         <!-- 2. Main 3-Pane Body: Left Library | Center Preview | Right Inspector -->
-        <Grid Grid.Row="1" ColumnDefinitions="280,*,320">
+        <Grid Grid.Row="1" ColumnDefinitions="310,*,330">
             <!-- Left: Media Library Panel -->
             <Border Grid.Column="0" Background="#11141E" BorderBrush="#1C212E" BorderThickness="0,0,1,0">
                 <Grid RowDefinitions="Auto,*">
-                    <!-- Library Tabs -->
-                    <Border Grid.Row="0" Background="#161B26" Padding="8,6" BorderBrush="#1E2433" BorderThickness="0,0,0,1">
-                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                            <Button Content="Photos" Background="#2563EB" Foreground="#FFFFFF" Padding="10,5" CornerRadius="6" FontSize="11" FontWeight="Bold"/>
-                            <Button Content="+ Add Photo" Click="OnAddPhotoFileClicked" Background="#1E293B" Foreground="#94A3B8" Padding="10,5" CornerRadius="6" FontSize="11"/>
-                            <Button Content="+ Text" Command="{Binding AddTextToTimelineCommand}" Background="#1E293B" Foreground="#94A3B8" Padding="10,5" CornerRadius="6" FontSize="11"/>
-                        </StackPanel>
+                    <!-- Library Tab Switcher -->
+                    <Border Grid.Row="0" Background="#161B26" Padding="6,6" BorderBrush="#1E2433" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="*,*,*,*">
+                            <Button Grid.Column="0" Command="{Binding SetActiveTabCommand}" CommandParameter="Photos" Content="📷 Photos" Background="Transparent" Foreground="#CBD5E1" Padding="4,6" CornerRadius="6" FontSize="11" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                            <Button Grid.Column="1" Command="{Binding SetActiveTabCommand}" CommandParameter="Music" Content="🎵 Music" Background="Transparent" Foreground="#CBD5E1" Padding="4,6" CornerRadius="6" FontSize="11" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                            <Button Grid.Column="2" Command="{Binding SetActiveTabCommand}" CommandParameter="Text" Content="🔤 Text" Background="Transparent" Foreground="#CBD5E1" Padding="4,6" CornerRadius="6" FontSize="11" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SetActiveTabCommand}" CommandParameter="Templates" Content="✨ Styles" Background="Transparent" Foreground="#CBD5E1" Padding="4,6" CornerRadius="6" FontSize="11" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        </Grid>
                     </Border>
 
-                    <!-- Library Assets List -->
+                    <!-- Library Content Area -->
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="12" Spacing="10">
-                            <TextBlock Text="Project Assets" FontSize="12" FontWeight="Bold" Foreground="#64748B"/>
-                            <ItemsControl ItemsSource="{Binding LibraryAssets}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#171C28" CornerRadius="8" Padding="10,8" Margin="0,0,0,6" BorderBrush="#242C3E" BorderThickness="1">
-                                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                                <TextBlock Grid.Column="0" Text="📷" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss}'}" FontSize="10" Foreground="#64748B"/>
+                        <StackPanel Margin="12" Spacing="12">
+                            <!-- Section: Photos -->
+                            <StackPanel Spacing="10" IsVisible="{Binding ActiveLibraryTab, Converter={x:Null}}">
+                                <Button Click="OnAddPhotoFileClicked" Content="+ Add Photos to Project" Background="#4F46E5" Foreground="#FFFFFF" Padding="14,8" CornerRadius="8" FontSize="12" FontWeight="Bold" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                <TextBlock Text="Project Photos" FontSize="12" FontWeight="Bold" Foreground="#64748B" Margin="0,4,0,0"/>
+                                <ItemsControl ItemsSource="{Binding LibraryAssets}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#171C28" CornerRadius="8" Padding="10,8" Margin="0,0,0,6" BorderBrush="#242C3E" BorderThickness="1">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <TextBlock Grid.Column="0" Text="📷" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss}'}" FontSize="10" Foreground="#64748B"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="2" Content="+ Insert" Background="#1E293B" Foreground="#60A5FA" Padding="8,4" CornerRadius="4" FontSize="11"
+                                                            Click="OnAddLibraryAssetClicked"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Section: Music -->
+                            <StackPanel Spacing="10">
+                                <Button Click="OnAddMusicFileClicked" Content="+ Upload Background Music" Background="#059669" Foreground="#FFFFFF" Padding="14,8" CornerRadius="8" FontSize="12" FontWeight="Bold" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                <TextBlock Text="Audio Tracks" FontSize="12" FontWeight="Bold" Foreground="#64748B" Margin="0,4,0,0"/>
+                                <ItemsControl ItemsSource="{Binding AudioAssets}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#171C28" CornerRadius="8" Padding="10,8" Margin="0,0,0,6" BorderBrush="#242C3E" BorderThickness="1">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <TextBlock Grid.Column="0" Text="🎵" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss}'}" FontSize="10" Foreground="#64748B"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="2" Content="Active" Background="#1E293B" Foreground="#10B981" Padding="8,4" CornerRadius="4" FontSize="11"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Section: Text & Title Presets -->
+                            <StackPanel Spacing="10">
+                                <Button Command="{Binding AddTextToTimelineCommand}" Content="➕ Add Text at Playhead" Background="#7C3AED" Foreground="#FFFFFF" Padding="14,8" CornerRadius="8" FontSize="12" FontWeight="Bold" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                <TextBlock Text="Animated Title Presets" FontSize="12" FontWeight="Bold" Foreground="#64748B" Margin="0,4,0,0"/>
+                                <ItemsControl ItemsSource="{Binding TextPresets}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#171C28" CornerRadius="8" Padding="12,10" Margin="0,0,0,8" BorderBrush="#242C3E" BorderThickness="1">
+                                                <StackPanel Spacing="6">
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                                        <Button Grid.Column="1" Content="+ Insert" Background="#1E293B" Foreground="#818CF8" Padding="8,3" CornerRadius="4" FontSize="10" FontWeight="Bold"
+                                                                Click="OnInsertTextPresetClicked"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#94A3B8"/>
+                                                    <Border Background="#0F131D" CornerRadius="6" Padding="8,4">
+                                                        <TextBlock Text="{Binding SampleText}" FontFamily="{Binding FontFamily}" FontSize="12" Foreground="{Binding ColorHex}"/>
+                                                    </Border>
                                                 </StackPanel>
-                                                <Button Grid.Column="2" Content="+" Background="#1E293B" Foreground="#60A5FA" Padding="8,2" CornerRadius="4"
-                                                        Click="OnAddLibraryAssetClicked"/>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Section: Templates -->
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Apply Style / Template" FontSize="12" FontWeight="Bold" Foreground="#64748B"/>
+                                <ItemsControl ItemsSource="{Binding AvailableTemplates}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#171C28" CornerRadius="8" Padding="12,10" Margin="0,0,0,8" BorderBrush="#242C3E" BorderThickness="1">
+                                                <StackPanel Spacing="6">
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                                        <Button Grid.Column="1" Content="Apply" Background="#1E293B" Foreground="#38BDF8" Padding="8,3" CornerRadius="4" FontSize="10" FontWeight="Bold"
+                                                                Click="OnApplyTemplateClicked"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
@@ -96,7 +169,7 @@
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Button Command="{Binding StepBackwardCommand}" Content="⏮" Background="#1E2433" Foreground="#CBD5E1" Padding="10,6" CornerRadius="6" FontSize="12"/>
                             <Button Command="{Binding PlayPauseCommand}" Background="#4F46E5" Foreground="#FFFFFF" Padding="16,6" CornerRadius="6" FontSize="13" FontWeight="Bold">
-                                <TextBlock Text="{Binding IsPlaying, Converter={x:Null}, StringFormat='▶ Play'}"/>
+                                <TextBlock Text="▶ Play / ⏸ Pause"/>
                             </Button>
                             <Button Command="{Binding StepForwardCommand}" Content="⏭" Background="#1E2433" Foreground="#CBD5E1" Padding="10,6" CornerRadius="6" FontSize="12"/>
                         </StackPanel>
@@ -116,14 +189,14 @@
             <!-- Right: Contextual Property Inspector -->
             <Border Grid.Column="2" Background="#11141E" BorderBrush="#1C212E" BorderThickness="1,0,0,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="16" Spacing="18">
+                    <StackPanel Margin="16" Spacing="16">
                         <TextBlock Text="INSPECTOR" FontSize="12" FontWeight="ExtraBold" Foreground="#64748B"/>
 
-                        <!-- Selected Clip Name & Actions -->
+                        <!-- Selected Clip Header & Action Buttons -->
                         <Border Background="#161B26" CornerRadius="10" Padding="14" BorderBrush="#232A3B" BorderThickness="1">
                             <StackPanel Spacing="10">
                                 <TextBlock Text="Selected Clip" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
-                                <TextBlock Text="{Binding SelectedClip.Name, FallbackValue='None (Click a clip below)'}" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                <TextBlock Text="{Binding SelectedClip.Name, FallbackValue='No Clip Selected (Click timeline)'}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button Command="{Binding SplitClipCommand}" Content="✂ Split (S)" Background="#1E2433" Foreground="#CBD5E1" Padding="10,5" CornerRadius="6" FontSize="11"/>
                                     <Button Command="{Binding DeleteClipCommand}" Content="🗑 Delete" Background="#1E2433" Foreground="#EF4444" Padding="10,5" CornerRadius="6" FontSize="11"/>
@@ -131,69 +204,98 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Motion Preset Section -->
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="Photo Motion (Ken Burns)" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"/>
-                            <ComboBox SelectedIndex="1" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
-                                <ComboBoxItem Content="None"/>
-                                <ComboBoxItem Content="Zoom In (Smooth)"/>
-                                <ComboBoxItem Content="Zoom Out"/>
-                                <ComboBoxItem Content="Pan Left"/>
-                                <ComboBoxItem Content="Pan Right"/>
-                                <ComboBoxItem Content="Cinematic Motion"/>
-                            </ComboBox>
-                        </StackPanel>
+                        <!-- Inspector Panel: TEXT CLIP -->
+                        <StackPanel Spacing="12" IsVisible="{Binding IsTextClipSelected}">
+                            <TextBlock Text="🔤 Text Properties &amp; Typography" FontSize="12" FontWeight="Bold" Foreground="#60A5FA"/>
 
-                        <!-- Crop Mode Section -->
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="Aspect Crop Mode" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"/>
-                            <ComboBox SelectedIndex="4" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
-                                <ComboBoxItem Content="Fit (Letterbox)"/>
-                                <ComboBoxItem Content="Fill (Zoom Crop)"/>
-                                <ComboBoxItem Content="Center Crop"/>
-                                <ComboBoxItem Content="Smart Crop"/>
-                                <ComboBoxItem Content="Blur Background (Pro)"/>
-                            </ComboBox>
-                        </StackPanel>
-
-                        <!-- Transition Section -->
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="Transition Out" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"/>
-                            <ComboBox SelectedIndex="2" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
-                                <ComboBoxItem Content="None"/>
-                                <ComboBoxItem Content="Fade"/>
-                                <ComboBoxItem Content="Cross Dissolve"/>
-                                <ComboBoxItem Content="Slide Left"/>
-                                <ComboBoxItem Content="Slide Right"/>
-                                <ComboBoxItem Content="Push"/>
-                                <ComboBoxItem Content="Zoom"/>
-                                <ComboBoxItem Content="Wipe"/>
-                            </ComboBox>
-                        </StackPanel>
-
-                        <!-- Effects Sliders -->
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="Color &amp; Tone Effects" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"/>
+                            <!-- Text Content -->
                             <StackPanel Spacing="4">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="Brightness" FontSize="11" Foreground="#94A3B8"/>
-                                    <TextBlock Grid.Column="1" Text="1.0" FontSize="11" Foreground="#64748B"/>
-                                </Grid>
-                                <Slider Minimum="0" Maximum="2" Value="1.0"/>
+                                <TextBlock Text="Text Content" FontSize="11" Foreground="#94A3B8"/>
+                                <TextBox Text="{Binding SelectedTextClip.Overlay.Text}" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8" Padding="10" FontSize="13" TextWrapping="Wrap" AcceptsReturn="True" Height="60"/>
                             </StackPanel>
+
+                            <!-- Font Family Dropdown -->
                             <StackPanel Spacing="4">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="Contrast" FontSize="11" Foreground="#94A3B8"/>
-                                    <TextBlock Grid.Column="1" Text="1.0" FontSize="11" Foreground="#64748B"/>
-                                </Grid>
-                                <Slider Minimum="0" Maximum="2" Value="1.0"/>
+                                <TextBlock Text="Font Family" FontSize="11" Foreground="#94A3B8"/>
+                                <ComboBox ItemsSource="{Binding AvailableFontFamilies}" SelectedItem="{Binding SelectedTextClip.Overlay.FontFamily}" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8"/>
                             </StackPanel>
+
+                            <!-- Font Size -->
                             <StackPanel Spacing="4">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="Vignette" FontSize="11" Foreground="#94A3B8"/>
-                                    <TextBlock Grid.Column="1" Text="0.0" FontSize="11" Foreground="#64748B"/>
+                                    <TextBlock Text="Font Size" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedTextClip.Overlay.FontSize, StringFormat='{}{0:F0} px'}" FontSize="11" Foreground="#64748B"/>
                                 </Grid>
-                                <Slider Minimum="0" Maximum="1" Value="0.0"/>
+                                <Slider Minimum="16" Maximum="120" Value="{Binding SelectedTextClip.Overlay.FontSize}"/>
+                            </StackPanel>
+
+                            <!-- Text Color Hex -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Text Color (Hex)" FontSize="11" Foreground="#94A3B8"/>
+                                <TextBox Text="{Binding SelectedTextClip.Overlay.ColorHex}" Background="#161B26" Foreground="#FFFFFF" CornerRadius="6" Padding="8,4" FontSize="12"/>
+                            </StackPanel>
+
+                            <!-- Background Pill Color -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Background Pill Color (Hex)" FontSize="11" Foreground="#94A3B8"/>
+                                <TextBox Text="{Binding SelectedTextClip.Overlay.BackgroundColorHex}" Background="#161B26" Foreground="#FFFFFF" CornerRadius="6" Padding="8,4" FontSize="12"/>
+                            </StackPanel>
+
+                            <!-- Entry Animation -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Entry Animation" FontSize="11" Foreground="#94A3B8"/>
+                                <ComboBox SelectedItem="{Binding SelectedTextClip.Overlay.EntryAnimation}" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
+                                    <enums:TextAnimation>Fade</enums:TextAnimation>
+                                    <enums:TextAnimation>Slide</enums:TextAnimation>
+                                    <enums:TextAnimation>Pop</enums:TextAnimation>
+                                    <enums:TextAnimation>Zoom</enums:TextAnimation>
+                                    <enums:TextAnimation>Typewriter</enums:TextAnimation>
+                                    <enums:TextAnimation>None</enums:TextAnimation>
+                                </ComboBox>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Inspector Panel: PHOTO CLIP -->
+                        <StackPanel Spacing="12" IsVisible="{Binding IsImageClipSelected}">
+                            <TextBlock Text="📸 Photo Properties &amp; Motion" FontSize="12" FontWeight="Bold" Foreground="#38BDF8"/>
+
+                            <!-- Motion Preset -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Photo Motion (Ken Burns)" FontSize="11" Foreground="#94A3B8"/>
+                                <ComboBox SelectedItem="{Binding SelectedImageClip.Motion}" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
+                                    <enums:MotionPreset>None</enums:MotionPreset>
+                                    <enums:MotionPreset>ZoomIn</enums:MotionPreset>
+                                    <enums:MotionPreset>ZoomOut</enums:MotionPreset>
+                                    <enums:MotionPreset>PanLeft</enums:MotionPreset>
+                                    <enums:MotionPreset>PanRight</enums:MotionPreset>
+                                    <enums:MotionPreset>PanUp</enums:MotionPreset>
+                                    <enums:MotionPreset>PanDown</enums:MotionPreset>
+                                    <enums:MotionPreset>DiagonalDownRight</enums:MotionPreset>
+                                    <enums:MotionPreset>Cinematic</enums:MotionPreset>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Crop Mode -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Crop Mode" FontSize="11" Foreground="#94A3B8"/>
+                                <ComboBox SelectedItem="{Binding SelectedImageClip.CropMode}" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
+                                    <enums:CropMode>BlurBackground</enums:CropMode>
+                                    <enums:CropMode>Fit</enums:CropMode>
+                                    <enums:CropMode>Fill</enums:CropMode>
+                                    <enums:CropMode>CenterCrop</enums:CropMode>
+                                </ComboBox>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Inspector Panel: AUDIO CLIP -->
+                        <StackPanel Spacing="12" IsVisible="{Binding IsAudioClipSelected}">
+                            <TextBlock Text="🎵 Audio Track Controls" FontSize="12" FontWeight="Bold" Foreground="#10B981"/>
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Volume" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedAudioClip.AudioSettings.Volume, StringFormat='{}{0:P0}'}" FontSize="11" Foreground="#64748B"/>
+                                </Grid>
+                                <Slider Minimum="0" Maximum="2" Value="{Binding SelectedAudioClip.AudioSettings.Volume}"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

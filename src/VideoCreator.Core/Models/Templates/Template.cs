@@ -184,6 +184,78 @@ public class Template
                 AccentColorHex = "#EAB308",
                 SyncWithBeats = true,
                 Tags = new() { "festival", "diwali", "celebration", "tradition" }
+            },
+            new()
+            {
+                Id = "template-reel-fast-beats",
+                Name = "⚡ Viral Beat Drops Reel",
+                Description = "Fast 1.2s high-energy cuts with beat synchronization, push transitions, and crisp contrast.",
+                Category = TemplateCategory.Social,
+                RecommendedAspectRatio = AspectRatio.Ratio9x16,
+                DefaultPhotoDurationSeconds = 1.3,
+                DefaultMotion = MotionPreset.ZoomIn,
+                DefaultTransition = TransitionType.Push,
+                TransitionDurationSeconds = 0.35,
+                CropMode = CropMode.BlurBackground,
+                DefaultEffects = new List<Effect> { new(EffectType.Contrast, 0.25), new(EffectType.Sharpen, 0.3) },
+                SuggestedTitle = "CAN'T STOP ⚡",
+                AccentColorHex = "#3B82F6",
+                SyncWithBeats = true,
+                Tags = new() { "reels", "tiktok", "trending", "beats", "viral" }
+            },
+            new()
+            {
+                Id = "template-reel-aesthetic-vlog",
+                Name = "🌸 Aesthetic Mini Vlog",
+                Description = "Warm pastel color tone, smooth gentle pan motion, and typewriter animated titles.",
+                Category = TemplateCategory.Social,
+                RecommendedAspectRatio = AspectRatio.Ratio9x16,
+                DefaultPhotoDurationSeconds = 2.4,
+                DefaultMotion = MotionPreset.Cinematic,
+                DefaultTransition = TransitionType.CrossDissolve,
+                TransitionDurationSeconds = 0.6,
+                CropMode = CropMode.BlurBackground,
+                DefaultEffects = new List<Effect> { new(EffectType.Vintage, 0.4), new(EffectType.Brightness, 0.05) },
+                SuggestedTitle = "A Day in My Life ✨",
+                AccentColorHex = "#F472B6",
+                SyncWithBeats = false,
+                Tags = new() { "vlog", "aesthetic", "cozy", "reels", "daily" }
+            },
+            new()
+            {
+                Id = "template-reel-fashion-glow",
+                Name = "✨ Fashion & Luxury Glow",
+                Description = "Dreamy highlight glow, slow zoom out, elegant vignette framing, and chic elegance.",
+                Category = TemplateCategory.Social,
+                RecommendedAspectRatio = AspectRatio.Ratio9x16,
+                DefaultPhotoDurationSeconds = 3.0,
+                DefaultMotion = MotionPreset.ZoomOut,
+                DefaultTransition = TransitionType.Fade,
+                TransitionDurationSeconds = 0.8,
+                CropMode = CropMode.BlurBackground,
+                DefaultEffects = new List<Effect> { new(EffectType.Glow, 0.55), new(EffectType.Vignette, 0.35) },
+                SuggestedTitle = "Golden Hour Style",
+                AccentColorHex = "#C084FC",
+                SyncWithBeats = false,
+                Tags = new() { "fashion", "luxury", "glow", "model", "outfit" }
+            },
+            new()
+            {
+                Id = "template-reel-motivational",
+                Name = "🔥 Bold Motivation Reel",
+                Description = "Heavy high-contrast tone, upward slide cuts, and bold punchy typography.",
+                Category = TemplateCategory.Social,
+                RecommendedAspectRatio = AspectRatio.Ratio9x16,
+                DefaultPhotoDurationSeconds = 1.8,
+                DefaultMotion = MotionPreset.PanUp,
+                DefaultTransition = TransitionType.SlideUp,
+                TransitionDurationSeconds = 0.4,
+                CropMode = CropMode.Fill,
+                DefaultEffects = new List<Effect> { new(EffectType.Contrast, 0.3), new(EffectType.Cinematic, 0.5) },
+                SuggestedTitle = "STAY FOCUSED 🔥",
+                AccentColorHex = "#EF4444",
+                SyncWithBeats = true,
+                Tags = new() { "gym", "motivation", "grind", "mindset", "shorts" }
             }
         };
     }
