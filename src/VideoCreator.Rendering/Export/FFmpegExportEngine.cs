@@ -120,6 +120,8 @@ public class FFmpegExportEngine : IExportEngine
 
         var startTime = DateTime.UtcNow;
         var stdin = process.StandardInput.BaseStream;
+        var stderrTask = process.StandardError.ReadToEndAsync(ct);
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
 
         byte[] frameBuffer = new byte[width * height * 4];
 
@@ -158,6 +160,12 @@ public class FFmpegExportEngine : IExportEngine
 
         stdin.Close();
         await process.WaitForExitAsync(ct);
+        string stderrOutput = await stderrTask;
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"FFmpeg export failed with exit code {process.ExitCode}: {stderrOutput}");
+        }
 
         progress?.Report(new ExportProgress
         {
