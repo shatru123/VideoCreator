@@ -6,6 +6,7 @@
              xmlns:enums="using:VideoCreator.Core.Enums"
              x:Class="VideoCreator.App.Views.MainEditorView"
              x:DataType="vm:EditorViewModel"
+             x:Name="EditorRoot"
              Background="#0B0E14">
     <Grid RowDefinitions="Auto,*,Auto,240">
         <!-- 1. Top Application Toolbar -->
@@ -70,7 +71,7 @@
                                                     <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss}'}" FontSize="10" Foreground="#64748B"/>
                                                 </StackPanel>
                                                 <Button Grid.Column="2" Content="+" Background="#1E293B" Foreground="#60A5FA" Padding="8,2" CornerRadius="4"
-                                                        Command="{Binding $parent[ItemsControl].((vm:EditorViewModel)DataContext).AddPhotoToTimelineCommand}"
+                                                        Command="{Binding #EditorRoot.((vm:EditorViewModel)DataContext).AddPhotoToTimelineCommand}"
                                                         CommandParameter="{Binding FilePath}"/>
                                             </Grid>
                                         </Border>

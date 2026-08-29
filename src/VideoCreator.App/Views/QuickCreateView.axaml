@@ -4,6 +4,7 @@
              xmlns:enums="using:VideoCreator.Core.Enums"
              x:Class="VideoCreator.App.Views.QuickCreateView"
              x:DataType="vm:QuickCreateViewModel"
+             x:Name="QuickCreateRoot"
              Background="#0B0E14">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel MaxWidth="900" Margin="40,30,40,40" Spacing="28">
@@ -48,7 +49,7 @@
                                                 Foreground="#EF4444"
                                                 Padding="4,0"
                                                 FontSize="11"
-                                                Command="{Binding $parent[ItemsControl].((vm:QuickCreateViewModel)DataContext).RemovePhotoCommand}"
+                                                Command="{Binding #QuickCreateRoot.((vm:QuickCreateViewModel)DataContext).RemovePhotoCommand}"
                                                 CommandParameter="{Binding}"/>
                                     </StackPanel>
                                 </Border>

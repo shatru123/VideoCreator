@@ -3,6 +3,7 @@
              xmlns:vm="using:VideoCreator.App.ViewModels"
              x:Class="VideoCreator.App.Views.HomeScreenView"
              x:DataType="vm:HomeViewModel"
+             x:Name="HomeScreenRoot"
              Background="#0B0E14">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel MaxWidth="1100" Margin="40,30,40,40" Spacing="36">
@@ -129,7 +130,7 @@
                                             Padding="12,6"
                                             Margin="0,6,0,0"
                                             CornerRadius="6"
-                                            Command="{Binding $parent[ItemsControl].((vm:HomeViewModel)DataContext).OpenRecentProjectCommand}"
+                                            Command="{Binding #HomeScreenRoot.((vm:HomeViewModel)DataContext).OpenRecentProjectCommand}"
                                             CommandParameter="{Binding}"/>
                                 </StackPanel>
                             </Border>
