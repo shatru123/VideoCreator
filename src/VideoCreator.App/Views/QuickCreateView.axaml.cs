@@ -1,0 +1,66 @@
+using System;
+using System.IO;
+using System.Linq;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
+using VideoCreator.App.ViewModels;
+
+namespace VideoCreator.App.Views;
+
+public partial class QuickCreateView : UserControl
+{
+    public QuickCreateView()
+    {
+        InitializeComponent();
+    }
+
+    private async void OnAddPhotosClicked(object? sender, RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null || DataContext is not QuickCreateViewModel vm) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select Photos",
+            AllowMultiple = true,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Images")
+                {
+                    Patterns = new[] { "*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp" }
+                }
+            }
+        });
+
+        foreach (var file in files)
+        {
+            vm.AddPhoto(file.Path.LocalPath);
+        }
+    }
+
+    private async void OnSelectMusicClicked(object? sender, RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null || DataContext is not QuickCreateViewModel vm) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select Background Music",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Audio Files")
+                {
+                    Patterns = new[] { "*.mp3", "*.wav", "*.m4a", "*.aac", "*.flac" }
+                }
+            }
+        });
+
+        var selected = files.FirstOrDefault();
+        if (selected != null)
+        {
+            vm.SetMusic(selected.Path.LocalPath);
+        }
+    }
+}

@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:VideoCreator.App.ViewModels"
+        xmlns:views="using:VideoCreator.App.Views"
+        xmlns:converters="using:VideoCreator.App.Converters"
+        x:Class="VideoCreator.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="VideoCreator — Cross-Platform Video Studio"
+        Width="1280" Height="820"
+        MinWidth="1024" MinHeight="680"
+        Background="#0B0E14"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <converters:ScreenMatchConverter x:Key="ScreenMatchConverter"/>
+    </Window.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*">
+        <!-- Top App Global Navigation Bar -->
+        <Border Grid.Row="0" Background="#0E1118" Padding="16,8" BorderBrush="#1C212E" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Text="🎬 VideoCreator" FontWeight="Black" FontSize="16" Foreground="#60A5FA"/>
+                    <Border Background="#1E293B" CornerRadius="6" Padding="6,2">
+                        <TextBlock Text="v1.0" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- Screen Switcher Tabs -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                    <Button Command="{Binding NavigateToHomeCommand}" Content="🏠 Home" Background="#161B26" Foreground="#CBD5E1" Padding="14,6" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
+                    <Button Command="{Binding NavigateToQuickCreateCommand}" Content="⚡ Quick Create" Background="#161B26" Foreground="#CBD5E1" Padding="14,6" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
+                    <Button Command="{Binding NavigateToEditorCommand}" Content="🎞 Studio Editor" Background="#161B26" Foreground="#CBD5E1" Padding="14,6" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Text="Cross-Platform .NET Media Engine" FontSize="11" Foreground="#475569" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Autosave Recovery Banner -->
+        <Border Grid.Row="1" Background="#1E1B4B" Padding="14,10" BorderBrush="#3730A3" BorderThickness="0,0,0,1" IsVisible="{Binding ShowRecoveryBanner}">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="⚠️" FontSize="14" VerticalAlignment="Center"/>
+                    <TextBlock Text="We found an autosaved recovery version of your previous project." FontWeight="SemiBold" Foreground="#EEF2FF" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                    <Button Command="{Binding RestoreRecoverySnapshotCommand}" Content="Restore Project" Background="#4F46E5" Foreground="#FFFFFF" Padding="12,6" CornerRadius="6" FontSize="12" FontWeight="Bold"/>
+                    <Button Command="{Binding DiscardRecoverySnapshotCommand}" Content="Discard" Background="#1E293B" Foreground="#94A3B8" Padding="10,6" CornerRadius="6" FontSize="12"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Screen Host -->
+        <Grid Grid.Row="2">
+            <!-- Screen 1: Home -->
+            <views:HomeScreenView DataContext="{Binding HomeVm}" IsVisible="{Binding CurrentScreen, Converter={StaticResource ScreenMatchConverter}, ConverterParameter=Home}"/>
+
+            <!-- Screen 2: Quick Create -->
+            <views:QuickCreateView DataContext="{Binding QuickCreateVm}" IsVisible="{Binding CurrentScreen, Converter={StaticResource ScreenMatchConverter}, ConverterParameter=QuickCreate}"/>
+
+            <!-- Screen 3: Studio Editor -->
+            <views:MainEditorView DataContext="{Binding EditorVm}" IsVisible="{Binding CurrentScreen, Converter={StaticResource ScreenMatchConverter}, ConverterParameter=Editor}"/>
+
+            <!-- Export Modal Dialog Backdrop -->
+            <Grid Background="#CC000000" IsVisible="{Binding IsExportModalOpen}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <views:ExportDialogView DataContext="{Binding ExportDialogViewModel}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

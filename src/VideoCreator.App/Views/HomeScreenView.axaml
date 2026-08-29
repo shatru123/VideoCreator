@@ -1,0 +1,137 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VideoCreator.App.ViewModels"
+             x:Class="VideoCreator.App.Views.HomeScreenView"
+             x:DataType="vm:HomeViewModel"
+             Background="#0B0E14">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="1100" Margin="40,30,40,40" Spacing="36">
+            <!-- Hero Section -->
+            <Border Background="LinearGradient(45deg, #1E1B4B, #0F172A)"
+                    CornerRadius="16"
+                    Padding="48,40"
+                    BorderBrush="#312E81"
+                    BorderThickness="1">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="16">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Background="#4F46E5" CornerRadius="6" Padding="8,4">
+                                <TextBlock Text="✨ NEW GENERATION" FontSize="11" FontWeight="Bold" Foreground="#EEF2FF"/>
+                            </Border>
+                            <TextBlock Text="VideoCreator 2026" FontSize="14" FontWeight="SemiBold" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="Create Something Beautiful." FontSize="36" FontWeight="ExtraBold" Foreground="#FFFFFF"/>
+                        <TextBlock Text="Turn your photos and music into a cinematic story in seconds with automatic timing, motion, and transitions."
+                                   FontSize="15" Foreground="#94A3B8" TextWrapping="Wrap" MaxWidth="560"/>
+                        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,12,0,0">
+                            <Button Command="{Binding StartQuickCreateCommand}"
+                                    Background="#4F46E5"
+                                    Foreground="#FFFFFF"
+                                    FontWeight="Bold"
+                                    FontSize="14"
+                                    Padding="24,14"
+                                    CornerRadius="10">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="⚡ Quick Create Video" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding CreateNewProjectCommand}"
+                                    Background="#1E293B"
+                                    Foreground="#E2E8F0"
+                                    FontWeight="SemiBold"
+                                    FontSize="14"
+                                    Padding="20,14"
+                                    CornerRadius="10"
+                                    BorderBrush="#334155"
+                                    BorderThickness="1">
+                                <TextBlock Text="Blank Project Editor"/>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border Grid.Column="1" Background="#00000040" CornerRadius="12" Padding="24" Margin="20,0,0,0" Width="260">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="⚡ Highlights" FontWeight="Bold" Foreground="#F8FAFC" FontSize="13"/>
+                            <TextBlock Text="✓ Automatic Beat-Sync Timing" FontSize="12" Foreground="#CBD5E1"/>
+                            <TextBlock Text="✓ Ken Burns Photo Motion" FontSize="12" Foreground="#CBD5E1"/>
+                            <TextBlock Text="✓ Smart Blur Backgrounds" FontSize="12" Foreground="#CBD5E1"/>
+                            <TextBlock Text="✓ 1080p &amp; 4K Fast MP4 Export" FontSize="12" Foreground="#CBD5E1"/>
+                            <TextBlock Text="✓ Multi-Track Non-Destructive" FontSize="12" Foreground="#CBD5E1"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Featured Templates Showcase -->
+            <StackPanel Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <TextBlock Text="Featured Templates" FontSize="20" FontWeight="Bold" Foreground="#F8FAFC"/>
+                    <TextBlock Text="Choose a style to get started instantly" FontSize="13" Foreground="#64748B" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                </StackPanel>
+
+                <ItemsControl ItemsSource="{Binding FeaturedTemplates}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" ItemWidth="240"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#151923"
+                                    CornerRadius="12"
+                                    Padding="18"
+                                    Margin="0,0,16,16"
+                                    BorderBrush="#242B3A"
+                                    BorderThickness="1">
+                                <StackPanel Spacing="10">
+                                    <Border Background="#1E293B" CornerRadius="8" Padding="6,3" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                    <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap" MaxLines="3" Height="48"/>
+                                    <TextBlock Text="{Binding RecommendedAspectRatio, StringFormat='Ratio: {0}'}" FontSize="11" Foreground="#60A5FA"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Recent Projects -->
+            <StackPanel Spacing="16">
+                <TextBlock Text="Recent Projects" FontSize="20" FontWeight="Bold" Foreground="#F8FAFC"/>
+                <ItemsControl ItemsSource="{Binding RecentProjects}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" ItemWidth="280"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#151923"
+                                    CornerRadius="12"
+                                    Padding="18"
+                                    Margin="0,0,16,16"
+                                    BorderBrush="#242B3A"
+                                    BorderThickness="1">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                    <TextBlock Text="{Binding FormattedDate}" FontSize="12" Foreground="#64748B"/>
+                                    <Button Content="Open Project"
+                                            Background="#1E293B"
+                                            Foreground="#94A3B8"
+                                            FontSize="12"
+                                            Padding="12,6"
+                                            Margin="0,6,0,0"
+                                            CornerRadius="6"
+                                            Command="{Binding $parent[ItemsControl].((vm:HomeViewModel)DataContext).OpenRecentProjectCommand}"
+                                            CommandParameter="{Binding}"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

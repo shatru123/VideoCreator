@@ -1,0 +1,214 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VideoCreator.App.ViewModels"
+             xmlns:controls="using:VideoCreator.App.Controls"
+             xmlns:clips="using:VideoCreator.Core.Models.Clips"
+             xmlns:enums="using:VideoCreator.Core.Enums"
+             x:Class="VideoCreator.App.Views.MainEditorView"
+             x:DataType="vm:EditorViewModel"
+             Background="#0B0E14">
+    <Grid RowDefinitions="Auto,*,Auto,240">
+        <!-- 1. Top Application Toolbar -->
+        <Border Grid.Row="0" Background="#11141D" Padding="16,10" BorderBrush="#1E2330" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <!-- Project Name & Navigation -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <TextBlock Text="🎬 VideoCreator" FontWeight="ExtraBold" FontSize="16" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                    <Border Background="#1E2433" CornerRadius="6" Padding="10,4">
+                        <TextBox Text="{Binding CurrentProject.Metadata.Name}" Foreground="#FFFFFF" Background="Transparent" BorderThickness="0" FontSize="13" FontWeight="SemiBold"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- Center Undo / Redo & Aspect Controls -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" VerticalAlignment="Center">
+                    <Button Command="{Binding UndoCommand}" Content="↩ Undo" Background="#1E2433" Foreground="#CBD5E1" Padding="10,6" CornerRadius="6" FontSize="12"/>
+                    <Button Command="{Binding RedoCommand}" Content="↪ Redo" Background="#1E2433" Foreground="#CBD5E1" Padding="10,6" CornerRadius="6" FontSize="12"/>
+
+                    <Border Width="1" Height="20" Background="#262D3D" Margin="8,0"/>
+
+                    <ComboBox SelectedIndex="0" Background="#1E2433" Foreground="#FFFFFF" CornerRadius="6" FontSize="12">
+                        <ComboBoxItem Content="16:9 Landscape"/>
+                        <ComboBoxItem Content="9:16 Vertical"/>
+                        <ComboBoxItem Content="1:1 Square"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Right Action Buttons -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Button Command="{Binding SaveCommand}" Content="💾 Save" Background="#1E293B" Foreground="#E2E8F0" Padding="14,8" CornerRadius="8" FontSize="12" FontWeight="SemiBold"/>
+                    <Button Command="{Binding OpenExportCommand}" Content="🚀 Export MP4" Background="#4F46E5" Foreground="#FFFFFF" Padding="18,8" CornerRadius="8" FontSize="12" FontWeight="Bold"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. Main 3-Pane Body: Left Library | Center Preview | Right Inspector -->
+        <Grid Grid.Row="1" ColumnDefinitions="280,*,320">
+            <!-- Left: Media Library Panel -->
+            <Border Grid.Column="0" Background="#11141E" BorderBrush="#1C212E" BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="Auto,*">
+                    <!-- Library Tabs -->
+                    <Border Grid.Row="0" Background="#161B26" Padding="8,6" BorderBrush="#1E2433" BorderThickness="0,0,0,1">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <Button Content="Photos" Background="#2563EB" Foreground="#FFFFFF" Padding="10,5" CornerRadius="6" FontSize="11" FontWeight="Bold"/>
+                            <Button Content="+ Add Photo" Click="OnAddPhotoFileClicked" Background="#1E293B" Foreground="#94A3B8" Padding="10,5" CornerRadius="6" FontSize="11"/>
+                            <Button Content="+ Text" Command="{Binding AddTextToTimelineCommand}" Background="#1E293B" Foreground="#94A3B8" Padding="10,5" CornerRadius="6" FontSize="11"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Library Assets List -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="12" Spacing="10">
+                            <TextBlock Text="Project Assets" FontSize="12" FontWeight="Bold" Foreground="#64748B"/>
+                            <ItemsControl ItemsSource="{Binding LibraryAssets}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#171C28" CornerRadius="8" Padding="10,8" Margin="0,0,0,6" BorderBrush="#242C3E" BorderThickness="1">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <TextBlock Grid.Column="0" Text="📷" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss}'}" FontSize="10" Foreground="#64748B"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Content="+" Background="#1E293B" Foreground="#60A5FA" Padding="8,2" CornerRadius="4"
+                                                        Command="{Binding $parent[ItemsControl].((vm:EditorViewModel)DataContext).AddPhotoToTimelineCommand}"
+                                                        CommandParameter="{Binding FilePath}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Center: Video Canvas Preview -->
+            <Grid Grid.Column="1" RowDefinitions="*,Auto" Background="#0C0E14">
+                <controls:VideoPreviewControl Grid.Row="0"
+                                             Project="{Binding CurrentProject}"
+                                             CurrentTime="{Binding CurrentTime}"
+                                             Margin="16"/>
+
+                <!-- Preview Transport Controls Bar -->
+                <Border Grid.Row="1" Background="#11141D" Padding="16,10" BorderBrush="#1C212E" BorderThickness="0,1,0,0">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <!-- Play/Pause Controls -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Command="{Binding StepBackwardCommand}" Content="⏮" Background="#1E2433" Foreground="#CBD5E1" Padding="10,6" CornerRadius="6" FontSize="12"/>
+                            <Button Command="{Binding PlayPauseCommand}" Background="#4F46E5" Foreground="#FFFFFF" Padding="16,6" CornerRadius="6" FontSize="13" FontWeight="Bold">
+                                <TextBlock Text="{Binding IsPlaying, Converter={x:Null}, StringFormat='▶ Play'}"/>
+                            </Button>
+                            <Button Command="{Binding StepForwardCommand}" Content="⏭" Background="#1E2433" Foreground="#CBD5E1" Padding="10,6" CornerRadius="6" FontSize="12"/>
+                        </StackPanel>
+
+                        <!-- Timecode Display -->
+                        <TextBlock Grid.Column="1" Text="{Binding TimecodeDisplay}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
+
+                        <!-- Zoom Slider -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="Zoom" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
+                            <Slider Minimum="20" Maximum="150" Value="{Binding TimelineZoom}" Width="100"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Right: Contextual Property Inspector -->
+            <Border Grid.Column="2" Background="#11141E" BorderBrush="#1C212E" BorderThickness="1,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16" Spacing="18">
+                        <TextBlock Text="INSPECTOR" FontSize="12" FontWeight="ExtraBold" Foreground="#64748B" LetterSpacing="1"/>
+
+                        <!-- Selected Clip Name & Actions -->
+                        <Border Background="#161B26" CornerRadius="10" Padding="14" BorderBrush="#232A3B" BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Selected Clip" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock Text="{Binding SelectedClip.Name, FallbackValue='None (Click a clip below)'}" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Command="{Binding SplitClipCommand}" Content="✂ Split (S)" Background="#1E2433" Foreground="#CBD5E1" Padding="10,5" CornerRadius="6" FontSize="11"/>
+                                    <Button Command="{Binding DeleteClipCommand}" Content="🗑 Delete" Background="#1E2433" Foreground="#EF4444" Padding="10,5" CornerRadius="6" FontSize="11"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Motion Preset Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Photo Motion (Ken Burns)" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"/>
+                            <ComboBox SelectedIndex="1" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
+                                <ComboBoxItem Content="None"/>
+                                <ComboBoxItem Content="Zoom In (Smooth)"/>
+                                <ComboBoxItem Content="Zoom Out"/>
+                                <ComboBoxItem Content="Pan Left"/>
+                                <ComboBoxItem Content="Pan Right"/>
+                                <ComboBoxItem Content="Cinematic Motion"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Crop Mode Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Aspect Crop Mode" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"/>
+                            <ComboBox SelectedIndex="4" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
+                                <ComboBoxItem Content="Fit (Letterbox)"/>
+                                <ComboBoxItem Content="Fill (Zoom Crop)"/>
+                                <ComboBoxItem Content="Center Crop"/>
+                                <ComboBoxItem Content="Smart Crop"/>
+                                <ComboBoxItem Content="Blur Background (Pro)"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Transition Section -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Transition Out" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"/>
+                            <ComboBox SelectedIndex="2" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
+                                <ComboBoxItem Content="None"/>
+                                <ComboBoxItem Content="Fade"/>
+                                <ComboBoxItem Content="Cross Dissolve"/>
+                                <ComboBoxItem Content="Slide Left"/>
+                                <ComboBoxItem Content="Slide Right"/>
+                                <ComboBoxItem Content="Push"/>
+                                <ComboBoxItem Content="Zoom"/>
+                                <ComboBoxItem Content="Wipe"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Effects Sliders -->
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Color &amp; Tone Effects" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"/>
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Brightness" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="1.0" FontSize="11" Foreground="#64748B"/>
+                                </Grid>
+                                <Slider Minimum="0" Maximum="2" Value="1.0"/>
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Contrast" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="1.0" FontSize="11" Foreground="#64748B"/>
+                                </Grid>
+                                <Slider Minimum="0" Maximum="2" Value="1.0"/>
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Vignette" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="0.0" FontSize="11" Foreground="#64748B"/>
+                                </Grid>
+                                <Slider Minimum="0" Maximum="1" Value="0.0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- 3. Bottom Multi-Track Timeline Canvas -->
+        <Border Grid.Row="3" Background="#0E1117" BorderBrush="#1C212E" BorderThickness="0,1,0,0">
+            <controls:TimelineCanvasControl Project="{Binding CurrentProject}"
+                                           PlayheadPosition="{Binding CurrentTime}"
+                                           SelectedClip="{Binding SelectedClip, Mode=TwoWay}"
+                                           PixelsPerSecond="{Binding TimelineZoom}"
+                                           SeekRequested="OnTimelineSeekRequested"
+                                           ClipSelectionChanged="OnTimelineClipSelectionChanged"/>
+        </Border>
+    </Grid>
+</UserControl>

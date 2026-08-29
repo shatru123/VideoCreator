@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VideoCreator.App.ViewModels"
+             x:Class="VideoCreator.App.Views.ExportDialogView"
+             x:DataType="vm:ExportDialogViewModel">
+    <Border Background="#1E2330" CornerRadius="16" Padding="32" MaxWidth="520" BorderBrush="#334155" BorderThickness="1">
+        <StackPanel Spacing="20">
+            <!-- Header -->
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="Export Video" FontSize="20" FontWeight="Bold" Foreground="#FFFFFF"/>
+                    <TextBlock Text="Render project to high-definition MP4" FontSize="12" Foreground="#94A3B8"/>
+                </StackPanel>
+                <Button Grid.Column="1" Command="{Binding CloseDialogCommand}" Content="✕" Background="Transparent" Foreground="#94A3B8" Padding="6,2" FontSize="14"/>
+            </Grid>
+
+            <!-- Destination File Path -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Output File Path" FontSize="12" FontWeight="SemiBold" Foreground="#CBD5E1"/>
+                <TextBox Text="{Binding OutputPath}" Background="#0F121A" Foreground="#FFFFFF" Padding="10,8" CornerRadius="8" BorderBrush="#334155" FontSize="12"/>
+            </StackPanel>
+
+            <!-- Quality / Resolution Selection -->
+            <Grid ColumnDefinitions="*,*">
+                <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,8,0">
+                    <TextBlock Text="Resolution" FontSize="12" FontWeight="SemiBold" Foreground="#CBD5E1"/>
+                    <ComboBox SelectedIndex="1" HorizontalAlignment="Stretch" Background="#0F121A" Foreground="#FFFFFF" CornerRadius="8">
+                        <ComboBoxItem Content="720p HD"/>
+                        <ComboBoxItem Content="1080p Full HD (Default)"/>
+                        <ComboBoxItem Content="1440p 2K"/>
+                        <ComboBoxItem Content="2160p 4K Ultra HD"/>
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6" Margin="8,0,0,0">
+                    <TextBlock Text="Frame Rate" FontSize="12" FontWeight="SemiBold" Foreground="#CBD5E1"/>
+                    <ComboBox SelectedIndex="0" HorizontalAlignment="Stretch" Background="#0F121A" Foreground="#FFFFFF" CornerRadius="8">
+                        <ComboBoxItem Content="30 FPS (Standard)"/>
+                        <ComboBoxItem Content="60 FPS (Smooth)"/>
+                        <ComboBoxItem Content="24 FPS (Cinematic)"/>
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
+
+            <!-- Progress Bar Section -->
+            <Border Background="#13161F" CornerRadius="10" Padding="16" BorderBrush="#232734" BorderThickness="1">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="13" Foreground="#E2E8F0" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ProgressPercentage, StringFormat='{}{0:0}%'}" FontSize="13" Foreground="#60A5FA" FontWeight="Bold"/>
+                    </Grid>
+                    <ProgressBar Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="8" CornerRadius="4" Foreground="#3B82F6" Background="#1E293B"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Action Buttons -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,8,0,0">
+                <Button Command="{Binding CloseDialogCommand}" Content="Close" Background="#1E293B" Foreground="#94A3B8" Padding="16,10" CornerRadius="8" FontSize="13"/>
+                <Button Command="{Binding OpenOutputFolderCommand}" Content="Open Folder" Background="#10B981" Foreground="#FFFFFF" Padding="16,10" CornerRadius="8" FontSize="13" FontWeight="SemiBold" IsVisible="{Binding IsComplete}"/>
+                <Button Command="{Binding StartExportCommand}" Content="🎬 Start Render" Background="#4F46E5" Foreground="#FFFFFF" Padding="20,10" CornerRadius="8" FontSize="13" FontWeight="Bold" IsEnabled="{Binding !IsExporting}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
