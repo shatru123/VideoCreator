@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VideoCreator — Pro Studio & Reels Maker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>VideoCreator — Pro Studio &amp; Reels Maker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700&family=Cinzel:wght@700&family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Playfair+Display:wght@700&amp;family=Cinzel:wght@700&amp;family=Montserrat:wght@700;900&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/app.css">
 </head>
 <body>
@@ -14,6 +14,9 @@
   <!-- Top App Header / Title Bar -->
   <header class="app-header">
     <div class="logo-group">
+      <button id="btn-mobile-menu" class="mobile-menu-btn" title="Open Navigation Menu" aria-label="Open Navigation Menu">
+        <span></span><span></span><span></span>
+      </button>
       <span class="logo-text">🎬 VideoCreator</span>
       <nav class="header-menu-bar">
         <span>File</span>
@@ -26,11 +29,11 @@
     </div>
 
     <!-- Center Creator Badge & Project Info -->
-    <div style="display:flex; align-items:center; gap:12px;">
+    <div class="header-center-info">
       <div id="header-project-badge" class="project-title-badge">
         VideoCreator — Sunset Adventure (00:01:23:14)
       </div>
-      <div class="creator-badge" style="display:flex; align-items:center; gap:10px; background:#141926; border:1px solid rgba(96, 165, 250, 0.4); padding:4px 12px; border-radius:20px; font-size:11px;">
+      <div class="creator-badge">
         <span style="color:#94A3B8;">Created by <strong style="color:#FFFFFF;">Shatrughna Ambhore</strong></span>
         <a href="mailto:ambhoreshtrughna@gmail.com" style="color:#60A5FA; text-decoration:none; font-weight:600;">📧 ambhoreshtrughna@gmail.com</a>
         <a href="tel:+919604466334" style="color:#34D399; text-decoration:none; font-weight:600;">📞 +91 9604466334</a>
@@ -39,7 +42,7 @@
 
     <!-- Screen Navigation & Actions -->
     <div class="header-actions">
-      <div class="nav-tabs">
+      <div class="nav-tabs desktop-nav-tabs">
         <button id="nav-home" class="nav-btn active">🏠 Home</button>
         <button id="nav-wizard" class="nav-btn">⚡ Quick Create</button>
         <button id="nav-editor" class="nav-btn">🎞 Studio</button>
@@ -48,6 +51,47 @@
       <button id="btn-open-export" class="btn btn-primary btn-sm">🚀 Export MP4</button>
     </div>
   </header>
+
+  <!-- Mobile Slide-Out Navigation Drawer -->
+  <div id="mobile-drawer-overlay" class="drawer-overlay"></div>
+  <aside id="mobile-drawer" class="mobile-drawer">
+    <div class="drawer-header">
+      <span class="logo-text">🎬 VideoCreator</span>
+      <button id="btn-close-drawer" class="btn-close-circle" aria-label="Close Menu">✕</button>
+    </div>
+    <div class="drawer-content">
+      <div class="drawer-section-title">NAVIGATION</div>
+      <div class="drawer-nav-list">
+        <button id="mobile-nav-home" class="drawer-nav-item active">🏠 Home Screen</button>
+        <button id="mobile-nav-wizard" class="drawer-nav-item">⚡ Quick Video Generator</button>
+        <button id="mobile-nav-editor" class="drawer-nav-item">🎞 Full Studio Editor</button>
+      </div>
+
+      <div class="drawer-section-title">PROJECT &amp; CANVAS</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button id="btn-mobile-aspect-16-9" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📐 16:9 Landscape</button>
+        <button id="btn-mobile-aspect-9-16" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📱 9:16 Instagram Reel / Shorts</button>
+        <button id="btn-mobile-aspect-1-1" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">🔳 1:1 Square</button>
+      </div>
+
+      <div class="drawer-section-title">QUICK ACTIONS</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <button id="btn-mobile-save" class="btn btn-secondary" style="padding:10px;">💾 Save Project</button>
+        <button id="btn-mobile-export" class="btn btn-primary" style="padding:10px;">🚀 Export MP4</button>
+        <button id="btn-mobile-undo" class="btn btn-secondary" style="padding:10px;">↶ Undo</button>
+        <button id="btn-mobile-redo" class="btn btn-secondary" style="padding:10px;">↷ Redo</button>
+      </div>
+
+      <div class="drawer-creator-card">
+        <div style="font-weight:700; color:#FFFFFF; margin-bottom:4px;">VideoCreator Studio</div>
+        <div style="font-size:11px; color:#94A3B8;">Created by <strong style="color:#60A5FA;">Shatrughna Ambhore</strong></div>
+        <div style="margin-top:6px; display:flex; flex-direction:column; gap:4px; font-size:11px;">
+          <a href="mailto:ambhoreshtrughna@gmail.com" style="color:#60A5FA; text-decoration:none;">📧 ambhoreshtrughna@gmail.com</a>
+          <a href="tel:+919604466334" style="color:#34D399; text-decoration:none;">📞 +91 9604466334</a>
+        </div>
+      </div>
+    </div>
+  </aside>
 
   <!-- Autosave Crash Recovery Banner -->
   <div id="recovery-banner" style="display:none; background:#312E81; color:#E0E7FF; padding:8px 20px; font-size:12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #4338CA;">
@@ -210,12 +254,18 @@
         <!-- Center Viewport: VIDEO PREVIEW -->
         <main class="center-viewport">
           <div class="viewport-header">
-            <span style="font-size:11px; font-weight:800; color:#94A3B8; letter-spacing:0.8px;">VIDEO PREVIEW</span>
-            <select id="editor-aspect-select" class="btn btn-secondary btn-sm" style="padding:2px 8px;">
-              <option value="16:9">16:9 Landscape</option>
-              <option value="9:16">9:16 Vertical Reel</option>
-              <option value="1:1">1:1 Square</option>
-            </select>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:11px; font-weight:800; color:#94A3B8; letter-spacing:0.8px;">VIDEO PREVIEW</span>
+              <span id="canvas-dim-badge" style="font-size:10px; color:#64748B; background:#161B26; padding:2px 6px; border-radius:4px;">1920x1080</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <select id="editor-aspect-select" class="btn btn-secondary btn-sm" style="padding:2px 8px;">
+                <option value="16:9">16:9 Landscape</option>
+                <option value="9:16">9:16 Vertical Reel</option>
+                <option value="1:1">1:1 Square</option>
+              </select>
+              <button id="btn-toggle-fullscreen" class="btn btn-secondary btn-sm" title="Toggle Fullscreen Preview" style="padding:4px 8px;">⛶</button>
+            </div>
           </div>
 
           <div id="canvas-wrapper" class="canvas-wrapper">
@@ -225,19 +275,19 @@
           <!-- Bottom Transport Bar -->
           <div class="transport-bar">
             <span id="editor-timecode" class="timecode">00:01:23:14</span>
-            <div style="display:flex; align-items:center; gap:6px;">
+            <div class="transport-controls">
               <button id="btn-step-backward" class="btn btn-secondary btn-sm" title="Step Back (1 Frame)">⏮</button>
               <button id="btn-play-pause" class="btn btn-primary btn-sm" style="min-width:70px;">▶ Play</button>
               <button id="btn-step-forward" class="btn btn-secondary btn-sm" title="Step Forward (1 Frame)">⏭</button>
             </div>
-            <div style="display:flex; align-items:center; gap:6px;">
+            <div class="transport-volume">
               <span style="font-size:12px;">🔊</span>
               <input type="range" id="input-audio-master-vol" min="0" max="100" value="100" style="width:70px;">
             </div>
           </div>
         </main>
 
-        <!-- Right Panel: INSPECTOR -->
+        <!-- Right Panel: INSPECTOR (Desktop View) -->
         <aside class="right-panel">
           <div style="font-size:11px; font-weight:800; color:#94A3B8; letter-spacing:0.8px; text-transform:uppercase;">
             INSPECTOR &rarr; <span id="inspector-clip-title" style="color:#FFF;">SUNSET PHOTO.JPG</span>
@@ -334,15 +384,15 @@
       <!-- Bottom: MULTI-TRACK TIMELINE -->
       <footer class="timeline-container">
         <div class="timeline-toolbar">
-          <div style="display:flex; align-items:center; gap:12px;">
-            <span style="font-size:11px; font-weight:800; color:#94A3B8; letter-spacing:0.8px;">TIMELINE</span>
+          <div class="timeline-tool-group">
+            <span class="timeline-heading">TIMELINE</span>
             <button id="btn-undo" class="btn btn-secondary btn-sm" title="Undo (Ctrl+Z)">↶</button>
             <button id="btn-redo" class="btn btn-secondary btn-sm" title="Redo (Ctrl+Shift+Z)">↷</button>
             <button id="btn-split-clip" class="btn btn-secondary btn-sm" title="Split (S)">✂️ Split</button>
             <button id="btn-delete-clip" class="btn btn-danger btn-sm" title="Delete (Del)">🗑</button>
           </div>
-          <span id="timeline-center-timecode" style="font-size:12px; font-weight:800; color:#F8FAFC;">00:01:23:14</span>
-          <div style="display:flex; align-items:center; gap:8px;">
+          <span id="timeline-center-timecode" class="timeline-timecode">00:01:23:14</span>
+          <div class="timeline-zoom-group">
             <span style="font-size:10px; color:#64748B;">Scale: 18</span>
             <input type="range" id="input-timeline-zoom" min="40" max="200" value="80" style="width:70px;">
           </div>
@@ -351,7 +401,9 @@
         <div class="timeline-ruler"></div>
 
         <div id="timeline-tracks-area" class="timeline-tracks-area">
-          <div id="timeline-playhead" class="playhead"></div>
+          <div id="timeline-playhead" class="playhead">
+            <div class="playhead-touch-handle" title="Drag playhead"></div>
+          </div>
 
           <!-- Video Track 1 -->
           <div class="timeline-track-row">
@@ -378,8 +430,32 @@
           </div>
         </div>
 
-        <!-- Studio Bottom Creator Bar -->
-        <div style="background:#090C12; border-top:1px solid var(--border-color); padding:4px 16px; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B;">
+        <!-- Mobile Bottom Tab Bar (Visible on Mobile) -->
+        <nav id="mobile-editor-tabs" class="mobile-editor-tabs">
+          <button class="mobile-tab-btn active" data-sheet="media">
+            <span class="tab-icon">📁</span>
+            <span class="tab-label">Media</span>
+          </button>
+          <button class="mobile-tab-btn" data-sheet="inspector">
+            <span class="tab-icon">🎛</span>
+            <span class="tab-label">Inspector</span>
+          </button>
+          <button class="mobile-tab-btn" data-sheet="styles">
+            <span class="tab-icon">✨</span>
+            <span class="tab-label">Styles</span>
+          </button>
+          <button class="mobile-tab-btn" data-sheet="titles">
+            <span class="tab-icon">🔤</span>
+            <span class="tab-label">Titles</span>
+          </button>
+          <button id="btn-mobile-quick-export" class="mobile-tab-btn export-tab">
+            <span class="tab-icon">🚀</span>
+            <span class="tab-label">Export</span>
+          </button>
+        </nav>
+
+        <!-- Studio Bottom Creator Bar (Desktop) -->
+        <div class="desktop-creator-footer">
           <span>VideoCreator Studio &bull; Created with ❤️ by <strong>Shatrughna Ambhore</strong></span>
           <div style="display:flex; gap:14px;">
             <a href="mailto:ambhoreshtrughna@gmail.com" style="color:#60A5FA; text-decoration:none;">📧 ambhoreshtrughna@gmail.com</a>
@@ -388,6 +464,69 @@
         </div>
       </footer>
     </section>
+
+    <!-- Mobile Bottom Sheets Container -->
+    <div id="mobile-sheet-overlay" class="sheet-overlay"></div>
+
+    <!-- Mobile Bottom Sheet: Media Library -->
+    <div id="mobile-sheet-media" class="bottom-sheet">
+      <div class="bottom-sheet-handle"></div>
+      <div class="bottom-sheet-header">
+        <span class="bottom-sheet-title">📁 Media Library</span>
+        <div style="display:flex; gap:6px;">
+          <button id="mobile-add-photo-btn" class="btn btn-primary btn-sm">+ Photo</button>
+          <button id="mobile-add-music-btn" class="btn btn-secondary btn-sm">+ Audio</button>
+          <button class="btn-close-sheet" data-close="media">✕</button>
+        </div>
+      </div>
+      <div id="mobile-media-content" class="bottom-sheet-body"></div>
+    </div>
+
+    <!-- Mobile Bottom Sheet: Clip Inspector -->
+    <div id="mobile-sheet-inspector" class="bottom-sheet">
+      <div class="bottom-sheet-handle"></div>
+      <div class="bottom-sheet-header">
+        <span id="mobile-inspector-title" class="bottom-sheet-title">🎛 Clip Inspector</span>
+        <button class="btn-close-sheet" data-close="inspector">✕</button>
+      </div>
+      <div id="mobile-inspector-content" class="bottom-sheet-body"></div>
+    </div>
+
+    <!-- Mobile Bottom Sheet: Styles & Templates -->
+    <div id="mobile-sheet-styles" class="bottom-sheet">
+      <div class="bottom-sheet-handle"></div>
+      <div class="bottom-sheet-header">
+        <span class="bottom-sheet-title">✨ Reel Styles &amp; Templates</span>
+        <button class="btn-close-sheet" data-close="styles">✕</button>
+      </div>
+      <div id="mobile-styles-content" class="bottom-sheet-body"></div>
+    </div>
+
+    <!-- Mobile Bottom Sheet: Text Titles -->
+    <div id="mobile-sheet-titles" class="bottom-sheet">
+      <div class="bottom-sheet-handle"></div>
+      <div class="bottom-sheet-header">
+        <span class="bottom-sheet-title">🔤 Animated Text &amp; Subtitles</span>
+        <button class="btn-close-sheet" data-close="titles">✕</button>
+      </div>
+      <div id="mobile-titles-content" class="bottom-sheet-body"></div>
+    </div>
+
+    <!-- Mobile Clip Action Sheet (Long-Press Menu) -->
+    <div id="mobile-sheet-actions" class="bottom-sheet action-sheet">
+      <div class="bottom-sheet-handle"></div>
+      <div class="bottom-sheet-header">
+        <span id="action-sheet-title" class="bottom-sheet-title">Selected Clip</span>
+        <button class="btn-close-sheet" data-close="actions">✕</button>
+      </div>
+      <div class="action-sheet-buttons">
+        <button id="action-btn-inspect" class="action-sheet-btn">🎛 Edit Properties &amp; Transforms</button>
+        <button id="action-btn-animation" class="action-sheet-btn">✨ Change Animation</button>
+        <button id="action-btn-split" class="action-sheet-btn">✂️ Split Clip at Playhead</button>
+        <button id="action-btn-copy-anim" class="action-sheet-btn">📋 Copy Animation</button>
+        <button id="action-btn-delete" class="action-sheet-btn danger">🗑 Delete Clip</button>
+      </div>
+    </div>
 
   </main>
 

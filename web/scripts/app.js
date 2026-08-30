@@ -35,6 +35,7 @@
   // --- Initialization ---
   function init() {
     setupNavigation();
+    setupMobileDrawerAndTabs();
     setupHomeScreen();
     setupWizard();
     setupEditor();
@@ -50,6 +51,14 @@
 
     // Canvas render loop
     startRenderLoop();
+
+    // Handle responsive resize and orientation change
+    window.addEventListener('resize', () => {
+      resizeCanvasWrapper();
+    });
+    window.addEventListener('orientationchange', () => {
+      setTimeout(resizeCanvasWrapper, 150);
+    });
   }
 
   function pushHistory() {
@@ -83,8 +92,11 @@
       screens[key].classList.toggle('active', key === screenName);
     });
     Object.keys(navBtns).forEach(key => {
-      navBtns[key].classList.toggle('active', key === screenName);
+      if (navBtns[key]) navBtns[key].classList.toggle('active', key === screenName);
     });
+
+    closeMobileDrawer();
+    closeBottomSheets();
 
     if (screenName === 'editor') {
       refreshTimeline();
@@ -97,22 +109,459 @@
   }
 
   function setupNavigation() {
-    navBtns.home.addEventListener('click', () => switchScreen('home'));
-    navBtns.wizard.addEventListener('click', () => switchScreen('wizard'));
-    navBtns.editor.addEventListener('click', () => switchScreen('editor'));
+    navBtns.home?.addEventListener('click', () => switchScreen('home'));
+    navBtns.wizard?.addEventListener('click', () => switchScreen('wizard'));
+    navBtns.editor?.addEventListener('click', () => switchScreen('editor'));
 
-    document.getElementById('btn-undo').addEventListener('click', undo);
-    document.getElementById('btn-redo').addEventListener('click', redo);
+    document.getElementById('btn-undo')?.addEventListener('click', undo);
+    document.getElementById('btn-redo')?.addEventListener('click', redo);
 
-    document.getElementById('btn-save-project').addEventListener('click', () => {
-      saveRecentProject(currentProject);
-      const json = JSON.stringify(currentProject, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${currentProject.metadata.name || 'project'}.vcproj`;
-      a.click();
+    document.getElementById('btn-save-project')?.addEventListener('click', saveProjectFile);
+  }
+
+  function saveProjectFile() {
+    saveRecentProject(currentProject);
+    const json = JSON.stringify(currentProject, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${currentProject.metadata.name || 'project'}.vcproj`;
+    a.click();
+  }
+
+  // --- Mobile Navigation Drawer & Bottom Sheet Controller ---
+  function setupMobileDrawerAndTabs() {
+    const menuBtn = document.getElementById('btn-mobile-menu');
+    const drawer = document.getElementById('mobile-drawer');
+    const drawerOverlay = document.getElementById('mobile-drawer-overlay');
+    const closeDrawerBtn = document.getElementById('btn-close-drawer');
+
+    // Open/Close Drawer
+    menuBtn?.addEventListener('click', () => {
+      drawer?.classList.add('active');
+      drawerOverlay?.classList.add('active');
     });
+
+    closeDrawerBtn?.addEventListener('click', closeMobileDrawer);
+    drawerOverlay?.addEventListener('click', closeMobileDrawer);
+
+    // Mobile Drawer Navigation
+    document.getElementById('mobile-nav-home')?.addEventListener('click', () => switchScreen('home'));
+    document.getElementById('mobile-nav-wizard')?.addEventListener('click', () => switchScreen('wizard'));
+    document.getElementById('mobile-nav-editor')?.addEventListener('click', () => switchScreen('editor'));
+
+    // Mobile Aspect Ratio Selectors
+    document.getElementById('btn-mobile-aspect-16-9')?.addEventListener('click', () => { setAspectRatio('16:9'); closeMobileDrawer(); });
+    document.getElementById('btn-mobile-aspect-9-16')?.addEventListener('click', () => { setAspectRatio('9:16'); closeMobileDrawer(); });
+    document.getElementById('btn-mobile-aspect-1-1')?.addEventListener('click', () => { setAspectRatio('1:1'); closeMobileDrawer(); });
+
+    // Mobile Quick Actions
+    document.getElementById('btn-mobile-save')?.addEventListener('click', () => { saveProjectFile(); closeMobileDrawer(); });
+    document.getElementById('btn-mobile-export')?.addEventListener('click', () => {
+      closeMobileDrawer();
+      document.getElementById('export-modal')?.classList.add('active');
+    });
+    document.getElementById('btn-mobile-undo')?.addEventListener('click', () => { undo(); closeMobileDrawer(); });
+    document.getElementById('btn-mobile-redo')?.addEventListener('click', () => { redo(); closeMobileDrawer(); });
+
+    // Mobile Bottom Tab Bar in Studio Editor
+    const tabButtons = document.querySelectorAll('.mobile-tab-btn[data-sheet]');
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sheetName = btn.getAttribute('data-sheet');
+        openBottomSheet(sheetName);
+      });
+    });
+
+    document.getElementById('btn-mobile-quick-export')?.addEventListener('click', () => {
+      document.getElementById('export-modal')?.classList.add('active');
+    });
+
+    // Close buttons on all bottom sheets
+    document.querySelectorAll('.btn-close-sheet').forEach(btn => {
+      btn.addEventListener('click', closeBottomSheets);
+    });
+
+    const sheetOverlay = document.getElementById('mobile-sheet-overlay');
+    sheetOverlay?.addEventListener('click', closeBottomSheets);
+
+    // Mobile Action Sheet Buttons
+    document.getElementById('action-btn-inspect')?.addEventListener('click', () => {
+      closeBottomSheets();
+      openBottomSheet('inspector');
+    });
+    document.getElementById('action-btn-animation')?.addEventListener('click', () => {
+      closeBottomSheets();
+      openBottomSheet('inspector');
+    });
+    document.getElementById('action-btn-split')?.addEventListener('click', () => {
+      closeBottomSheets();
+      splitSelectedClip();
+    });
+    document.getElementById('action-btn-copy-anim')?.addEventListener('click', () => {
+      closeBottomSheets();
+      if (selectedClip) {
+        window._copiedMotion = selectedClip.motion || 'ZoomIn';
+      }
+    });
+    document.getElementById('action-btn-delete')?.addEventListener('click', () => {
+      closeBottomSheets();
+      deleteSelectedClip();
+    });
+
+    // Fullscreen Toggle Button
+    document.getElementById('btn-toggle-fullscreen')?.addEventListener('click', toggleFullscreenPreview);
+
+    // Mobile Add Media in Sheet
+    document.getElementById('mobile-add-photo-btn')?.addEventListener('click', () => {
+      document.getElementById('editor-photo-input')?.click();
+    });
+    document.getElementById('mobile-add-music-btn')?.addEventListener('click', () => {
+      document.getElementById('editor-music-input')?.click();
+    });
+  }
+
+  function closeMobileDrawer() {
+    document.getElementById('mobile-drawer')?.classList.remove('active');
+    document.getElementById('mobile-drawer-overlay')?.classList.remove('active');
+  }
+
+  function openBottomSheet(sheetName) {
+    closeBottomSheets();
+    const sheet = document.getElementById(`mobile-sheet-${sheetName}`);
+    const overlay = document.getElementById('mobile-sheet-overlay');
+    if (!sheet) return;
+
+    // Sync content into sheet
+    if (sheetName === 'media') {
+      populateMobileMediaSheet();
+    } else if (sheetName === 'inspector') {
+      populateMobileInspectorSheet();
+    } else if (sheetName === 'styles') {
+      populateMobileStylesSheet();
+    } else if (sheetName === 'titles') {
+      populateMobileTitlesSheet();
+    }
+
+    sheet.classList.add('active');
+    overlay?.classList.add('active');
+  }
+
+  function closeBottomSheets() {
+    document.querySelectorAll('.bottom-sheet').forEach(s => s.classList.remove('active'));
+    document.getElementById('mobile-sheet-overlay')?.classList.remove('active');
+  }
+
+  function toggleFullscreenPreview() {
+    const wrapper = document.getElementById('canvas-wrapper');
+    if (!document.fullscreenElement) {
+      if (wrapper.requestFullscreen) wrapper.requestFullscreen();
+      else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  }
+
+  function populateMobileMediaSheet() {
+    const container = document.getElementById('mobile-media-content');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Photos Section
+    const photoSec = document.createElement('div');
+    photoSec.innerHTML = `
+      <div style="font-size:12px; font-weight:800; color:#94A3B8; margin-bottom:8px;">📁 Photos in Project</div>
+      <div id="mobile-library-photos" class="photos-grid-view" style="max-height:220px;"></div>
+    `;
+    container.appendChild(photoSec);
+
+    // Render photo thumbs
+    const grid = photoSec.querySelector('#mobile-library-photos');
+    const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+    const timelineClips = videoTrack ? videoTrack.clips : [];
+
+    currentProject.assets.filter(a => a.type === 'image').forEach(asset => {
+      const isAdded = timelineClips.some(c => c.source === asset.source);
+      const card = document.createElement('div');
+      card.className = `photo-thumb-card ${isAdded ? 'selected' : ''}`;
+      card.innerHTML = `
+        <img src="${asset.source}">
+        <div style="position:absolute; bottom:2px; left:4px; right:4px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:9px; background:rgba(0,0,0,0.7); padding:1px 4px; border-radius:3px; color:#FFF;">${asset.name.split('.')[0]}</span>
+          <span style="font-size:10px; color:${isAdded ? '#10B981' : '#94A3B8'}; font-weight:bold;">${isAdded ? '✓ Added' : '+ Insert'}</span>
+        </div>
+      `;
+      card.addEventListener('click', () => {
+        pushHistory();
+        if (isAdded) {
+          if (videoTrack) {
+            videoTrack.clips = videoTrack.clips.filter(c => c.source !== asset.source);
+            let t = 0;
+            videoTrack.clips.forEach(c => { c.startTime = t; t += c.duration; });
+          }
+        } else {
+          insertPhotoAtPlayhead(asset.source, asset.name);
+        }
+        recalculateDuration();
+        refreshTimeline();
+        refreshMediaLibrary();
+        populateMobileMediaSheet();
+      });
+      grid.appendChild(card);
+    });
+
+    // Music Section
+    const musicSec = document.createElement('div');
+    musicSec.innerHTML = `
+      <div style="font-size:12px; font-weight:800; color:#94A3B8; margin-top:8px; margin-bottom:8px;">🎵 Audio & Music</div>
+      <div id="mobile-library-music" style="display:flex; flex-direction:column; gap:8px;"></div>
+    `;
+    container.appendChild(musicSec);
+
+    const mList = musicSec.querySelector('#mobile-library-music');
+    currentProject.assets.filter(a => a.type === 'audio').forEach(asset => {
+      const item = document.createElement('div');
+      item.className = 'music-preview-item';
+      item.innerHTML = `
+        <span style="font-size:12px; font-weight:600;">▶ ${asset.name}</span>
+        <div class="waveform-preview-line"></div>
+      `;
+      mList.appendChild(item);
+    });
+  }
+
+  function populateMobileInspectorSheet() {
+    const container = document.getElementById('mobile-inspector-content');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!selectedClip) {
+      container.innerHTML = `<div style="text-align:center; color:#94A3B8; padding:30px 10px;">Tap a clip on the timeline to inspect and edit its properties.</div>`;
+      return;
+    }
+
+    const title = document.getElementById('mobile-inspector-title');
+    if (title) title.textContent = `🎛 ${(selectedClip.name || 'Clip').toUpperCase()}`;
+
+    if (selectedClip.source) {
+      const tf = selectedClip.transform || { rotationDegrees: 0, scaleX: 1.0, opacity: 1.0 };
+      const cg = selectedClip.colorGrading || { exposure: 0, contrast: 50, saturation: 100 };
+
+      container.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <!-- Transform -->
+          <div class="inspector-section-title">TRANSFORM &amp; ROTATION</div>
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px;">
+            <button id="m-btn-rot-left" class="btn btn-secondary" style="min-height:42px;">↺ Left</button>
+            <button id="m-btn-rot-right" class="btn btn-secondary" style="min-height:42px;">↻ Right</button>
+            <button id="m-btn-flip-h" class="btn btn-secondary" style="min-height:42px;">⇄ Horiz</button>
+            <button id="m-btn-flip-v" class="btn btn-secondary" style="min-height:42px;">⇅ Vert</button>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="font-size:12px; color:#94A3B8;">Scale / Zoom</label>
+            <span id="m-val-scale" style="font-size:12px; color:#FFF; font-weight:700;">${Math.round((tf.scaleX || 1.0) * 100)}%</span>
+          </div>
+          <input type="range" id="m-input-scale" min="0.5" max="2.5" step="0.05" value="${tf.scaleX || 1.0}" style="height:32px;">
+
+          <!-- Animation Suite -->
+          <div class="inspector-section-title" style="margin-top:6px;">PHOTO ANIMATION PRESET</div>
+          <select id="m-select-motion" class="btn btn-secondary" style="width:100%; min-height:42px; font-size:12px;">
+            <option value="ZoomIn">Zoom In (Focus Target)</option>
+            <option value="ZoomOut">Zoom Out (Reveal Background)</option>
+            <option value="ZoomInOut">Zoom In then Out</option>
+            <option value="PanLeft">Pan Left</option>
+            <option value="PanRight">Pan Right</option>
+            <option value="PanUp">Pan Up</option>
+            <option value="PanDown">Pan Down</option>
+            <option value="KenBurns">Ken Burns Cinematic</option>
+            <option value="DynamicZoom">Dynamic Zoom &amp; Drift</option>
+            <option value="Cinematic">Cinematic Multi-Keyframe</option>
+            <option value="RandomMotion">🎲 Random Motion</option>
+          </select>
+
+          <!-- Duration Setting -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+            <label style="font-size:12px; color:#94A3B8;">Photo Duration</label>
+            <span id="m-val-dur" style="font-size:12px; color:#60A5FA; font-weight:700;">${selectedClip.duration.toFixed(1)}s</span>
+          </div>
+          <input type="range" id="m-input-dur" min="1" max="15" step="0.5" value="${selectedClip.duration}" style="height:32px;">
+
+          <!-- Actions -->
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+            <button id="m-btn-apply-all" class="btn btn-secondary" style="padding:12px;">✨ Apply to All</button>
+            <button id="m-btn-del-clip" class="btn btn-danger" style="padding:12px;">🗑 Delete Clip</button>
+          </div>
+        </div>
+      `;
+
+      // Bind mobile inspector events
+      container.querySelector('#m-select-motion').value = selectedClip.motion || 'ZoomIn';
+      container.querySelector('#m-select-motion').addEventListener('change', (e) => {
+        pushHistory();
+        selectedClip.motion = e.target.value;
+        refreshTimeline();
+      });
+
+      container.querySelector('#m-btn-rot-left').addEventListener('click', () => {
+        pushHistory();
+        selectedClip.transform = selectedClip.transform || {};
+        selectedClip.transform.rotationDegrees = (selectedClip.transform.rotationDegrees || 0) - 90;
+        updateInspector();
+      });
+      container.querySelector('#m-btn-rot-right').addEventListener('click', () => {
+        pushHistory();
+        selectedClip.transform = selectedClip.transform || {};
+        selectedClip.transform.rotationDegrees = (selectedClip.transform.rotationDegrees || 0) + 90;
+        updateInspector();
+      });
+      container.querySelector('#m-btn-flip-h').addEventListener('click', () => {
+        pushHistory();
+        selectedClip.transform = selectedClip.transform || {};
+        selectedClip.transform.flipX = !selectedClip.transform.flipX;
+        updateInspector();
+      });
+      container.querySelector('#m-btn-flip-v').addEventListener('click', () => {
+        pushHistory();
+        selectedClip.transform = selectedClip.transform || {};
+        selectedClip.transform.flipY = !selectedClip.transform.flipY;
+        updateInspector();
+      });
+
+      const scaleInput = container.querySelector('#m-input-scale');
+      scaleInput.addEventListener('input', (e) => {
+        selectedClip.transform = selectedClip.transform || {};
+        selectedClip.transform.scaleX = parseFloat(e.target.value);
+        container.querySelector('#m-val-scale').textContent = `${Math.round(selectedClip.transform.scaleX * 100)}%`;
+        updateInspector();
+      });
+
+      const durInput = container.querySelector('#m-input-dur');
+      durInput.addEventListener('input', (e) => {
+        pushHistory();
+        selectedClip.duration = parseFloat(e.target.value);
+        container.querySelector('#m-val-dur').textContent = `${selectedClip.duration.toFixed(1)}s`;
+        const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+        if (videoTrack) {
+          let t = 0;
+          videoTrack.clips.forEach(c => { c.startTime = t; t += c.duration; });
+        }
+        recalculateDuration();
+        refreshTimeline();
+      });
+
+      container.querySelector('#m-btn-apply-all').addEventListener('click', () => {
+        pushHistory();
+        const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+        if (videoTrack) {
+          videoTrack.clips.forEach(c => { c.motion = selectedClip.motion; });
+        }
+        alert('✨ Applied animation to all photos!');
+      });
+
+      container.querySelector('#m-btn-del-clip').addEventListener('click', () => {
+        deleteSelectedClip();
+        closeBottomSheets();
+      });
+    }
+  }
+
+  function populateMobileStylesSheet() {
+    const container = document.getElementById('mobile-styles-content');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const list = document.createElement('div');
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '10px';
+
+    AVAILABLE_TEMPLATES.forEach(tpl => {
+      const card = document.createElement('div');
+      card.className = 'template-card';
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h4 style="color:#FFF;">${tpl.name}</h4>
+          <span style="font-size:10px; background:#4F46E5; padding:2px 8px; border-radius:4px;">${tpl.aspectRatio}</span>
+        </div>
+        <p>${tpl.description}</p>
+        <button class="btn btn-primary btn-sm" style="width:100%; margin-top:4px;">Apply Template</button>
+      `;
+      card.querySelector('button').addEventListener('click', () => {
+        pushHistory();
+        applyTemplateToCurrentProject(tpl);
+        closeBottomSheets();
+        refreshTimeline();
+      });
+      list.appendChild(card);
+    });
+
+    container.appendChild(list);
+  }
+
+  function populateMobileTitlesSheet() {
+    const container = document.getElementById('mobile-titles-content');
+    if (!container) return;
+    container.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <label style="font-size:12px; color:#94A3B8;">Title Text Content</label>
+        <input type="text" id="m-input-text-content" class="btn btn-secondary" style="width:100%; text-align:left; min-height:42px;" value="CAPTURING THE MAGIC OF THE SUNSET">
+
+        <label style="font-size:12px; color:#94A3B8;">Font Typography</label>
+        <select id="m-select-text-font" class="btn btn-secondary" style="width:100%; min-height:42px;">
+          <option value="Inter">Inter (Clean Modern)</option>
+          <option value="Impact">Impact (Bold Poster)</option>
+          <option value="Playfair Display">Playfair Display (Luxury)</option>
+          <option value="Cinzel">Cinzel (Cinematic)</option>
+          <option value="Georgia">Georgia (Classic Serif)</option>
+        </select>
+
+        <button id="m-btn-add-title-playhead" class="btn btn-primary" style="padding:12px; margin-top:8px;">➕ Add Title at Playhead</button>
+      </div>
+    `;
+
+    container.querySelector('#m-btn-add-title-playhead')?.addEventListener('click', () => {
+      pushHistory();
+      let overlayTrack = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+      if (!overlayTrack) {
+        overlayTrack = { id: 'track-overlay-1', type: 'overlay', clips: [] };
+        currentProject.timeline.tracks.push(overlayTrack);
+      }
+      const textVal = container.querySelector('#m-input-text-content').value || 'Title';
+      const fontVal = container.querySelector('#m-select-text-font').value || 'Inter';
+
+      overlayTrack.clips.push({
+        id: `clip-title-${Date.now()}`,
+        startTime: currentTime,
+        duration: 3.5,
+        overlay: {
+          text: textVal,
+          fontFamily: fontVal,
+          fontSize: 52,
+          colorHex: '#FFFFFF',
+          backgroundColorHex: 'rgba(0,0,0,0.6)',
+          entryAnimation: 'Pop',
+          animationDuration: 0.6
+        },
+        transform: { anchorX: 0.5, anchorY: 0.85 }
+      });
+
+      closeBottomSheets();
+      recalculateDuration();
+      refreshTimeline();
+    });
+  }
+
+  function applyTemplateToCurrentProject(tpl) {
+    setAspectRatio(tpl.aspectRatio);
+    const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+    if (videoTrack) {
+      videoTrack.clips.forEach(clip => {
+        clip.motion = tpl.motion || 'ZoomIn';
+        clip.cropMode = tpl.cropMode || 'BlurBackground';
+        clip.transitionOut = { type: tpl.transition || 'CrossDissolve', duration: tpl.transitionDuration || 0.5 };
+      });
+    }
   }
 
   function populateSampleMedia() {
@@ -746,6 +1195,8 @@
     const audioTrackArea = document.getElementById('timeline-audio-track');
     const voiceoverArea = document.getElementById('timeline-voiceover-track');
 
+    if (!videoTrackArea || !textTrackArea || !audioTrackArea || !voiceoverArea) return;
+
     videoTrackArea.innerHTML = '';
     textTrackArea.innerHTML = '';
     audioTrackArea.innerHTML = '';
@@ -784,7 +1235,53 @@
     voBlock.textContent = '🎙 Voiceover';
     voiceoverArea.appendChild(voBlock);
 
+    setupTimelineScrubberTouch();
     updatePlayheadPosition();
+  }
+
+  function setupTimelineScrubberTouch() {
+    const tracksArea = document.getElementById('timeline-tracks-area');
+    const playhead = document.getElementById('timeline-playhead');
+    if (!tracksArea || tracksArea._hasTouch) return;
+    tracksArea._hasTouch = true;
+
+    function handleSeekEvent(clientX) {
+      const rect = tracksArea.getBoundingClientRect();
+      const scrollLeft = tracksArea.scrollLeft;
+      const x = clientX - rect.left + scrollLeft - 90; // offset track label col
+      const time = Math.max(0, x / timelineZoom);
+      seek(time);
+    }
+
+    let isScrubbing = false;
+
+    playhead?.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      isScrubbing = true;
+    });
+
+    playhead?.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      isScrubbing = true;
+    }, { passive: false });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isScrubbing) handleSeekEvent(e.clientX);
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isScrubbing && e.touches.length > 0) {
+        handleSeekEvent(e.touches[0].clientX);
+      }
+    }, { passive: false });
+
+    window.addEventListener('mouseup', () => { isScrubbing = false; });
+    window.addEventListener('touchend', () => { isScrubbing = false; });
+
+    tracksArea.addEventListener('click', (e) => {
+      if (e.target.closest('.clip-block') || e.target.closest('.clip-resize-handle')) return;
+      handleSeekEvent(e.clientX);
+    });
   }
 
   function createClipBlock(clip, className, label) {
@@ -792,15 +1289,113 @@
     div.className = `clip-block ${className} ${selectedClip === clip ? 'selected' : ''}`;
     div.style.left = `${clip.startTime * timelineZoom}px`;
     div.style.width = `${clip.duration * timelineZoom}px`;
-    div.textContent = label;
+    div.innerHTML = `
+      <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; pointer-events:none;">${label} (${clip.duration.toFixed(1)}s)</span>
+      <div class="clip-resize-handle" title="Drag to adjust duration"></div>
+    `;
+
+    // Long press detection for mobile
+    let longPressTimer = null;
+    div.addEventListener('touchstart', () => {
+      longPressTimer = setTimeout(() => {
+        selectedClip = clip;
+        const actionTitle = document.getElementById('action-sheet-title');
+        if (actionTitle) actionTitle.textContent = clip.name || 'Selected Clip';
+        openBottomSheet('actions');
+      }, 450);
+    }, { passive: true });
+
+    div.addEventListener('touchend', () => {
+      if (longPressTimer) clearTimeout(longPressTimer);
+    });
+    div.addEventListener('touchmove', () => {
+      if (longPressTimer) clearTimeout(longPressTimer);
+    });
 
     div.addEventListener('click', (e) => {
+      if (e.target.classList.contains('clip-resize-handle')) return;
       e.stopPropagation();
       selectedClip = clip;
       seek(clip.startTime);
       refreshTimeline();
       updateInspector();
+
+      // If on mobile, open inspector bottom sheet
+      if (window.innerWidth < 768) {
+        openBottomSheet('inspector');
+      }
     });
+
+    // Duration Resize Handle Dragging (Mouse & Touch)
+    const resizeHandle = div.querySelector('.clip-resize-handle');
+    let isResizing = false;
+    let startX = 0;
+    let startDuration = clip.duration;
+
+    function onResizeStart(clientX) {
+      isResizing = true;
+      startX = clientX;
+      startDuration = clip.duration;
+      pushHistory();
+    }
+
+    function onResizeMove(clientX) {
+      if (!isResizing) return;
+      const deltaX = clientX - startX;
+      const deltaSec = deltaX / timelineZoom;
+      const newDuration = Math.max(0.5, Math.min(60.0, startDuration + deltaSec));
+
+      clip.duration = parseFloat(newDuration.toFixed(1));
+      div.style.width = `${clip.duration * timelineZoom}px`;
+
+      // Ripple start times of subsequent clips on same track
+      const track = currentProject.timeline.tracks.find(t => t.clips.includes(clip));
+      if (track) {
+        let t = 0;
+        track.clips.forEach(c => {
+          c.startTime = t;
+          t += c.duration;
+        });
+      }
+
+      recalculateDuration();
+      updateInspector();
+      updatePlayheadPosition();
+    }
+
+    function onResizeEnd() {
+      if (isResizing) {
+        isResizing = false;
+        refreshTimeline();
+        updateInspector();
+      }
+    }
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      onResizeStart(e.clientX);
+    });
+
+    resizeHandle.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      if (e.touches.length > 0) {
+        onResizeStart(e.touches[0].clientX);
+      }
+    }, { passive: false });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isResizing) onResizeMove(e.clientX);
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isResizing && e.touches.length > 0) {
+        onResizeMove(e.touches[0].clientX);
+      }
+    }, { passive: false });
+
+    window.addEventListener('mouseup', onResizeEnd);
+    window.addEventListener('touchend', onResizeEnd);
 
     return div;
   }
@@ -880,16 +1475,29 @@
       currentProject.canvas.width = 1080;
       currentProject.canvas.height = 1080;
     }
+    const sel = document.getElementById('editor-aspect-select');
+    if (sel) sel.value = ratio;
     resizeCanvasWrapper();
   }
 
   function resizeCanvasWrapper() {
     const wrapper = document.getElementById('canvas-wrapper');
+    const container = document.querySelector('.center-viewport');
+    if (!wrapper || !container) return;
+
     const { width, height } = currentProject.canvas;
     const aspect = width / height;
 
-    const maxH = 460;
-    const maxW = 740;
+    const isMobile = window.innerWidth < 768;
+    const isLandscapeMobile = window.innerHeight < 520 && window.innerWidth > window.innerHeight;
+
+    const maxH = isLandscapeMobile
+      ? Math.max(160, window.innerHeight - 150)
+      : isMobile
+        ? Math.max(180, window.innerHeight - 340)
+        : Math.max(220, container.clientHeight - 80);
+
+    const maxW = Math.max(240, container.clientWidth - 28);
 
     let targetH = maxH;
     let targetW = targetH * aspect;
@@ -898,8 +1506,13 @@
       targetH = targetW / aspect;
     }
 
-    wrapper.style.width = `${targetW}px`;
-    wrapper.style.height = `${targetH}px`;
+    wrapper.style.width = `${Math.round(targetW)}px`;
+    wrapper.style.height = `${Math.round(targetH)}px`;
+
+    const dimBadge = document.getElementById('canvas-dim-badge');
+    if (dimBadge) {
+      dimBadge.textContent = `${width}x${height}`;
+    }
   }
 
   function refreshMediaLibrary() {
