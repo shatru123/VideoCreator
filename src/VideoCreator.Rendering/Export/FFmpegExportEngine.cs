@@ -78,7 +78,9 @@ public class FFmpegExportEngine : IExportEngine
             double trimStartSec = primaryAudioClip.AudioSettings.TrimStart.TotalSeconds;
             double startOffsetSec = primaryAudioClip.StartTime.TotalSeconds;
 
+            double availableAudioSec = Math.Max(0.0, totalDurSec - startOffsetSec);
             string ssArg = trimStartSec > 0.01 ? $"-ss {trimStartSec.ToString("0.###", CultureInfo.InvariantCulture)} " : "";
+            string tAudioArg = $"-t {availableAudioSec.ToString("0.###", CultureInfo.InvariantCulture)} ";
 
             var filters = new List<string>();
             if (startOffsetSec > 0.01)
@@ -95,7 +97,7 @@ public class FFmpegExportEngine : IExportEngine
             string audioFilter = string.Join(",", filters);
 
             ffmpegArgs = $"-y -f rawvideo -vcodec rawvideo -pix_fmt rgba -s {width}x{height} -r {fps} -i - " +
-                         $"{ssArg}-i \"{primaryAudioClip.SourceFilePath}\" " +
+                         $"{ssArg}{tAudioArg}-i \"{primaryAudioClip.SourceFilePath}\" " +
                          $"-filter_complex \"[1:a]{audioFilter}[aout]\" " +
                          $"-map 0:v:0 -map \"[aout]\" " +
                          $"-c:v {options.VideoCodec} -profile:v high -level 4.1 -pix_fmt yuv420p -b:v {options.VideoBitrate} " +

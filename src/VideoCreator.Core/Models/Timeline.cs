@@ -11,14 +11,21 @@ public class Timeline
     public List<Track> Tracks { get; set; } = new();
     public TimeSpan PlayheadPosition { get; set; } = TimeSpan.Zero;
 
-    public TimeSpan TotalDuration
+    public TimeSpan VisualDuration
     {
         get
         {
+            var visualTracks = Tracks.Where(t => t.Type == TrackType.Video || t.Type == TrackType.Overlay).ToList();
+            if (visualTracks.Count > 0 && visualTracks.Any(t => t.Clips.Count > 0))
+            {
+                return visualTracks.Max(t => t.Duration);
+            }
             if (Tracks.Count == 0) return TimeSpan.Zero;
             return Tracks.Max(t => t.Duration);
         }
     }
+
+    public TimeSpan TotalDuration => VisualDuration;
 
     public Track GetOrCreateTrack(TrackType type, string name)
     {

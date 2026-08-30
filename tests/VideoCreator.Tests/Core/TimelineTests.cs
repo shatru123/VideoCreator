@@ -25,8 +25,10 @@ public class TimelineTests
         var audioClip = new AudioClip("audio.mp3", TimeSpan.FromSeconds(10.0)) { StartTime = TimeSpan.Zero };
         track2.Clips.Add(audioClip);
 
-        project.Timeline.TotalDuration.Should().Be(TimeSpan.FromSeconds(10.0));
+        // Visual photo timeline is the source of truth for total project duration (7.0s, NOT 10.0s)
+        project.Timeline.TotalDuration.Should().Be(TimeSpan.FromSeconds(7.0));
         track1.Duration.Should().Be(TimeSpan.FromSeconds(7.0));
+        track2.Duration.Should().Be(TimeSpan.FromSeconds(10.0));
     }
 
     [Fact]

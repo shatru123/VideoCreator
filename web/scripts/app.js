@@ -859,7 +859,8 @@
 
   function recalculateDuration() {
     let max = 0;
-    currentProject.timeline.tracks.forEach(track => {
+    const visualTracks = currentProject.timeline.tracks.filter(t => t.type === 'video' || t.type === 'overlay');
+    visualTracks.forEach(track => {
       track.clips.forEach(clip => {
         const end = clip.startTime + clip.duration;
         if (end > max) max = end;
