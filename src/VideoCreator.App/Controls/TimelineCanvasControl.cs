@@ -176,22 +176,58 @@ public class TimelineCanvasControl : Control
 
                 bool isSelected = SelectedClip?.Id == clip.Id;
 
+                // Clip Body Colors & Styles matching README screenshot
                 Color clipBgColor = track.Type switch
                 {
-                    TrackType.Video => Color.Parse("#1E3A8A"),   // Blue
-                    TrackType.Overlay => Color.Parse("#4C1D95"), // Purple
-                    TrackType.Audio => Color.Parse("#78350F"),   // Amber
-                    _ => Color.Parse("#334155")
+                    TrackType.Video => Color.Parse("#1A202C"),    // Filmstrip Dark Slate
+                    TrackType.Overlay => Color.Parse("#383256"),  // Deep Purple Titles
+                    TrackType.Audio => Color.Parse("#1F1C18"),    // Dark Amber Audio
+                    _ => Color.Parse("#232734")
                 };
 
-                if (isSelected) clipBgColor = Color.Parse("#2563EB");
+                // Golden glow if selected
+                Color borderClr = isSelected ? Color.Parse("#F59E0B") : (track.Type == TrackType.Overlay ? Color.Parse("#52467A") : Color.Parse("#2D3748"));
+                double borderThick = isSelected ? 2.0 : 1.0;
 
-                // Clip Body
-                context.FillRectangle(new SolidColorBrush(clipBgColor), clipRect, 6);
-                var borderPen = new Pen(new SolidColorBrush(isSelected ? Color.Parse("#F59E0B") : Color.Parse("#3B82F6")), isSelected ? 2 : 1);
-                context.DrawRectangle(null, borderPen, clipRect, 6, 6);
+                // Clip Body Container
+                context.FillRectangle(new SolidColorBrush(clipBgColor), clipRect, 4);
+                context.DrawRectangle(null, new Pen(new SolidColorBrush(borderClr), borderThick), clipRect, 4, 4);
 
-                // Animation Badge Icon
+                // If Video Clip: Render Filmstrip simulation with thumbnail frames
+                if (clip is ImageClip)
+                {
+                    // Mini frames divider lines
+                    int frameCount = (int)Math.Max(1, clipW / 36.0);
+                    for (int f = 1; f < frameCount; f++)
+                    {
+                        double fx = clipX + f * (clipW / frameCount);
+                        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#2D3748")), 1), new Point(fx, currentY + 4), new Point(fx, currentY + TrackHeight - 8));
+                    }
+                }
+
+                // If Overlay Clip: Render Titles Badge
+                if (clip is TextClip || track.Type == TrackType.Overlay)
+                {
+                    var titleTag = new FormattedText(
+                        "TITLES",
+                        System.Globalization.CultureInfo.CurrentCulture,
+                        FlowDirection.LeftToRight,
+                        new Typeface("Inter", FontStyle.Normal, FontWeight.Bold),
+                        9,
+                        new SolidColorBrush(Color.Parse("#A78BFA")));
+                    context.DrawText(titleTag, new Point(clipX + 8, currentY + 8));
+
+                    var overlayTag = new FormattedText(
+                        "OVERLAY",
+                        System.Globalization.CultureInfo.CurrentCulture,
+                        FlowDirection.LeftToRight,
+                        new Typeface("Inter", FontStyle.Normal, FontWeight.Bold),
+                        9,
+                        new SolidColorBrush(Color.Parse("#A78BFA")));
+                    context.DrawText(overlayTag, new Point(clipX + clipW - 55, currentY + 8));
+                }
+
+                // Clip Title
                 string animBadge = "";
                 if (clip is ImageClip img)
                 {
@@ -212,52 +248,66 @@ public class TimelineCanvasControl : Control
                     };
                 }
 
-                // Clip Title
-                string displayName = string.IsNullOrEmpty(animBadge) ? clip.Name : $"{clip.Name} {animBadge}";
+                string displayName = string.IsNullOrEmpty(animBadge) ? clip.Name.ToUpper() : $"{clip.Name.ToUpper()} {animBadge}";
                 var clipTitle = new FormattedText(
                     displayName,
                     System.Globalization.CultureInfo.CurrentCulture,
                     FlowDirection.LeftToRight,
                     new Typeface("Inter", FontStyle.Normal, FontWeight.Bold),
-                    11,
-                    new SolidColorBrush(Color.Parse("#FFFFFF")));
-                context.DrawText(clipTitle, new Point(clipX + 8, currentY + 7));
+                    10,
+                    new SolidColorBrush(Color.Parse("#F8FAFC")));
+                context.DrawText(clipTitle, new Point(clipX + 8, currentY + (track.Type == TrackType.Overlay ? 22 : 6)));
 
-                // Clip Duration Badge
+                // Clip Duration / Details
                 string details = $"{clip.Duration.TotalSeconds:0.0}s";
-                if (clip.TransitionOut != null) details += $" • {clip.TransitionOut.Type}";
                 var detailsText = new FormattedText(
                     details,
                     System.Globalization.CultureInfo.CurrentCulture,
                     FlowDirection.LeftToRight,
                     new Typeface("Inter"),
-                    10,
-                    new SolidColorBrush(Color.Parse("#93C5FD")));
-                context.DrawText(detailsText, new Point(clipX + 8, currentY + 26));
+                    9,
+                    new SolidColorBrush(Color.Parse("#94A3B8")));
+                context.DrawText(detailsText, new Point(clipX + 8, currentY + TrackHeight - 20));
 
-                // Waveform rendering for audio
-                if (clip is AudioClip audio && audio.WaveformData.Count > 0)
+                // Waveform rendering for audio clips
+                if (clip is AudioClip audio)
                 {
                     double waveW = clipW - 16;
-                    double waveMidY = currentY + TrackHeight - 14;
-                    int samples = audio.WaveformData.Count;
+                    double waveMidY = currentY + TrackHeight - 16;
+                    int samples = audio.WaveformData.Count > 0 ? audio.WaveformData.Count : 40;
                     double step = waveW / samples;
 
                     for (int s = 0; s < samples; s++)
                     {
                         double wx = clipX + 8 + s * step;
-                        double amp = audio.WaveformData[s] * 10.0;
-                        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#FBBF24")), 1), new Point(wx, waveMidY - amp), new Point(wx, waveMidY + amp));
+                        double amp = (audio.WaveformData.Count > s ? audio.WaveformData[s] : (float)(Math.Sin(s * 0.3) * 0.5 + 0.5)) * 12.0;
+                        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#FBBF24")), 1.5), new Point(wx, waveMidY - amp), new Point(wx, waveMidY + amp));
                     }
+                }
+
+                // Render Transition Out Pill if present
+                if (clip.TransitionOut != null && clip.TransitionOut.Type != TransitionType.None)
+                {
+                    double transW = Math.Max(20.0, clip.TransitionOut.Duration.TotalSeconds * PixelsPerSecond);
+                    var transRect = new Rect(clipX + clipW - transW, currentY + 3, transW, TrackHeight - 6);
+                    context.FillRectangle(new SolidColorBrush(Color.Parse("#282D3D")), transRect, 3);
+                    context.DrawRectangle(null, new Pen(new SolidColorBrush(Color.Parse("#3D465C")), 1), transRect, 3, 3);
+
+                    var transText = new FormattedText(
+                        clip.TransitionOut.Type.ToString(),
+                        System.Globalization.CultureInfo.CurrentCulture,
+                        FlowDirection.LeftToRight,
+                        new Typeface("Inter", FontStyle.Normal, FontWeight.SemiBold),
+                        9,
+                        new SolidColorBrush(Color.Parse("#94A3B8")));
+                    context.DrawText(transText, new Point(transRect.X + 4, currentY + (TrackHeight - transText.Height) / 2));
                 }
 
                 // Draw resize handles if selected
                 if (isSelected)
                 {
-                    // Left handle grip
-                    context.FillRectangle(new SolidColorBrush(Color.Parse("#F59E0B")), new Rect(clipX, currentY + 8, 4, TrackHeight - 16), 2);
-                    // Right handle grip
-                    context.FillRectangle(new SolidColorBrush(Color.Parse("#F59E0B")), new Rect(clipX + clipW - 4, currentY + 8, 4, TrackHeight - 16), 2);
+                    context.FillRectangle(new SolidColorBrush(Color.Parse("#F59E0B")), new Rect(clipX, currentY + 6, 3, TrackHeight - 12), 1.5f);
+                    context.FillRectangle(new SolidColorBrush(Color.Parse("#F59E0B")), new Rect(clipX + clipW - 3, currentY + 6, 3, TrackHeight - 12), 1.5f);
                 }
             }
 
@@ -267,12 +317,14 @@ public class TimelineCanvasControl : Control
         // 3. Header separator
         context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#1F2636")), 2), new Point(HeaderWidth, 0), new Point(HeaderWidth, bounds.Height));
 
-        // 4. Playhead Needle
+        // 4. White Playhead Needle matching Screenshot
         double playheadX = HeaderWidth + PlayheadPosition.TotalSeconds * PixelsPerSecond;
         if (playheadX >= HeaderWidth && playheadX <= bounds.Width)
         {
-            context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#EF4444")), 2), new Point(playheadX, 0), new Point(playheadX, bounds.Height));
+            // Crisp white vertical playhead line
+            context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#FFFFFF")), 1.5), new Point(playheadX, 0), new Point(playheadX, bounds.Height));
 
+            // White flag cap
             var capPath = new PathGeometry();
             using (var ctx = capPath.Open())
             {
@@ -283,7 +335,7 @@ public class TimelineCanvasControl : Control
                 ctx.LineTo(new Point(playheadX - 6, RulerHeight - 6));
                 ctx.EndFigure(true);
             }
-            context.DrawGeometry(new SolidColorBrush(Color.Parse("#EF4444")), null, capPath);
+            context.DrawGeometry(new SolidColorBrush(Color.Parse("#FFFFFF")), null, capPath);
         }
     }
 

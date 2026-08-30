@@ -320,6 +320,57 @@
                                     <enums:CropMode>CenterCrop</enums:CropMode>
                                 </ComboBox>
                             </StackPanel>
+
+                            <!-- Color Grading Section matching README Screenshot -->
+                            <StackPanel Spacing="6" Margin="0,4,0,0">
+                                <TextBlock Text="COLOR GRADING" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Exposure" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="+0.4" FontSize="11" Foreground="#CBD5E1"/>
+                                </Grid>
+                                <Slider Minimum="-1" Maximum="1" Value="0.4"/>
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Contrast" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="60" FontSize="11" Foreground="#CBD5E1"/>
+                                </Grid>
+                                <Slider Minimum="0" Maximum="100" Value="60"/>
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Saturation" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="110" FontSize="11" Foreground="#CBD5E1"/>
+                                </Grid>
+                                <Slider Minimum="0" Maximum="200" Value="110"/>
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Temperature" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="0" FontSize="11" Foreground="#CBD5E1"/>
+                                </Grid>
+                                <Slider Minimum="-50" Maximum="50" Value="0"/>
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Tint" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="0" FontSize="11" Foreground="#CBD5E1"/>
+                                </Grid>
+                                <Slider Minimum="-50" Maximum="50" Value="0"/>
+
+                                <!-- Dual Color Wheels Representation -->
+                                <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                                    <StackPanel Grid.Column="0" HorizontalAlignment="Center" Spacing="4">
+                                        <Border Width="60" Height="60" CornerRadius="30" BorderBrush="#3B82F6" BorderThickness="1.5" Background="#161B26">
+                                            <Ellipse Width="10" Height="10" Fill="#FFFFFF" Stroke="#000000" StrokeThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="Shadows" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" HorizontalAlignment="Center" Spacing="4">
+                                        <Border Width="60" Height="60" CornerRadius="30" BorderBrush="#EC4899" BorderThickness="1.5" Background="#161B26">
+                                            <Ellipse Width="10" Height="10" Fill="#FFFFFF" Stroke="#000000" StrokeThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="Highlights" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- Inspector Panel: AUDIO CLIP -->
