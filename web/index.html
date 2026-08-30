@@ -25,9 +25,16 @@
       </nav>
     </div>
 
-    <!-- Center Project Title & Timecode -->
-    <div id="header-project-badge" class="project-title-badge">
-      VideoCreator — Sunset Adventure (00:01:23:14)
+    <!-- Center Creator Badge & Project Info -->
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div id="header-project-badge" class="project-title-badge">
+        VideoCreator — Sunset Adventure (00:01:23:14)
+      </div>
+      <div class="creator-badge" style="display:flex; align-items:center; gap:10px; background:#141926; border:1px solid rgba(96, 165, 250, 0.4); padding:4px 12px; border-radius:20px; font-size:11px;">
+        <span style="color:#94A3B8;">Created by <strong style="color:#FFFFFF;">Shatrughna Ambhore</strong></span>
+        <a href="mailto:ambhoreshtrughna@gmail.com" style="color:#60A5FA; text-decoration:none; font-weight:600;">📧 ambhoreshtrughna@gmail.com</a>
+        <a href="tel:+919604466334" style="color:#34D399; text-decoration:none; font-weight:600;">📞 +91 9604466334</a>
+      </div>
     </div>
 
     <!-- Screen Navigation & Actions -->
@@ -370,6 +377,15 @@
             <div id="timeline-voiceover-track" class="track-content-col"></div>
           </div>
         </div>
+
+        <!-- Studio Bottom Creator Bar -->
+        <div style="background:#090C12; border-top:1px solid var(--border-color); padding:4px 16px; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B;">
+          <span>VideoCreator Studio &bull; Created with ❤️ by <strong>Shatrughna Ambhore</strong></span>
+          <div style="display:flex; gap:14px;">
+            <a href="mailto:ambhoreshtrughna@gmail.com" style="color:#60A5FA; text-decoration:none;">📧 ambhoreshtrughna@gmail.com</a>
+            <a href="tel:+919604466334" style="color:#34D399; text-decoration:none;">📞 +91 9604466334</a>
+          </div>
+        </div>
       </footer>
     </section>
 
@@ -403,6 +419,10 @@
 
       <div style="display:flex; justify-content:flex-end; gap:10px;">
         <button id="btn-start-export" class="btn btn-primary" style="width:100%; padding:10px;">Render &amp; Download Video</button>
+      </div>
+
+      <div style="border-top:1px solid var(--border-color); padding-top:10px; font-size:11px; color:#64748B; text-align:center;">
+        Created by <strong>Shatrughna Ambhore</strong> (ambhoreshtrughna@gmail.com | +91 9604466334)
       </div>
     </div>
   </div>

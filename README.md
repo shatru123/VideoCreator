@@ -2,6 +2,14 @@
 
 > **A rich, modern, cross-platform video creation and editing studio available for both Desktop (.NET 8 / Avalonia / FFmpeg) and Web (HTML5 Canvas / Web Audio / GitHub Pages).**
 
+### 👨‍💻 Created by: **Shatrughna Ambhore**
+* 📧 **Email**: [ambhoreshtrughna@gmail.com](mailto:ambhoreshtrughna@gmail.com)
+* 📞 **Phone / WhatsApp**: `+91 9604466334`
+* 🌐 **Live Web Studio**: [https://shatru123.github.io/VideoCreator/](https://shatru123.github.io/VideoCreator/)
+* 🐙 **GitHub Repository**: [https://github.com/shatru123/VideoCreator](https://github.com/shatru123/VideoCreator)
+
+---
+
 ![VideoCreator Studio](docs/images/screenshot.png)
 
 Turn your photos and music into cinematic videos in seconds with automatic beat-sync timing, smooth Ken Burns camera motion, transition shaders, and professional text overlays, while retaining a full non-destructive multi-track studio editor.

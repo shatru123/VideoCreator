@@ -29,7 +29,19 @@
                         <TextBlock Text="Create Something Beautiful." FontSize="36" FontWeight="ExtraBold" Foreground="#FFFFFF"/>
                         <TextBlock Text="Turn your photos and music into a cinematic story in seconds with automatic timing, motion, and transitions."
                                    FontSize="15" Foreground="#94A3B8" TextWrapping="Wrap" MaxWidth="560"/>
-                        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,12,0,0">
+
+                        <!-- Prominent Creator Credit -->
+                        <Border Background="#141926" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="10" Padding="14,10" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <TextBlock Text="👨‍💻 Created by Shatrughna Ambhore" FontSize="13" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                                <TextBlock Text="•" FontSize="13" Foreground="#475569" VerticalAlignment="Center"/>
+                                <TextBlock Text="📧 ambhoreshtrughna@gmail.com" FontSize="13" Foreground="#60A5FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="•" FontSize="13" Foreground="#475569" VerticalAlignment="Center"/>
+                                <TextBlock Text="📞 +91 9604466334" FontSize="13" Foreground="#34D399" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
                             <Button Command="{Binding StartQuickCreateCommand}"
                                     Background="#4F46E5"
                                     Foreground="#FFFFFF"

@@ -10,7 +10,7 @@
              x:Name="EditorRoot"
              Background="#0B0E14">
 
-    <Grid RowDefinitions="Auto,*,Auto,240">
+    <Grid RowDefinitions="Auto,*,Auto,240,Auto">
         <!-- 1. Top Application Toolbar -->
         <Border Grid.Row="0" Background="#11141D" Padding="16,10" BorderBrush="#1E2330" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
@@ -348,6 +348,21 @@
                                            PixelsPerSecond="{Binding TimelineZoom}"
                                            SeekRequested="OnTimelineSeekRequested"
                                            ClipSelectionChanged="OnTimelineClipSelectionChanged"/>
+        </Border>
+
+        <!-- 4. Bottom Creator Status Bar -->
+        <Border Grid.Row="4" Background="#080A0F" Padding="14,6" BorderBrush="#1C212E" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="VideoCreator Studio" FontSize="11" FontWeight="Bold" Foreground="#60A5FA"/>
+                    <TextBlock Text="•" FontSize="11" Foreground="#475569"/>
+                    <TextBlock Text="Created with ❤️ by Shatrughna Ambhore" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <TextBlock Text="📧 ambhoreshtrughna@gmail.com" FontSize="11" Foreground="#60A5FA"/>
+                    <TextBlock Text="📞 +91 9604466334" FontSize="11" Foreground="#34D399"/>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>
