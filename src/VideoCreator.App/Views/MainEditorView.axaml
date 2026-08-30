@@ -296,20 +296,18 @@
                                 <Slider Minimum="0.5" Maximum="2.5" Value="{Binding SelectedImageClip.Transform.ScaleX}"/>
                             </StackPanel>
 
-                            <!-- Motion Preset -->
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="Photo Motion (Ken Burns)" FontSize="11" Foreground="#94A3B8"/>
-                                <ComboBox SelectedItem="{Binding SelectedImageClip.Motion}" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8">
-                                    <enums:MotionPreset>None</enums:MotionPreset>
-                                    <enums:MotionPreset>ZoomIn</enums:MotionPreset>
-                                    <enums:MotionPreset>ZoomOut</enums:MotionPreset>
-                                    <enums:MotionPreset>PanLeft</enums:MotionPreset>
-                                    <enums:MotionPreset>PanRight</enums:MotionPreset>
-                                    <enums:MotionPreset>PanUp</enums:MotionPreset>
-                                    <enums:MotionPreset>PanDown</enums:MotionPreset>
-                                    <enums:MotionPreset>DiagonalDownRight</enums:MotionPreset>
-                                    <enums:MotionPreset>Cinematic</enums:MotionPreset>
-                                </ComboBox>
+                            <!-- Motion Preset & Animation Suite -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Photo Animation / Motion" FontSize="11" Foreground="#94A3B8"/>
+                                <ComboBox ItemsSource="{Binding AvailableMotionPresets}" SelectedItem="{Binding SelectedImageClip.Motion}" HorizontalAlignment="Stretch" Background="#161B26" Foreground="#FFFFFF" CornerRadius="8"/>
+
+                                <!-- Animation Suite Actions -->
+                                <Grid ColumnDefinitions="*,*,*,*" Margin="0,4,0,0">
+                                    <Button Grid.Column="0" Command="{Binding CopyAnimationCommand}" Content="📋 Copy" Background="#1E2433" Foreground="#CBD5E1" Padding="4,5" CornerRadius="6" FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,2,0"/>
+                                    <Button Grid.Column="1" Command="{Binding PasteAnimationCommand}" Content="📥 Paste" Background="#1E2433" Foreground="#CBD5E1" Padding="4,5" CornerRadius="6" FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,2,0"/>
+                                    <Button Grid.Column="2" Command="{Binding ApplyAnimationToAllCommand}" Content="✨ All" Background="#1E2433" Foreground="#60A5FA" Padding="4,5" CornerRadius="6" FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,2,0"/>
+                                    <Button Grid.Column="3" Command="{Binding RandomizeAnimationsCommand}" Content="🎲 Rand" Background="#1E2433" Foreground="#F59E0B" Padding="4,5" CornerRadius="6" FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,0,0"/>
+                                </Grid>
                             </StackPanel>
 
                             <!-- Crop Mode -->
@@ -327,12 +325,32 @@
                         <!-- Inspector Panel: AUDIO CLIP -->
                         <StackPanel Spacing="12" IsVisible="{Binding IsAudioClipSelected}">
                             <TextBlock Text="🎵 Audio Track Controls" FontSize="12" FontWeight="Bold" Foreground="#10B981"/>
+
+                            <!-- Volume Slider (0 - 200%) -->
                             <StackPanel Spacing="4">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="Volume" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Text="Volume (0–200%)" FontSize="11" Foreground="#94A3B8"/>
                                     <TextBlock Grid.Column="1" Text="{Binding SelectedAudioClip.AudioSettings.Volume, StringFormat='{}{0:P0}'}" FontSize="11" Foreground="#64748B"/>
                                 </Grid>
                                 <Slider Minimum="0" Maximum="2" Value="{Binding SelectedAudioClip.AudioSettings.Volume}"/>
+                            </StackPanel>
+
+                            <!-- Fade In Duration -->
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Fade In" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedAudioClip.AudioSettings.FadeInDuration.TotalSeconds, StringFormat='{}{0:F1}s'}" FontSize="11" Foreground="#64748B"/>
+                                </Grid>
+                                <Slider Minimum="0" Maximum="5" Value="{Binding SelectedAudioClip.AudioSettings.FadeInDuration.TotalSeconds}"/>
+                            </StackPanel>
+
+                            <!-- Fade Out Duration -->
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Fade Out" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedAudioClip.AudioSettings.FadeOutDuration.TotalSeconds, StringFormat='{}{0:F1}s'}" FontSize="11" Foreground="#64748B"/>
+                                </Grid>
+                                <Slider Minimum="0" Maximum="5" Value="{Binding SelectedAudioClip.AudioSettings.FadeOutDuration.TotalSeconds}"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

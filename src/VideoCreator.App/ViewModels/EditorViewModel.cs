@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using VideoCreator.Application.Services;
+using VideoCreator.Core.Commands;
 using VideoCreator.Core.Enums;
 using VideoCreator.Core.Models;
 using VideoCreator.Core.Models.Clips;
@@ -90,6 +91,12 @@ public partial class EditorViewModel : ViewModelBase
     [ObservableProperty]
     private ObservableCollection<Template> _availableTemplates = new();
 
+    [ObservableProperty]
+    private ObservableCollection<MotionPreset> _availableMotionPresets = new(Enum.GetValues<MotionPreset>().Where(m => m != MotionPreset.None));
+
+    [ObservableProperty]
+    private MotionPreset? _copiedMotionPreset;
+
     public string TimecodeDisplay => $"{CurrentTime:mm\\:ss\\.ff} / {CurrentProject.Timeline.TotalDuration:mm\\:ss\\.ff}";
 
     public bool IsImageClipSelected => SelectedClip is ImageClip;
@@ -121,6 +128,10 @@ public partial class EditorViewModel : ViewModelBase
     public ICommand FlipHorizontalSelectedClipCommand { get; }
     public ICommand FlipVerticalSelectedClipCommand { get; }
     public ICommand ResetTransformSelectedClipCommand { get; }
+    public ICommand CopyAnimationCommand { get; }
+    public ICommand PasteAnimationCommand { get; }
+    public ICommand ApplyAnimationToAllCommand { get; }
+    public ICommand RandomizeAnimationsCommand { get; }
 
     public EditorViewModel(
         IProjectService projectService,
@@ -161,6 +172,10 @@ public partial class EditorViewModel : ViewModelBase
         FlipHorizontalSelectedClipCommand = new RelayCommand(FlipHorizontalSelectedClip);
         FlipVerticalSelectedClipCommand = new RelayCommand(FlipVerticalSelectedClip);
         ResetTransformSelectedClipCommand = new RelayCommand(ResetTransformSelectedClip);
+        CopyAnimationCommand = new RelayCommand(CopyAnimation);
+        PasteAnimationCommand = new RelayCommand(PasteAnimation);
+        ApplyAnimationToAllCommand = new RelayCommand<MotionPreset?>(ApplyAnimationToAll);
+        RandomizeAnimationsCommand = new RelayCommand(RandomizeAnimations);
 
         _playbackTimer = new DispatcherTimer
         {
@@ -597,6 +612,59 @@ public partial class EditorViewModel : ViewModelBase
 
         _previewRenderer.InvalidateCache();
         NotifyAll();
+    }
+
+    public void CopyAnimation()
+    {
+        if (SelectedImageClip != null)
+        {
+            CopiedMotionPreset = SelectedImageClip.Motion;
+        }
+    }
+
+    public void PasteAnimation()
+    {
+        if (SelectedImageClip != null && CopiedMotionPreset.HasValue)
+        {
+            _timelineService.UndoRedo.Execute(new ApplyAnimationCommand(SelectedImageClip, CopiedMotionPreset.Value));
+            _previewRenderer.InvalidateCache();
+            NotifyAll();
+        }
+    }
+
+    public void ApplyAnimationToAll(MotionPreset? preset = null)
+    {
+        var targetPreset = preset ?? SelectedImageClip?.Motion ?? MotionPreset.KenBurns;
+        var videoTrack = CurrentProject.Timeline.GetOrCreateTrack(TrackType.Video, "Video Track");
+        var changes = videoTrack.Clips.OfType<ImageClip>().Select(c => (c, targetPreset)).ToList();
+        if (changes.Count > 0)
+        {
+            _timelineService.UndoRedo.Execute(new ApplyAnimationCommand(changes));
+            _previewRenderer.InvalidateCache();
+            NotifyAll();
+        }
+    }
+
+    public void RandomizeAnimations()
+    {
+        var videoTrack = CurrentProject.Timeline.GetOrCreateTrack(TrackType.Video, "Video Track");
+        var presets = AvailableMotionPresets.Where(p => p != MotionPreset.None).ToArray();
+        if (presets.Length == 0) return;
+
+        var rand = new Random();
+        var changes = new List<(ImageClip, MotionPreset)>();
+        foreach (var clip in videoTrack.Clips.OfType<ImageClip>())
+        {
+            var chosen = presets[rand.Next(presets.Length)];
+            changes.Add((clip, chosen));
+        }
+
+        if (changes.Count > 0)
+        {
+            _timelineService.UndoRedo.Execute(new ApplyAnimationCommand(changes));
+            _previewRenderer.InvalidateCache();
+            NotifyAll();
+        }
     }
 
     private async Task SaveProjectAsync()

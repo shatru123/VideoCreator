@@ -75,15 +75,27 @@ public class FFmpegExportEngine : IExportEngine
             double fadeOutSec = primaryAudioClip.AudioSettings.FadeOutDuration.TotalSeconds;
             double totalDurSec = totalDuration.TotalSeconds;
             double fadeOutStart = Math.Max(0.0, totalDurSec - fadeOutSec);
+            double trimStartSec = primaryAudioClip.AudioSettings.TrimStart.TotalSeconds;
+            double startOffsetSec = primaryAudioClip.StartTime.TotalSeconds;
 
-            string audioFilter = $"volume={audioVolume.ToString("0.00", CultureInfo.InvariantCulture)}";
+            string ssArg = trimStartSec > 0.01 ? $"-ss {trimStartSec.ToString("0.###", CultureInfo.InvariantCulture)} " : "";
+
+            var filters = new List<string>();
+            if (startOffsetSec > 0.01)
+            {
+                long delayMs = (long)(startOffsetSec * 1000);
+                filters.Add($"adelay={delayMs}|{delayMs}");
+            }
+            filters.Add($"volume={audioVolume.ToString("0.00", CultureInfo.InvariantCulture)}");
             if (fadeInSec > 0.05)
-                audioFilter += $",afade=t=in:ss=0:d={fadeInSec.ToString("0.00", CultureInfo.InvariantCulture)}";
+                filters.Add($"afade=t=in:ss=0:d={fadeInSec.ToString("0.00", CultureInfo.InvariantCulture)}");
             if (fadeOutSec > 0.05)
-                audioFilter += $",afade=t=out:st={fadeOutStart.ToString("0.00", CultureInfo.InvariantCulture)}:d={fadeOutSec.ToString("0.00", CultureInfo.InvariantCulture)}";
+                filters.Add($"afade=t=out:st={fadeOutStart.ToString("0.00", CultureInfo.InvariantCulture)}:d={fadeOutSec.ToString("0.00", CultureInfo.InvariantCulture)}");
+
+            string audioFilter = string.Join(",", filters);
 
             ffmpegArgs = $"-y -f rawvideo -vcodec rawvideo -pix_fmt rgba -s {width}x{height} -r {fps} -i - " +
-                         $"-i \"{primaryAudioClip.SourceFilePath}\" " +
+                         $"{ssArg}-i \"{primaryAudioClip.SourceFilePath}\" " +
                          $"-filter_complex \"[1:a]{audioFilter}[aout]\" " +
                          $"-map 0:v:0 -map \"[aout]\" " +
                          $"-c:v {options.VideoCodec} -profile:v high -level 4.1 -pix_fmt yuv420p -b:v {options.VideoBitrate} " +

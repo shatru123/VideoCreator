@@ -40,51 +40,98 @@ public static class PhotoMotionEngine
         switch (preset)
         {
             case MotionPreset.ZoomIn:
-                // Start at 1.0x base scale, smoothly zoom in to 1.15x
-                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.0, 1.15, easeT, InterpolationType.EaseInOut);
+                // Start at 1.0x base scale, smoothly zoom in to 1.16x
+                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.0, 1.16, easeT, InterpolationType.EaseInOut);
                 break;
 
             case MotionPreset.ZoomOut:
-                // Start zoomed in at 1.15x, zoom out to 1.0x
-                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.15, 1.0, easeT, InterpolationType.EaseInOut);
+                // Start zoomed in at 1.16x, zoom out to 1.0x
+                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.16, 1.0, easeT, InterpolationType.EaseInOut);
+                break;
+
+            case MotionPreset.ZoomInOut:
+                // Zoom in during first half, zoom out during second half
+                double zoomCurve = progress < 0.5 ? progress * 2.0 : (1.0 - progress) * 2.0;
+                double easedZoom = KeyframeInterpolator.Ease(zoomCurve, InterpolationType.EaseInOut);
+                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.0, 1.15, easedZoom, InterpolationType.EaseInOut);
+                break;
+
+            case MotionPreset.SlowZoomIn:
+                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.0, 1.06, easeT, InterpolationType.EaseInOut);
+                break;
+
+            case MotionPreset.SlowZoomOut:
+                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.06, 1.0, easeT, InterpolationType.EaseInOut);
+                break;
+
+            case MotionPreset.DynamicZoom:
+                // Dynamic pulsing zoom
+                double pulse = Math.Sin(progress * Math.PI * 2.0) * 0.08;
+                scale = baseScale * (float)(1.08 + pulse);
                 break;
 
             case MotionPreset.PanLeft:
-                scale = baseScale * 1.08f;
+            case MotionPreset.PanRightToLeft:
+                scale = baseScale * 1.12f;
                 transX = (float)KeyframeInterpolator.Interpolate(maxPanX, -maxPanX, easeT, InterpolationType.EaseInOut);
                 break;
 
             case MotionPreset.PanRight:
-                scale = baseScale * 1.08f;
+            case MotionPreset.PanLeftToRight:
+                scale = baseScale * 1.12f;
                 transX = (float)KeyframeInterpolator.Interpolate(-maxPanX, maxPanX, easeT, InterpolationType.EaseInOut);
                 break;
 
             case MotionPreset.PanUp:
-                scale = baseScale * 1.08f;
+            case MotionPreset.PanBottomToTop:
+                scale = baseScale * 1.12f;
                 transY = (float)KeyframeInterpolator.Interpolate(maxPanY, -maxPanY, easeT, InterpolationType.EaseInOut);
                 break;
 
             case MotionPreset.PanDown:
-                scale = baseScale * 1.08f;
+            case MotionPreset.PanTopToBottom:
+                scale = baseScale * 1.12f;
                 transY = (float)KeyframeInterpolator.Interpolate(-maxPanY, maxPanY, easeT, InterpolationType.EaseInOut);
                 break;
 
+            case MotionPreset.KenBurns:
+                // Classic Ken Burns: Diagonal pan + smooth zoom in
+                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.0, 1.18, easeT, InterpolationType.EaseInOut);
+                transX = (float)KeyframeInterpolator.Interpolate(-maxPanX * 0.7, maxPanX * 0.7, easeT, InterpolationType.EaseInOut);
+                transY = (float)KeyframeInterpolator.Interpolate(-maxPanY * 0.7, maxPanY * 0.7, easeT, InterpolationType.EaseInOut);
+                break;
+
             case MotionPreset.DiagonalUpLeft:
-                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.02, 1.12, easeT, InterpolationType.EaseInOut);
-                transX = (float)KeyframeInterpolator.Interpolate(maxPanX * 0.5, -maxPanX * 0.5, easeT, InterpolationType.EaseInOut);
-                transY = (float)KeyframeInterpolator.Interpolate(maxPanY * 0.5, -maxPanY * 0.5, easeT, InterpolationType.EaseInOut);
+                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.04, 1.14, easeT, InterpolationType.EaseInOut);
+                transX = (float)KeyframeInterpolator.Interpolate(maxPanX * 0.6, -maxPanX * 0.6, easeT, InterpolationType.EaseInOut);
+                transY = (float)KeyframeInterpolator.Interpolate(maxPanY * 0.6, -maxPanY * 0.6, easeT, InterpolationType.EaseInOut);
                 break;
 
             case MotionPreset.DiagonalDownRight:
-                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.02, 1.12, easeT, InterpolationType.EaseInOut);
-                transX = (float)KeyframeInterpolator.Interpolate(-maxPanX * 0.5, maxPanX * 0.5, easeT, InterpolationType.EaseInOut);
-                transY = (float)KeyframeInterpolator.Interpolate(-maxPanY * 0.5, maxPanY * 0.5, easeT, InterpolationType.EaseInOut);
+                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.04, 1.14, easeT, InterpolationType.EaseInOut);
+                transX = (float)KeyframeInterpolator.Interpolate(-maxPanX * 0.6, maxPanX * 0.6, easeT, InterpolationType.EaseInOut);
+                transY = (float)KeyframeInterpolator.Interpolate(-maxPanY * 0.6, maxPanY * 0.6, easeT, InterpolationType.EaseInOut);
                 break;
 
             case MotionPreset.Cinematic:
-                // Gentle slow zoom in with very subtle pan
-                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.0, 1.10, easeT, InterpolationType.EaseInOut);
-                transX = (float)KeyframeInterpolator.Interpolate(-maxPanX * 0.3, maxPanX * 0.3, easeT, InterpolationType.EaseInOut);
+                // Gentle slow zoom in with subtle horizontal drift
+                scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.0, 1.09, easeT, InterpolationType.EaseInOut);
+                transX = (float)KeyframeInterpolator.Interpolate(-maxPanX * 0.35, maxPanX * 0.35, easeT, InterpolationType.EaseInOut);
+                break;
+
+            case MotionPreset.RandomMotion:
+                // Deterministic pseudo-random movement based on aspect ratio
+                bool isWide = (imageWidth / imageHeight) > (canvasWidth / canvasHeight);
+                if (isWide)
+                {
+                    scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.02, 1.12, easeT, InterpolationType.EaseInOut);
+                    transX = (float)KeyframeInterpolator.Interpolate(-maxPanX * 0.5, maxPanX * 0.5, easeT, InterpolationType.EaseInOut);
+                }
+                else
+                {
+                    scale = baseScale * (float)KeyframeInterpolator.Interpolate(1.12, 1.02, easeT, InterpolationType.EaseInOut);
+                    transY = (float)KeyframeInterpolator.Interpolate(maxPanY * 0.5, -maxPanY * 0.5, easeT, InterpolationType.EaseInOut);
+                }
                 break;
 
             case MotionPreset.None:

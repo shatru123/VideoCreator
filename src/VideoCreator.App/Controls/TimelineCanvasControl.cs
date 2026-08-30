@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -50,13 +51,31 @@ public class TimelineCanvasControl : Control
 
     public event EventHandler<TimeSpan>? SeekRequested;
     public event EventHandler<Clip?>? ClipSelectionChanged;
+    public event EventHandler? TimelineModified;
 
     private const double HeaderWidth = 140.0;
     private const double RulerHeight = 28.0;
-    private const double TrackHeight = 64.0;
+    private const double TrackHeight = 60.0;
     private const double TrackSpacing = 6.0;
+    private const double ResizeHandleWidth = 10.0;
 
-    private bool _isDraggingPlayhead;
+    private enum DragMode
+    {
+        None,
+        Playhead,
+        ResizeLeft,
+        ResizeRight,
+        MoveClip,
+        AudioRegion
+    }
+
+    private DragMode _currentDragMode = DragMode.None;
+    private Clip? _draggedClip;
+    private Track? _draggedTrack;
+    private Point _dragStartPoint;
+    private TimeSpan _dragStartClipTime;
+    private TimeSpan _dragStartClipDuration;
+    private TimeSpan _dragStartAudioTrim;
 
     static TimelineCanvasControl()
     {
@@ -71,29 +90,27 @@ public class TimelineCanvasControl : Control
         if (bounds.Width <= 10 || bounds.Height <= 10) return;
 
         // Background
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#111318")), new Rect(0, 0, bounds.Width, bounds.Height));
+        context.FillRectangle(new SolidColorBrush(Color.Parse("#0D1017")), new Rect(0, 0, bounds.Width, bounds.Height));
 
         if (Project == null || Project.Timeline.Tracks.Count == 0)
         {
             var emptyText = new FormattedText(
-                "Timeline is empty. Add photos to start editing.",
+                "Timeline is empty. Add photos and music to start creating.",
                 System.Globalization.CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
                 new Typeface("Inter"),
-                14,
+                13,
                 new SolidColorBrush(Color.Parse("#475569")));
             context.DrawText(emptyText, new Point(HeaderWidth + 20, RulerHeight + 30));
             return;
         }
 
-        double totalDurSec = Math.Max(10.0, Project.Timeline.TotalDuration.TotalSeconds + 5.0);
-        double timelineWidth = totalDurSec * PixelsPerSecond;
+        double totalDurSec = Math.Max(12.0, Project.Timeline.TotalDuration.TotalSeconds + 5.0);
 
-        // 1. Draw Time Ruler
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#1A1D24")), new Rect(0, 0, bounds.Width, RulerHeight));
-        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#262A34")), 1), new Point(0, RulerHeight), new Point(bounds.Width, RulerHeight));
+        // 1. Time Ruler
+        context.FillRectangle(new SolidColorBrush(Color.Parse("#131722")), new Rect(0, 0, bounds.Width, RulerHeight));
+        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#1F2636")), 1), new Point(0, RulerHeight), new Point(bounds.Width, RulerHeight));
 
-        // Ruler second tick marks
         for (int sec = 0; sec <= (int)totalDurSec; sec++)
         {
             double x = HeaderWidth + sec * PixelsPerSecond;
@@ -101,7 +118,7 @@ public class TimelineCanvasControl : Control
 
             bool isMajor = sec % 5 == 0;
             double tickH = isMajor ? 12 : 6;
-            context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#475569")), 1), new Point(x, RulerHeight - tickH), new Point(x, RulerHeight));
+            context.DrawLine(new Pen(new SolidColorBrush(Color.Parse(isMajor ? "#64748B" : "#334155")), 1), new Point(x, RulerHeight - tickH), new Point(x, RulerHeight));
 
             if (isMajor)
             {
@@ -117,17 +134,16 @@ public class TimelineCanvasControl : Control
             }
         }
 
-        // 2. Draw Tracks & Clips
+        // 2. Tracks & Clips
         double currentY = RulerHeight + TrackSpacing;
 
         foreach (var track in Project.Timeline.Tracks.OrderBy(t => t.OrderIndex))
         {
             // Track Header
             var headerRect = new Rect(0, currentY, HeaderWidth, TrackHeight);
-            context.FillRectangle(new SolidColorBrush(Color.Parse("#161922")), headerRect);
-            context.DrawRectangle(null, new Pen(new SolidColorBrush(Color.Parse("#232734")), 1), headerRect);
+            context.FillRectangle(new SolidColorBrush(Color.Parse("#151A24")), headerRect);
+            context.DrawRectangle(null, new Pen(new SolidColorBrush(Color.Parse("#1E2433")), 1), headerRect);
 
-            // Track Type Icon / Name
             string trackLabel = track.Type switch
             {
                 TrackType.Video => $"🎬 {track.Name}",
@@ -141,55 +157,75 @@ public class TimelineCanvasControl : Control
                 trackLabel,
                 System.Globalization.CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                new Typeface("Inter", FontStyle.Normal, FontWeight.Medium),
-                12,
+                new Typeface("Inter", FontStyle.Normal, FontWeight.SemiBold),
+                11,
                 new SolidColorBrush(Color.Parse("#E2E8F0")));
             context.DrawText(trackText, new Point(12, currentY + (TrackHeight - trackText.Height) / 2));
 
             // Track Lane Background
             var laneRect = new Rect(HeaderWidth, currentY, bounds.Width - HeaderWidth, TrackHeight);
-            context.FillRectangle(new SolidColorBrush(Color.Parse("#13161F")), laneRect);
-            context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#1E222D")), 1), new Point(HeaderWidth, currentY + TrackHeight), new Point(bounds.Width, currentY + TrackHeight));
+            context.FillRectangle(new SolidColorBrush(Color.Parse("#0F131C")), laneRect);
+            context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#181E2B")), 1), new Point(HeaderWidth, currentY + TrackHeight), new Point(bounds.Width, currentY + TrackHeight));
 
-            // Render Clips in this track
+            // Clips
             foreach (var clip in track.Clips)
             {
                 double clipX = HeaderWidth + clip.StartTime.TotalSeconds * PixelsPerSecond;
-                double clipW = Math.Max(24.0, clip.Duration.TotalSeconds * PixelsPerSecond);
+                double clipW = Math.Max(28.0, clip.Duration.TotalSeconds * PixelsPerSecond);
                 var clipRect = new Rect(clipX, currentY + 3, clipW, TrackHeight - 6);
 
                 bool isSelected = SelectedClip?.Id == clip.Id;
 
                 Color clipBgColor = track.Type switch
                 {
-                    TrackType.Video => Color.Parse("#1E3A8A"), // Deep Blue
-                    TrackType.Overlay => Color.Parse("#4C1D95"), // Deep Purple
-                    TrackType.Audio => Color.Parse("#064E3B"), // Deep Emerald
+                    TrackType.Video => Color.Parse("#1E3A8A"),   // Blue
+                    TrackType.Overlay => Color.Parse("#4C1D95"), // Purple
+                    TrackType.Audio => Color.Parse("#78350F"),   // Amber
                     _ => Color.Parse("#334155")
                 };
 
-                if (isSelected) clipBgColor = Color.Parse("#2563EB"); // Bright Blue
+                if (isSelected) clipBgColor = Color.Parse("#2563EB");
 
-                // Clip Container Pill
+                // Clip Body
                 context.FillRectangle(new SolidColorBrush(clipBgColor), clipRect, 6);
-                var borderPen = new Pen(new SolidColorBrush(isSelected ? Color.Parse("#60A5FA") : Color.Parse("#3B82F6")), isSelected ? 2 : 1);
+                var borderPen = new Pen(new SolidColorBrush(isSelected ? Color.Parse("#F59E0B") : Color.Parse("#3B82F6")), isSelected ? 2 : 1);
                 context.DrawRectangle(null, borderPen, clipRect, 6, 6);
 
-                // Clip Name Label
+                // Animation Badge Icon
+                string animBadge = "";
+                if (clip is ImageClip img)
+                {
+                    animBadge = img.Motion switch
+                    {
+                        MotionPreset.ZoomIn => "🔍+",
+                        MotionPreset.ZoomOut => "🔍-",
+                        MotionPreset.ZoomInOut => "🔍⇄",
+                        MotionPreset.PanLeft or MotionPreset.PanRightToLeft => "←",
+                        MotionPreset.PanRight or MotionPreset.PanLeftToRight => "→",
+                        MotionPreset.PanUp or MotionPreset.PanBottomToTop => "↑",
+                        MotionPreset.PanDown or MotionPreset.PanTopToBottom => "↓",
+                        MotionPreset.KenBurns => "🎬",
+                        MotionPreset.DynamicZoom => "⚡",
+                        MotionPreset.Cinematic => "✨",
+                        MotionPreset.RandomMotion => "🎲",
+                        _ => ""
+                    };
+                }
+
+                // Clip Title
+                string displayName = string.IsNullOrEmpty(animBadge) ? clip.Name : $"{clip.Name} {animBadge}";
                 var clipTitle = new FormattedText(
-                    clip.Name,
+                    displayName,
                     System.Globalization.CultureInfo.CurrentCulture,
                     FlowDirection.LeftToRight,
-                    new Typeface("Inter", FontStyle.Normal, FontWeight.SemiBold),
+                    new Typeface("Inter", FontStyle.Normal, FontWeight.Bold),
                     11,
                     new SolidColorBrush(Color.Parse("#FFFFFF")));
-                context.DrawText(clipTitle, new Point(clipX + 8, currentY + 8));
+                context.DrawText(clipTitle, new Point(clipX + 8, currentY + 7));
 
-                // Clip Duration / Details
+                // Clip Duration Badge
                 string details = $"{clip.Duration.TotalSeconds:0.0}s";
-                if (clip is ImageClip img && img.Motion != MotionPreset.None) details += $" • {img.Motion}";
                 if (clip.TransitionOut != null) details += $" • {clip.TransitionOut.Type}";
-
                 var detailsText = new FormattedText(
                     details,
                     System.Globalization.CultureInfo.CurrentCulture,
@@ -197,9 +233,9 @@ public class TimelineCanvasControl : Control
                     new Typeface("Inter"),
                     10,
                     new SolidColorBrush(Color.Parse("#93C5FD")));
-                context.DrawText(detailsText, new Point(clipX + 8, currentY + 28));
+                context.DrawText(detailsText, new Point(clipX + 8, currentY + 26));
 
-                // Waveform rendering for audio clips
+                // Waveform rendering for audio
                 if (clip is AudioClip audio && audio.WaveformData.Count > 0)
                 {
                     double waveW = clipW - 16;
@@ -210,26 +246,33 @@ public class TimelineCanvasControl : Control
                     for (int s = 0; s < samples; s++)
                     {
                         double wx = clipX + 8 + s * step;
-                        double amp = audio.WaveformData[s] * 12.0;
-                        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#34D399")), 1), new Point(wx, waveMidY - amp), new Point(wx, waveMidY + amp));
+                        double amp = audio.WaveformData[s] * 10.0;
+                        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#FBBF24")), 1), new Point(wx, waveMidY - amp), new Point(wx, waveMidY + amp));
                     }
+                }
+
+                // Draw resize handles if selected
+                if (isSelected)
+                {
+                    // Left handle grip
+                    context.FillRectangle(new SolidColorBrush(Color.Parse("#F59E0B")), new Rect(clipX, currentY + 8, 4, TrackHeight - 16), 2);
+                    // Right handle grip
+                    context.FillRectangle(new SolidColorBrush(Color.Parse("#F59E0B")), new Rect(clipX + clipW - 4, currentY + 8, 4, TrackHeight - 16), 2);
                 }
             }
 
             currentY += TrackHeight + TrackSpacing;
         }
 
-        // 3. Draw Header separator line
-        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#262A34")), 2), new Point(HeaderWidth, 0), new Point(HeaderWidth, bounds.Height));
+        // 3. Header separator
+        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#1F2636")), 2), new Point(HeaderWidth, 0), new Point(HeaderWidth, bounds.Height));
 
-        // 4. Draw Playhead Needle
+        // 4. Playhead Needle
         double playheadX = HeaderWidth + PlayheadPosition.TotalSeconds * PixelsPerSecond;
         if (playheadX >= HeaderWidth && playheadX <= bounds.Width)
         {
-            // Red playhead line
             context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#EF4444")), 2), new Point(playheadX, 0), new Point(playheadX, bounds.Height));
 
-            // Playhead triangle cap
             var capPath = new PathGeometry();
             using (var ctx = capPath.Open())
             {
@@ -248,50 +291,165 @@ public class TimelineCanvasControl : Control
     {
         base.OnPointerPressed(e);
         var pt = e.GetPosition(this);
+        _dragStartPoint = pt;
 
-        if (pt.X >= HeaderWidth)
+        if (pt.X < HeaderWidth) return;
+
+        if (pt.Y <= RulerHeight)
         {
+            // Clicked on ruler -> seek playhead
             double timeSec = Math.Max(0, (pt.X - HeaderWidth) / PixelsPerSecond);
-            var seekTime = TimeSpan.FromSeconds(timeSec);
-            SeekRequested?.Invoke(this, seekTime);
-            _isDraggingPlayhead = true;
+            SeekRequested?.Invoke(this, TimeSpan.FromSeconds(timeSec));
+            _currentDragMode = DragMode.Playhead;
+            return;
+        }
 
-            // Check if user clicked on a clip
-            double currentY = RulerHeight + TrackSpacing;
-            Clip? clickedClip = null;
+        // Find clicked track and clip
+        double currentY = RulerHeight + TrackSpacing;
+        Clip? clickedClip = null;
+        Track? clickedTrack = null;
 
-            if (Project != null)
+        if (Project != null)
+        {
+            foreach (var track in Project.Timeline.Tracks.OrderBy(t => t.OrderIndex))
             {
-                foreach (var track in Project.Timeline.Tracks.OrderBy(t => t.OrderIndex))
+                if (pt.Y >= currentY && pt.Y <= currentY + TrackHeight)
                 {
-                    if (pt.Y >= currentY && pt.Y <= currentY + TrackHeight)
-                    {
-                        clickedClip = track.Clips.FirstOrDefault(c => pt.X >= (HeaderWidth + c.StartTime.TotalSeconds * PixelsPerSecond) &&
-                                                                     pt.X <= (HeaderWidth + c.EndTime.TotalSeconds * PixelsPerSecond));
-                        break;
-                    }
-                    currentY += TrackHeight + TrackSpacing;
+                    clickedTrack = track;
+                    clickedClip = track.Clips.FirstOrDefault(c => pt.X >= (HeaderWidth + c.StartTime.TotalSeconds * PixelsPerSecond) &&
+                                                                 pt.X <= (HeaderWidth + c.EndTime.TotalSeconds * PixelsPerSecond));
+                    break;
                 }
+                currentY += TrackHeight + TrackSpacing;
+            }
+        }
+
+        if (clickedClip != null && clickedTrack != null)
+        {
+            _draggedClip = clickedClip;
+            _draggedTrack = clickedTrack;
+            _dragStartClipTime = clickedClip.StartTime;
+            _dragStartClipDuration = clickedClip.Duration;
+            if (clickedClip is AudioClip ac) _dragStartAudioTrim = ac.AudioSettings.TrimStart;
+
+            double clipStartX = HeaderWidth + clickedClip.StartTime.TotalSeconds * PixelsPerSecond;
+            double clipEndX = HeaderWidth + clickedClip.EndTime.TotalSeconds * PixelsPerSecond;
+
+            // Check if right edge was clicked (resize duration)
+            if (Math.Abs(pt.X - clipEndX) <= ResizeHandleWidth)
+            {
+                _currentDragMode = DragMode.ResizeRight;
+            }
+            else if (Math.Abs(pt.X - clipStartX) <= ResizeHandleWidth)
+            {
+                _currentDragMode = DragMode.ResizeLeft;
+            }
+            else if (clickedClip is AudioClip)
+            {
+                _currentDragMode = DragMode.AudioRegion;
+            }
+            else
+            {
+                _currentDragMode = DragMode.MoveClip;
             }
 
+            SelectedClip = clickedClip;
             ClipSelectionChanged?.Invoke(this, clickedClip);
+        }
+        else
+        {
+            // Clicked empty timeline space -> seek playhead
+            double timeSec = Math.Max(0, (pt.X - HeaderWidth) / PixelsPerSecond);
+            SeekRequested?.Invoke(this, TimeSpan.FromSeconds(timeSec));
+            _currentDragMode = DragMode.Playhead;
+            ClipSelectionChanged?.Invoke(this, null);
         }
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (_isDraggingPlayhead)
+        var pt = e.GetPosition(this);
+
+        if (_currentDragMode == DragMode.Playhead)
         {
-            var pt = e.GetPosition(this);
             double timeSec = Math.Max(0, (pt.X - HeaderWidth) / PixelsPerSecond);
             SeekRequested?.Invoke(this, TimeSpan.FromSeconds(timeSec));
+            return;
+        }
+
+        if (_draggedClip != null && _draggedTrack != null)
+        {
+            double deltaX = pt.X - _dragStartPoint.X;
+            double deltaSec = deltaX / PixelsPerSecond;
+
+            if (_currentDragMode == DragMode.ResizeRight)
+            {
+                double newDur = Math.Max(0.5, _dragStartClipDuration.TotalSeconds + deltaSec);
+                // Snap to whole seconds if close
+                if (Math.Abs(newDur - Math.Round(newDur)) < 0.15) newDur = Math.Round(newDur);
+
+                _draggedClip.Duration = TimeSpan.FromSeconds(newDur);
+                RippleCompactTrack(_draggedTrack);
+                TimelineModified?.Invoke(this, EventArgs.Empty);
+                InvalidateVisual();
+            }
+            else if (_currentDragMode == DragMode.ResizeLeft)
+            {
+                double newDur = Math.Max(0.5, _dragStartClipDuration.TotalSeconds - deltaSec);
+                _draggedClip.Duration = TimeSpan.FromSeconds(newDur);
+                RippleCompactTrack(_draggedTrack);
+                TimelineModified?.Invoke(this, EventArgs.Empty);
+                InvalidateVisual();
+            }
+            else if (_currentDragMode == DragMode.AudioRegion && _draggedClip is AudioClip ac)
+            {
+                // Dragging song underneath video changes TrimStart (selected source region)
+                double newTrim = Math.Max(0, _dragStartAudioTrim.TotalSeconds + deltaSec);
+                ac.AudioSettings.TrimStart = TimeSpan.FromSeconds(newTrim);
+                TimelineModified?.Invoke(this, EventArgs.Empty);
+                InvalidateVisual();
+            }
+            else if (_currentDragMode == DragMode.MoveClip && _draggedTrack.Type == TrackType.Video)
+            {
+                // Drag-to-reorder photos
+                int currentIndex = _draggedTrack.Clips.IndexOf(_draggedClip);
+                if (currentIndex != -1)
+                {
+                    double targetSec = Math.Max(0, _dragStartClipTime.TotalSeconds + deltaSec);
+                    int targetIndex = (int)Math.Clamp(targetSec / Math.Max(1.0, _draggedClip.Duration.TotalSeconds), 0, _draggedTrack.Clips.Count - 1);
+
+                    if (targetIndex != currentIndex && targetIndex >= 0 && targetIndex < _draggedTrack.Clips.Count)
+                    {
+                        _draggedTrack.Clips.RemoveAt(currentIndex);
+                        _draggedTrack.Clips.Insert(targetIndex, _draggedClip);
+                        RippleCompactTrack(_draggedTrack);
+                        TimelineModified?.Invoke(this, EventArgs.Empty);
+                        InvalidateVisual();
+                    }
+                }
+            }
         }
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-        _isDraggingPlayhead = false;
+        _currentDragMode = DragMode.None;
+        _draggedClip = null;
+        _draggedTrack = null;
+    }
+
+    private static void RippleCompactTrack(Track track)
+    {
+        if (track.Type == TrackType.Video)
+        {
+            TimeSpan cur = TimeSpan.Zero;
+            foreach (var clip in track.Clips)
+            {
+                clip.StartTime = cur;
+                cur += clip.Duration;
+            }
+        }
     }
 }

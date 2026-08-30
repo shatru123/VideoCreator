@@ -102,36 +102,80 @@ class VideoCanvasEngine {
 
     switch (clip.motion) {
       case 'ZoomIn':
-        scale *= (1.0 + 0.15 * easeT);
+        scale *= (1.0 + 0.16 * easeT);
         break;
       case 'ZoomOut':
-        scale *= (1.15 - 0.15 * easeT);
+        scale *= (1.16 - 0.16 * easeT);
         break;
+      case 'ZoomInOut': {
+        const zProg = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
+        const zEase = this.easeInOut(zProg);
+        scale *= (1.0 + 0.15 * zEase);
+        break;
+      }
+      case 'SlowZoomIn':
+        scale *= (1.0 + 0.06 * easeT);
+        break;
+      case 'SlowZoomOut':
+        scale *= (1.06 - 0.06 * easeT);
+        break;
+      case 'DynamicZoom': {
+        const pulse = Math.sin(progress * Math.PI * 2) * 0.08;
+        scale *= (1.08 + pulse);
+        break;
+      }
       case 'PanLeft':
-        scale *= 1.08;
+      case 'PanRightToLeft':
+        scale *= 1.12;
         transX = maxPanX * (1 - 2 * easeT);
         break;
       case 'PanRight':
-        scale *= 1.08;
+      case 'PanLeftToRight':
+        scale *= 1.12;
         transX = -maxPanX * (1 - 2 * easeT);
         break;
       case 'PanUp':
-        scale *= 1.08;
+      case 'PanBottomToTop':
+        scale *= 1.12;
         transY = maxPanY * (1 - 2 * easeT);
         break;
       case 'PanDown':
-        scale *= 1.08;
+      case 'PanTopToBottom':
+        scale *= 1.12;
         transY = -maxPanY * (1 - 2 * easeT);
         break;
-      case 'Cinematic':
-        scale *= (1.0 + 0.10 * easeT);
-        transX = -maxPanX * 0.3 * (1 - 2 * easeT);
+      case 'KenBurns':
+        scale *= (1.0 + 0.18 * easeT);
+        transX = -maxPanX * 0.7 * (1 - 2 * easeT);
+        transY = -maxPanY * 0.7 * (1 - 2 * easeT);
         break;
+      case 'DiagonalUpLeft':
+        scale *= (1.04 + 0.10 * easeT);
+        transX = maxPanX * 0.6 * (1 - 2 * easeT);
+        transY = maxPanY * 0.6 * (1 - 2 * easeT);
+        break;
+      case 'DiagonalDownRight':
       case 'Diagonal':
-        scale *= (1.02 + 0.10 * easeT);
-        transX = maxPanX * 0.4 * (1 - 2 * easeT);
-        transY = maxPanY * 0.4 * (1 - 2 * easeT);
+        scale *= (1.04 + 0.10 * easeT);
+        transX = -maxPanX * 0.6 * (1 - 2 * easeT);
+        transY = -maxPanY * 0.6 * (1 - 2 * easeT);
         break;
+      case 'Cinematic':
+        scale *= (1.0 + 0.09 * easeT);
+        transX = -maxPanX * 0.35 * (1 - 2 * easeT);
+        break;
+      case 'RandomMotion':
+      case 'Random': {
+        const isWide = (img.width / img.height) > (width / height);
+        if (isWide) {
+          scale *= (1.02 + 0.10 * easeT);
+          transX = -maxPanX * 0.5 * (1 - 2 * easeT);
+        } else {
+          scale *= (1.12 - 0.10 * easeT);
+          transY = maxPanY * 0.5 * (1 - 2 * easeT);
+        }
+        break;
+      }
     }
 
     // 3. Apply User Custom Transforms (Rotation, Flip, Scale, Pan, Opacity)
