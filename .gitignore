@@ -23,6 +23,8 @@ TestResults/
 *.mp4
 *.wav
 *.aac
+!web/assets/*.wav
+!web/assets/*.mp3
 *.png.cache
 .cache/
 

@@ -1058,20 +1058,19 @@
     container.appendChild(stockSec);
 
     stockSec.querySelectorAll('.btn-stock-music').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', () => {
         const trackId = btn.getAttribute('data-track');
-        btn.disabled = true;
-        btn.textContent = '⏳ Synthesizing Track...';
-        try {
-          const url = await audio.generateStockMusicTrack(trackId, 30);
-          pushHistory();
-          setProjectMusic(url, `${trackId.toUpperCase()} Beat`);
-          btn.textContent = '✓ Added to Project!';
-          setTimeout(() => populateMobileAudioSheet(), 1200);
-        } catch (err) {
-          alert('Could not generate track: ' + err.message);
-          btn.disabled = false;
-        }
+        const audioMap = {
+          lofi: { url: 'assets/sample-sunset-chill.wav', name: 'Sunset Chill Lo-Fi.wav' },
+          pop: { url: 'assets/sample-upbeat-pop.wav', name: 'Upbeat Pop Energy.wav' },
+          ambient: { url: 'assets/sample-cinematic.wav', name: 'Cinematic Wonder.wav' },
+          acoustic: { url: 'assets/sample-acoustic.wav', name: 'Acoustic Breeze.wav' }
+        };
+        const selected = audioMap[trackId] || audioMap.lofi;
+        pushHistory();
+        setProjectMusic(selected.url, selected.name);
+        btn.textContent = '✓ Added to Project!';
+        setTimeout(() => populateMobileAudioSheet(), 800);
       });
     });
 
@@ -1439,20 +1438,18 @@
       transform: { anchorX: 0.5, anchorY: 0.85 }
     });
 
-    // Generate and attach synthesized background audio track
-    audio.generateStockMusicTrack('lofi', 25).then(url => {
-      currentProject.assets.push({ id: 'sample-audio-1', name: 'Sunset Chill Lo-Fi.wav', type: 'audio', source: url });
-      currentProject.timeline.tracks[2].clips = [{
-        id: 'clip-audio-1',
-        name: 'Sunset Chill Lo-Fi',
-        startTime: 0,
-        duration: currentProject.timeline.totalDuration || 17.5,
-        source: url,
-        volume: 1.0
-      }];
-      audio.loadAudio(url);
-      refreshTimeline();
-    }).catch(() => {});
+    // Attach real background audio track from static assets
+    const sampleAudioUrl = 'assets/sample-sunset-chill.wav';
+    currentProject.assets.push({ id: 'sample-audio-1', name: 'Sunset Chill Lo-Fi.wav', type: 'audio', source: sampleAudioUrl });
+    currentProject.timeline.tracks[2].clips = [{
+      id: 'clip-audio-1',
+      name: 'Sunset Chill Lo-Fi.wav',
+      startTime: 0,
+      duration: currentProject.timeline.totalDuration || 17.5,
+      source: sampleAudioUrl,
+      volume: 1.0
+    }];
+    audio.loadAudio(sampleAudioUrl);
 
     recalculateDuration();
     selectedClip = currentProject.timeline.tracks[0].clips[0];
@@ -1483,19 +1480,17 @@
         <h4 style="margin-top:6px;">${t.name}</h4>
         <p>${t.description}</p>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto;">
-          <span style="font-size:11px; color:#34D399; font-weight:700;">🎵 ${t.musicTrack?.toUpperCase() || 'AUDIO'}</span>
+          <span style="font-size:11px; color:#34D399; font-weight:700;">🎵 ${t.audioName?.split('.')[0] || 'AUDIO'}</span>
           <button class="btn btn-primary btn-sm">Use Template</button>
         </div>
       `;
-      card.querySelector('button').addEventListener('click', async (e) => {
+      card.querySelector('button').addEventListener('click', (e) => {
         e.stopPropagation();
         pushHistory();
         applyTemplate(t);
-        // Preload sample photos into wizard state
-        wizardState.photos = window.VideoCreatorSampleMedia.map(m => ({ name: m.name, url: m.url }));
-        const audioUrl = await audio.generateStockMusicTrack(t.musicTrack || 'lofi', 25);
-        wizardState.musicUrl = audioUrl;
-        wizardState.musicFile = { name: `${t.name} Music.wav` };
+        wizardState.photos = (window.VideoCreatorSampleMedia || []).map(m => ({ name: m.name, url: m.url }));
+        wizardState.musicUrl = t.audioUrl || 'assets/sample-sunset-chill.wav';
+        wizardState.musicFile = { name: t.audioName || 'Sunset Chill Lo-Fi.wav' };
         currentProject = generateProjectFromWizard(wizardState);
         currentTime = 0;
         switchScreen('editor');
@@ -1591,6 +1586,13 @@
 
   // --- Quick Create Wizard ---
   let selectedWizardStockTrack = 'lofi';
+  const wizardAudioMap = {
+    lofi: { url: 'assets/sample-sunset-chill.wav', name: 'Sunset Chill Lo-Fi.wav' },
+    pop: { url: 'assets/sample-upbeat-pop.wav', name: 'Upbeat Pop Energy.wav' },
+    ambient: { url: 'assets/sample-cinematic.wav', name: 'Cinematic Wonder.wav' },
+    acoustic: { url: 'assets/sample-acoustic.wav', name: 'Acoustic Breeze.wav' }
+  };
+
   const wizardState = {
     photos: [],
     musicFile: null,
@@ -1683,8 +1685,10 @@
         stockAudioBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedWizardStockTrack = btn.getAttribute('data-track');
-        wizardState.musicFile = { name: `${btn.textContent.trim()}.wav` };
-        musicName.textContent = `🎵 Selected Track: ${btn.textContent.trim()}`;
+        const selected = wizardAudioMap[selectedWizardStockTrack] || wizardAudioMap.lofi;
+        wizardState.musicUrl = selected.url;
+        wizardState.musicFile = { name: selected.name };
+        musicName.textContent = `🎵 Selected Track: ${selected.name}`;
       });
     });
 
@@ -1705,7 +1709,7 @@
       wizardState.aspectRatio = e.target.value;
     });
 
-    document.getElementById('wizard-generate-btn').addEventListener('click', async () => {
+    document.getElementById('wizard-generate-btn').addEventListener('click', () => {
       // Auto load samples if empty
       if (wizardState.photos.length === 0) {
         wizardState.photos = (window.VideoCreatorSampleMedia || []).map(m => {
@@ -1714,28 +1718,17 @@
         });
       }
 
-      const generateBtn = document.getElementById('wizard-generate-btn');
-      generateBtn.disabled = true;
-      generateBtn.textContent = '⏳ Synthesizing Video & Audio...';
-
-      try {
-        if (!wizardState.musicUrl) {
-          const audioUrl = await audio.generateStockMusicTrack(selectedWizardStockTrack, 25);
-          wizardState.musicUrl = audioUrl;
-          if (!wizardState.musicFile) wizardState.musicFile = { name: `${selectedWizardStockTrack.toUpperCase()} Music.wav` };
-        }
-
-        pushHistory();
-        currentProject = generateProjectFromWizard(wizardState);
-        currentTime = 0;
-        saveRecentProject(currentProject);
-        switchScreen('editor');
-      } catch (err) {
-        alert('Error generating video: ' + err.message);
-      } finally {
-        generateBtn.disabled = false;
-        generateBtn.textContent = '✨ Generate Video Story';
+      if (!wizardState.musicUrl) {
+        const selected = wizardAudioMap[selectedWizardStockTrack] || wizardAudioMap.lofi;
+        wizardState.musicUrl = selected.url;
+        wizardState.musicFile = { name: selected.name };
       }
+
+      pushHistory();
+      currentProject = generateProjectFromWizard(wizardState);
+      currentTime = 0;
+      saveRecentProject(currentProject);
+      switchScreen('editor');
     });
   }
 

@@ -6,6 +6,14 @@ window.VideoCreatorSampleMedia = [
   { name: 'Golden Autumn Forest.jpg', url: 'assets/sample-forest.jpg' }
 ];
 
+window.VideoCreatorSampleAudio = [
+  { id: 'lofi', name: 'Sunset Chill Lo-Fi.wav', url: 'assets/sample-sunset-chill.wav', label: '☕ Sunset Chill Lo-Fi' },
+  { id: 'pop', name: 'Upbeat Pop Energy.wav', url: 'assets/sample-upbeat-pop.wav', label: '🎉 Upbeat Pop Energy' },
+  { id: 'cinematic', name: 'Cinematic Wonder.wav', url: 'assets/sample-cinematic.wav', label: '🌌 Cinematic Wonder' },
+  { id: 'acoustic', name: 'Acoustic Breeze.wav', url: 'assets/sample-acoustic.wav', label: '🎸 Acoustic Breeze' },
+  { id: 'edm', name: 'Cyberpulse EDM.wav', url: 'assets/sample-edm-pulse.wav', label: '⚡ Cyberpulse EDM' }
+];
+
 window.VideoCreatorTemplates = [
   {
     id: "template-reel-fast-beats",
@@ -20,6 +28,8 @@ window.VideoCreatorTemplates = [
     cropMode: "BlurBackground",
     suggestedTitle: "CAN'T STOP ⚡",
     thumbnail: "assets/sample-cyberpunk.jpg",
+    audioUrl: "assets/sample-upbeat-pop.wav",
+    audioName: "Upbeat Pop Energy.wav",
     musicTrack: "pop",
     effects: [{ type: "Contrast", intensity: 0.25 }]
   },
@@ -36,6 +46,8 @@ window.VideoCreatorTemplates = [
     cropMode: "BlurBackground",
     suggestedTitle: "A Day in My Life ✨",
     thumbnail: "assets/sample-cafe.jpg",
+    audioUrl: "assets/sample-sunset-chill.wav",
+    audioName: "Sunset Chill Lo-Fi.wav",
     musicTrack: "lofi",
     effects: [{ type: "Vintage", intensity: 0.35 }]
   },
@@ -52,7 +64,9 @@ window.VideoCreatorTemplates = [
     cropMode: "BlurBackground",
     suggestedTitle: "Golden Hour Style",
     thumbnail: "assets/sample-beach.jpg",
-    musicTrack: "ambient",
+    audioUrl: "assets/sample-cinematic.wav",
+    audioName: "Cinematic Wonder.wav",
+    musicTrack: "cinematic",
     effects: [{ type: "Glow", intensity: 0.4 }]
   },
   {
@@ -68,6 +82,8 @@ window.VideoCreatorTemplates = [
     cropMode: "Fill",
     suggestedTitle: "STAY FOCUSED 🔥",
     thumbnail: "assets/sample-forest.jpg",
+    audioUrl: "assets/sample-edm-pulse.wav",
+    audioName: "Cyberpulse EDM.wav",
     musicTrack: "edm",
     effects: [{ type: "Contrast", intensity: 0.3 }]
   },
@@ -84,7 +100,9 @@ window.VideoCreatorTemplates = [
     cropMode: "BlurBackground",
     suggestedTitle: "A Cinematic Journey",
     thumbnail: "assets/sample-mountains.jpg",
-    musicTrack: "ambient",
+    audioUrl: "assets/sample-cinematic.wav",
+    audioName: "Cinematic Wonder.wav",
+    musicTrack: "cinematic",
     effects: [{ type: "Cinematic", intensity: 0.5 }]
   },
   {
@@ -100,6 +118,8 @@ window.VideoCreatorTemplates = [
     cropMode: "Fill",
     suggestedTitle: "Wanderlust Chronicles ✈️",
     thumbnail: "assets/sample-beach.jpg",
+    audioUrl: "assets/sample-upbeat-pop.wav",
+    audioName: "Upbeat Pop Energy.wav",
     musicTrack: "pop",
     effects: [{ type: "Saturation", intensity: 0.25 }]
   },
@@ -116,6 +136,8 @@ window.VideoCreatorTemplates = [
     cropMode: "BlurBackground",
     suggestedTitle: "Unforgettable Moments",
     thumbnail: "assets/sample-forest.jpg",
+    audioUrl: "assets/sample-acoustic.wav",
+    audioName: "Acoustic Breeze.wav",
     musicTrack: "acoustic",
     effects: [{ type: "Vintage", intensity: 0.4 }]
   },
@@ -132,6 +154,8 @@ window.VideoCreatorTemplates = [
     cropMode: "Fit",
     suggestedTitle: "A Simpler View",
     thumbnail: "assets/sample-cafe.jpg",
+    audioUrl: "assets/sample-sunset-chill.wav",
+    audioName: "Sunset Chill Lo-Fi.wav",
     musicTrack: "lofi",
     effects: []
   },
@@ -148,7 +172,9 @@ window.VideoCreatorTemplates = [
     cropMode: "BlurBackground",
     suggestedTitle: "Our Love Story 💍",
     thumbnail: "assets/sample-beach.jpg",
-    musicTrack: "ambient",
+    audioUrl: "assets/sample-cinematic.wav",
+    audioName: "Cinematic Wonder.wav",
+    musicTrack: "cinematic",
     effects: [{ type: "Glow", intensity: 0.3 }]
   }
 ];
