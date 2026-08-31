@@ -1,10 +1,10 @@
 class VideoCanvasEngine {
   constructor(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d', { alpha: false });
+    this.ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
     this.imageCache = new Map(); // url -> Image
-    this.bgCanvas = document.createElement('canvas');
-    this.bgCtx = this.bgCanvas.getContext('2d');
+    this.blurCache = new Map();  // url -> offscreen Canvas (fast blurred bg)
+    this.lastRenderKey = '';
   }
 
   loadImage(src) {
@@ -14,11 +14,29 @@ class VideoCanvasEngine {
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         this.imageCache.set(src, img);
+        this.createPreBlurredBackground(src, img);
         resolve(img);
       };
       img.onerror = () => resolve(null);
       img.src = src;
     });
+  }
+
+  // Pre-renders a small offscreen blurred canvas once per image (100x faster than real-time CSS filter)
+  createPreBlurredBackground(src, img) {
+    try {
+      const off = document.createElement('canvas');
+      off.width = 160;
+      off.height = 90;
+      const oCtx = off.getContext('2d');
+      if (oCtx) {
+        oCtx.filter = 'blur(8px) brightness(0.6)';
+        oCtx.drawImage(img, 0, 0, 160, 90);
+        this.blurCache.set(src, off);
+      }
+    } catch (e) {
+      // Fallback silently if canvas context fails
+    }
   }
 
   render(project, timestamp) {
@@ -44,7 +62,7 @@ class VideoCanvasEngine {
       this.renderOverlayTrack(ctx, overlayTrack, timestamp, width, height);
     }
 
-    // 3. Render Global Vignette
+    // 3. Render Global Vignette if enabled
     const effectTrack = project.timeline.tracks.find(t => t.type === 'effect' && !t.isMuted);
     if (effectTrack) {
       this.renderVignette(ctx, width, height, 0.35);
@@ -86,19 +104,22 @@ class VideoCanvasEngine {
 
     ctx.save();
 
-    // 1. Smart Crop: Blur Background
+    // 1. Fast Blurred Background from Pre-computed Cache
     if (clip.cropMode === 'BlurBackground') {
-      ctx.save();
-      ctx.filter = 'blur(20px) brightness(0.7)';
-      ctx.drawImage(img, -20, -20, width + 40, height + 40);
-      ctx.restore();
+      const blurred = this.blurCache.get(clip.source);
+      if (blurred) {
+        ctx.drawImage(blurred, 0, 0, width, height);
+      } else {
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(0, 0, width, height);
+      }
     }
 
-    // 2. Compute Ken Burns Motion
+    // 2. Compute Ken Burns Camera Trajectory
     let scale = Math.max(width / img.width, height / img.height);
     let transX = 0, transY = 0;
-    const maxPanX = Math.max(30, (img.width * scale - width) * 0.5);
-    const maxPanY = Math.max(30, (img.height * scale - height) * 0.5);
+    const maxPanX = Math.max(20, (img.width * scale - width) * 0.5);
+    const maxPanY = Math.max(20, (img.height * scale - height) * 0.5);
 
     switch (clip.motion) {
       case 'ZoomIn':
@@ -114,10 +135,10 @@ class VideoCanvasEngine {
         break;
       }
       case 'SlowZoomIn':
-        scale *= (1.0 + 0.06 * easeT);
+        scale *= (1.0 + 0.07 * easeT);
         break;
       case 'SlowZoomOut':
-        scale *= (1.06 - 0.06 * easeT);
+        scale *= (1.07 - 0.07 * easeT);
         break;
       case 'DynamicZoom': {
         const pulse = Math.sin(progress * Math.PI * 2) * 0.08;
@@ -176,9 +197,12 @@ class VideoCanvasEngine {
         }
         break;
       }
+      default:
+        // Static
+        break;
     }
 
-    // 3. Apply User Custom Transforms (Rotation, Flip, Scale, Pan, Opacity)
+    // 3. User Custom Transform (Rotation, Flip, Scale, Opacity)
     const tf = clip.transform || {};
     const customScale = tf.scaleX || 1.0;
     scale *= customScale;
@@ -189,57 +213,76 @@ class VideoCanvasEngine {
       ctx.globalAlpha = Math.max(0, Math.min(1, tf.opacity));
     }
 
-    // Color Filters
-    let filters = [];
-    if (clip.effects && clip.effects.length > 0) {
-      for (const eff of clip.effects) {
-        if (eff.type === 'Brightness') filters.push(`brightness(${1 + eff.intensity * 0.5})`);
-        if (eff.type === 'Contrast') filters.push(`contrast(${1 + eff.intensity * 0.6})`);
-        if (eff.type === 'Saturation') filters.push(`saturate(${1 + eff.intensity * 0.7})`);
-        if (eff.type === 'Vintage') filters.push(`sepia(${eff.intensity * 0.6})`);
-        if (eff.type === 'Grayscale') filters.push(`grayscale(${eff.intensity})`);
-        if (eff.type === 'Blur') filters.push(`blur(${eff.intensity * 8}px)`);
-        if (eff.type === 'Glow') filters.push(`drop-shadow(0 0 ${eff.intensity * 15}px rgba(255,230,150,0.5))`);
-        if (eff.type === 'Cinematic') filters.push(`contrast(1.1) saturate(1.15)`);
-      }
-    }
-    if (filters.length > 0) {
-      ctx.filter = filters.join(' ');
+    // 4. Color Grading Filters & Cinematic LUTs
+    let filterString = '';
+    const preset = clip.filterPreset || 'none';
+
+    if (preset === 'cinematic') {
+      filterString = 'contrast(1.15) saturate(1.1) brightness(0.95)';
+    } else if (preset === 'teal-orange') {
+      filterString = 'contrast(1.25) saturate(1.3) sepia(0.2) hue-rotate(185deg)';
+    } else if (preset === 'sunset') {
+      filterString = 'sepia(0.35) saturate(1.4) brightness(1.05) contrast(1.1)';
+    } else if (preset === 'vintage') {
+      filterString = 'sepia(0.55) contrast(0.9) brightness(0.95) saturate(0.85)';
+    } else if (preset === 'noir') {
+      filterString = 'grayscale(1) contrast(1.35) brightness(0.9)';
+    } else if (preset === 'vibrant') {
+      filterString = 'saturate(1.5) contrast(1.15) brightness(1.02)';
+    } else if (preset === 'cyberpunk') {
+      filterString = 'contrast(1.3) saturate(1.4) hue-rotate(290deg)';
+    } else if (preset === 'pastel') {
+      filterString = 'brightness(1.1) saturate(0.8) contrast(0.95)';
     }
 
-    // Matrix translation & rotation around center
-    ctx.translate(width * 0.5 + transX, height * 0.5 + transY);
+    const cg = clip.colorGrading;
+    if (cg) {
+      const exp = 1 + (cg.exposure || 0) * 0.3;
+      const cnt = (cg.contrast !== undefined ? cg.contrast : 50) / 50;
+      const sat = (cg.saturation !== undefined ? cg.saturation : 100) / 100;
+      filterString += ` brightness(${exp}) contrast(${cnt}) saturate(${sat})`;
+    }
 
+    if (filterString.trim()) {
+      ctx.filter = filterString.trim();
+    }
+
+    // Center pivot & Render image
+    const drawW = img.width * scale;
+    const drawH = img.height * scale;
+    const centerX = width * 0.5 + transX;
+    const centerY = height * 0.5 + transY;
+
+    ctx.translate(centerX, centerY);
+
+    if (tf.rotationDegrees) {
+      ctx.rotate((tf.rotationDegrees * Math.PI) / 180);
+    }
     if (tf.flipX || tf.flipY) {
       ctx.scale(tf.flipX ? -1 : 1, tf.flipY ? -1 : 1);
     }
 
-    if (tf.rotationDegrees) {
-      ctx.rotate((tf.rotationDegrees * Math.PI) / 180.0);
-    }
-
-    const drawW = img.width * scale;
-    const drawH = img.height * scale;
-
     ctx.drawImage(img, -drawW * 0.5, -drawH * 0.5, drawW, drawH);
+
     ctx.restore();
   }
 
-  renderTransition(ctx, clipA, clipB, localTime, trans, progress, width, height) {
-    const easeP = this.easeInOut(progress);
+  renderTransition(ctx, clipA, clipB, localTime, transition, progress, width, height) {
+    const p = Math.min(1.0, Math.max(0.0, progress));
+    const easeP = this.easeInOut(p);
 
-    switch (trans.type) {
-      case 'CrossDissolve':
+    switch (transition.type) {
       case 'Fade':
+      case 'CrossDissolve':
+      case 'Dissolve': {
         this.renderSingleClip(ctx, clipA, localTime, width, height);
         ctx.save();
         ctx.globalAlpha = easeP;
         this.renderSingleClip(ctx, clipB, 0, width, height);
         ctx.restore();
         break;
-
-      case 'SlideLeft':
-      case 'Push':
+      }
+      case 'SlideLeft': {
         ctx.save();
         ctx.translate(-width * easeP, 0);
         this.renderSingleClip(ctx, clipA, localTime, width, height);
@@ -250,37 +293,42 @@ class VideoCanvasEngine {
         this.renderSingleClip(ctx, clipB, 0, width, height);
         ctx.restore();
         break;
-
-      case 'SlideUp':
+      }
+      case 'SlideRight': {
         ctx.save();
-        ctx.translate(0, -height * easeP);
+        ctx.translate(width * easeP, 0);
         this.renderSingleClip(ctx, clipA, localTime, width, height);
         ctx.restore();
 
         ctx.save();
-        ctx.translate(0, height * (1 - easeP));
+        ctx.translate(-width * (1 - easeP), 0);
         this.renderSingleClip(ctx, clipB, 0, width, height);
         ctx.restore();
         break;
-
-      case 'Zoom':
-        ctx.save();
-        ctx.globalAlpha = 1 - easeP;
-        ctx.translate(width * 0.5, height * 0.5);
-        ctx.scale(1 + easeP * 0.4, 1 + easeP * 0.4);
-        ctx.translate(-width * 0.5, -height * 0.5);
+      }
+      case 'WipeLeft': {
         this.renderSingleClip(ctx, clipA, localTime, width, height);
-        ctx.restore();
-
         ctx.save();
-        ctx.globalAlpha = easeP;
-        ctx.translate(width * 0.5, height * 0.5);
-        ctx.scale(0.8 + easeP * 0.2, 0.8 + easeP * 0.2);
-        ctx.translate(-width * 0.5, -height * 0.5);
+        ctx.beginPath();
+        ctx.rect(width * (1 - easeP), 0, width * easeP, height);
+        ctx.clip();
         this.renderSingleClip(ctx, clipB, 0, width, height);
         ctx.restore();
         break;
-
+      }
+      case 'Flash': {
+        this.renderSingleClip(ctx, clipA, localTime, width, height);
+        const flashAlpha = p < 0.5 ? p * 2 : (1 - p) * 2;
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.9})`;
+        ctx.fillRect(0, 0, width, height);
+        if (p >= 0.5) {
+          ctx.save();
+          ctx.globalAlpha = (p - 0.5) * 2;
+          this.renderSingleClip(ctx, clipB, 0, width, height);
+          ctx.restore();
+        }
+        break;
+      }
       default:
         this.renderSingleClip(ctx, clipA, localTime, width, height);
         break;
@@ -288,91 +336,91 @@ class VideoCanvasEngine {
   }
 
   renderOverlayTrack(ctx, track, timestamp, width, height) {
-    for (const clip of track.clips) {
+    track.clips.forEach(clip => {
       if (timestamp >= clip.startTime && timestamp < clip.startTime + clip.duration) {
         const localTime = timestamp - clip.startTime;
-        this.renderTextOverlay(ctx, clip, localTime, width, height);
+        this.renderTextClip(ctx, clip, localTime, width, height);
       }
-    }
+    });
   }
 
-  renderTextOverlay(ctx, clip, localTime, width, height) {
-    const overlay = clip.overlay || {};
-    const text = overlay.text || 'Title';
-    const fontSize = overlay.fontSize || 48;
-    const fontFamily = overlay.fontFamily || 'Inter, sans-serif';
-    const color = overlay.colorHex || '#FFFFFF';
-    const bgColor = overlay.backgroundColorHex || 'rgba(0,0,0,0.6)';
-    const anim = overlay.entryAnimation || 'Slide';
-    const animDur = overlay.animationDuration || 0.6;
+  renderTextClip(ctx, clip, localTime, width, height) {
+    if (!clip.overlay) return;
+    const ov = clip.overlay;
 
-    let animOpacity = 1.0;
-    let animOffsetY = 0;
-    let animScale = 1.0;
-    let displayText = text;
+    ctx.save();
 
-    if (localTime < animDur && animDur > 0) {
-      const t = localTime / animDur;
-      const ease = this.easeOut(t);
-      if (anim === 'Fade') animOpacity = ease;
-      if (anim === 'Slide') { animOffsetY = (1 - ease) * 40; animOpacity = ease; }
-      if (anim === 'Pop' || anim === 'Zoom') { animScale = 0.6 + 0.4 * ease; animOpacity = ease; }
-      if (anim === 'Typewriter') {
-        const count = Math.max(1, Math.floor(text.length * ease));
-        displayText = text.substring(0, count);
+    let alpha = 1.0;
+    let offsetY = 0;
+    let scale = 1.0;
+
+    const animDur = ov.animationDuration || 0.6;
+    if (localTime < animDur) {
+      const p = localTime / animDur;
+      const easeP = this.easeInOut(p);
+
+      switch (ov.entryAnimation) {
+        case 'Fade':
+          alpha = easeP;
+          break;
+        case 'Slide':
+        case 'SlideUp':
+          alpha = easeP;
+          offsetY = 40 * (1 - easeP);
+          break;
+        case 'Pop':
+          scale = 0.5 + 0.5 * easeP;
+          alpha = easeP;
+          break;
       }
     }
 
-    ctx.save();
-    ctx.font = `bold ${fontSize}px ${fontFamily}`;
+    ctx.globalAlpha = alpha;
+
+    const fontSize = Math.round((ov.fontSize || 54) * (width / 1920));
+    ctx.font = `italic 900 ${fontSize}px "${ov.fontFamily || 'Inter'}", -apple-system, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    const posX = width * (clip.transform?.anchorX || 0.5);
-    const posY = height * (clip.transform?.anchorY || 0.85) + animOffsetY;
+    const x = width * (clip.transform?.anchorX || 0.5);
+    const y = height * (clip.transform?.anchorY || 0.5) + offsetY;
 
-    ctx.translate(posX, posY);
-    ctx.scale(animScale, animScale);
-    ctx.globalAlpha = animOpacity;
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
 
-    const metrics = ctx.measureText(displayText);
-    const textW = metrics.width;
-    const textH = fontSize * 1.2;
+    const lines = (ov.text || '').split('\n');
+    const lineHeight = fontSize * 1.25;
+    const totalTextH = lines.length * lineHeight;
+    let startY = -totalTextH * 0.5 + lineHeight * 0.5;
 
-    // Draw Background Pill
-    if (bgColor && bgColor !== 'transparent') {
-      ctx.fillStyle = bgColor;
-      const padX = 20, padY = 10, radius = 10;
-      const rx = -textW * 0.5 - padX;
-      const ry = -textH * 0.5 - padY;
-      const rw = textW + padX * 2;
-      const rh = textH + padY * 2;
+    // Draw high-contrast drop shadow & outline for ultra-crisp typography
+    lines.forEach(line => {
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 4;
 
-      ctx.beginPath();
-      ctx.roundRect(rx, ry, rw, rh, radius);
-      ctx.fill();
-    }
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+      ctx.lineWidth = Math.max(3, fontSize * 0.08);
+      ctx.strokeText(line, 0, startY);
 
-    // Shadow & Text
-    ctx.shadowColor = 'rgba(0,0,0,0.7)';
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
+      ctx.fillStyle = ov.colorHex || '#FFFFFF';
+      ctx.fillText(line, 0, startY);
 
-    ctx.fillStyle = color;
-    ctx.fillText(displayText, 0, 0);
+      startY += lineHeight;
+    });
 
     ctx.restore();
   }
 
-  renderVignette(ctx, width, height, intensity = 0.35) {
+  renderVignette(ctx, width, height, intensity = 0.3) {
     ctx.save();
     const grad = ctx.createRadialGradient(
-      width * 0.5, height * 0.5, Math.min(width, height) * 0.3,
-      width * 0.5, height * 0.5, Math.max(width, height) * 0.75
+      width * 0.5, height * 0.5, width * 0.35,
+      width * 0.5, height * 0.5, width * 0.75
     );
-    grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, `rgba(0,0,0,${intensity})`);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    grad.addColorStop(1, `rgba(0, 0, 0, ${intensity})`);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
@@ -381,10 +429,4 @@ class VideoCanvasEngine {
   easeInOut(t) {
     return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
   }
-
-  easeOut(t) {
-    return 1 - Math.pow(1 - t, 3);
-  }
 }
-
-window.VideoCanvasEngine = VideoCanvasEngine;

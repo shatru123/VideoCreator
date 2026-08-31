@@ -440,9 +440,13 @@
             <span class="tab-icon">🎛</span>
             <span class="tab-label">Inspector</span>
           </button>
-          <button class="mobile-tab-btn" data-sheet="styles">
-            <span class="tab-icon">✨</span>
-            <span class="tab-label">Styles</span>
+          <button class="mobile-tab-btn" data-sheet="filters">
+            <span class="tab-icon">🎨</span>
+            <span class="tab-label">Filters</span>
+          </button>
+          <button class="mobile-tab-btn" data-sheet="audio">
+            <span class="tab-icon">🎵</span>
+            <span class="tab-label">Audio &amp; Beats</span>
           </button>
           <button class="mobile-tab-btn" data-sheet="titles">
             <span class="tab-icon">🔤</span>
@@ -490,6 +494,26 @@
         <button class="btn-close-sheet" data-close="inspector">✕</button>
       </div>
       <div id="mobile-inspector-content" class="bottom-sheet-body"></div>
+    </div>
+
+    <!-- Mobile Bottom Sheet: Filters & LUTs -->
+    <div id="mobile-sheet-filters" class="bottom-sheet">
+      <div class="bottom-sheet-handle"></div>
+      <div class="bottom-sheet-header">
+        <span class="bottom-sheet-title">🎨 Cinematic Filters &amp; LUTs</span>
+        <button class="btn-close-sheet" data-close="filters">✕</button>
+      </div>
+      <div id="mobile-filters-content" class="bottom-sheet-body"></div>
+    </div>
+
+    <!-- Mobile Bottom Sheet: Audio & Beat Sync -->
+    <div id="mobile-sheet-audio" class="bottom-sheet">
+      <div class="bottom-sheet-handle"></div>
+      <div class="bottom-sheet-header">
+        <span class="bottom-sheet-title">🎵 Audio Trimmer &amp; Beat Sync</span>
+        <button class="btn-close-sheet" data-close="audio">✕</button>
+      </div>
+      <div id="mobile-audio-content" class="bottom-sheet-body"></div>
     </div>
 
     <!-- Mobile Bottom Sheet: Styles & Templates -->

@@ -49,15 +49,19 @@
     // Default to Home Screen
     switchScreen('home');
 
-    // Canvas render loop
-    startRenderLoop();
+    // Canvas render initial frame
+    requestRender();
 
     // Handle responsive resize and orientation change
     window.addEventListener('resize', () => {
       resizeCanvasWrapper();
+      requestRender();
     });
     window.addEventListener('orientationchange', () => {
-      setTimeout(resizeCanvasWrapper, 150);
+      setTimeout(() => {
+        resizeCanvasWrapper();
+        requestRender();
+      }, 150);
     });
   }
 
@@ -75,6 +79,7 @@
     refreshTimeline();
     refreshMediaLibrary();
     updateInspector();
+    requestRender();
   }
 
   function redo() {
@@ -85,6 +90,7 @@
     refreshTimeline();
     refreshMediaLibrary();
     updateInspector();
+    requestRender();
   }
 
   function switchScreen(screenName) {
@@ -103,6 +109,7 @@
       refreshMediaLibrary();
       updateInspector();
       resizeCanvasWrapper();
+      requestRender();
     } else if (screenName === 'home') {
       renderRecentProjects();
     }
@@ -232,11 +239,20 @@
     const overlay = document.getElementById('mobile-sheet-overlay');
     if (!sheet) return;
 
+    // Update active tab in bottom bar
+    document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-sheet') === sheetName);
+    });
+
     // Sync content into sheet
     if (sheetName === 'media') {
       populateMobileMediaSheet();
     } else if (sheetName === 'inspector') {
       populateMobileInspectorSheet();
+    } else if (sheetName === 'filters') {
+      populateMobileFiltersSheet();
+    } else if (sheetName === 'audio') {
+      populateMobileAudioSheet();
     } else if (sheetName === 'styles') {
       populateMobileStylesSheet();
     } else if (sheetName === 'titles') {
@@ -270,12 +286,15 @@
     // Photos Section
     const photoSec = document.createElement('div');
     photoSec.innerHTML = `
-      <div style="font-size:12px; font-weight:800; color:#94A3B8; margin-bottom:8px;">📁 Photos in Project</div>
-      <div id="mobile-library-photos" class="photos-grid-view" style="max-height:220px;"></div>
+      <div style="font-size:12px; font-weight:800; color:#94A3B8; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span>📁 Photos Library</span>
+        <span style="font-size:11px; color:#60A5FA;">Tap to Add / Remove</span>
+      </div>
+      <div id="mobile-library-photos" class="photos-grid-view" style="max-height:240px;"></div>
     `;
     container.appendChild(photoSec);
 
-    // Render photo thumbs
+    // Render photo thumbs with clear green 'In Timeline' and red 'Remove' buttons
     const grid = photoSec.querySelector('#mobile-library-photos');
     const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
     const timelineClips = videoTrack ? videoTrack.clips : [];
@@ -284,14 +303,24 @@
       const isAdded = timelineClips.some(c => c.source === asset.source);
       const card = document.createElement('div');
       card.className = `photo-thumb-card ${isAdded ? 'selected' : ''}`;
+      card.style.position = 'relative';
       card.innerHTML = `
         <img src="${asset.source}">
-        <div style="position:absolute; bottom:2px; left:4px; right:4px; display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:9px; background:rgba(0,0,0,0.7); padding:1px 4px; border-radius:3px; color:#FFF;">${asset.name.split('.')[0]}</span>
-          <span style="font-size:10px; color:${isAdded ? '#10B981' : '#94A3B8'}; font-weight:bold;">${isAdded ? '✓ Added' : '+ Insert'}</span>
+        <div style="position:absolute; top:4px; right:4px;">
+          ${isAdded 
+            ? '<span style="background:#10B981; color:#000; font-size:9px; font-weight:900; padding:2px 6px; border-radius:10px;">✓ IN TIMELINE</span>'
+            : '<span style="background:rgba(0,0,0,0.7); color:#94A3B8; font-size:9px; font-weight:700; padding:2px 6px; border-radius:10px;">+ NOT ADDED</span>'}
+        </div>
+        <div style="position:absolute; bottom:4px; left:4px; right:4px; display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.85); padding:3px 6px; border-radius:4px;">
+          <span style="font-size:10px; font-weight:700; color:#FFF; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:80px;">${asset.name.split('.')[0]}</span>
+          <button class="btn btn-sm ${isAdded ? 'btn-danger' : 'btn-primary'}" style="padding:2px 8px; font-size:10px; min-height:22px;">
+            ${isAdded ? '− Remove' : '+ Insert'}
+          </button>
         </div>
       `;
-      card.addEventListener('click', () => {
+
+      card.querySelector('button').addEventListener('click', (e) => {
+        e.stopPropagation();
         pushHistory();
         if (isAdded) {
           if (videoTrack) {
@@ -306,14 +335,16 @@
         refreshTimeline();
         refreshMediaLibrary();
         populateMobileMediaSheet();
+        requestRender();
       });
+
       grid.appendChild(card);
     });
 
     // Music Section
     const musicSec = document.createElement('div');
     musicSec.innerHTML = `
-      <div style="font-size:12px; font-weight:800; color:#94A3B8; margin-top:8px; margin-bottom:8px;">🎵 Audio & Music</div>
+      <div style="font-size:12px; font-weight:800; color:#94A3B8; margin-top:10px; margin-bottom:8px;">🎵 Audio Tracks in Project</div>
       <div id="mobile-library-music" style="display:flex; flex-direction:column; gap:8px;"></div>
     `;
     container.appendChild(musicSec);
@@ -323,7 +354,7 @@
       const item = document.createElement('div');
       item.className = 'music-preview-item';
       item.innerHTML = `
-        <span style="font-size:12px; font-weight:600;">▶ ${asset.name}</span>
+        <span style="font-size:12px; font-weight:700; color:#FEF3C7;">▶ ${asset.name}</span>
         <div class="waveform-preview-line"></div>
       `;
       mList.appendChild(item);
@@ -336,7 +367,7 @@
     container.innerHTML = '';
 
     if (!selectedClip) {
-      container.innerHTML = `<div style="text-align:center; color:#94A3B8; padding:30px 10px;">Tap a clip on the timeline to inspect and edit its properties.</div>`;
+      container.innerHTML = `<div style="text-align:center; color:#94A3B8; padding:30px 10px;">Tap any clip on the timeline below to inspect and customize it.</div>`;
       return;
     }
 
@@ -345,62 +376,63 @@
 
     if (selectedClip.source) {
       const tf = selectedClip.transform || { rotationDegrees: 0, scaleX: 1.0, opacity: 1.0 };
-      const cg = selectedClip.colorGrading || { exposure: 0, contrast: 50, saturation: 100 };
 
       container.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:14px;">
           <!-- Transform -->
           <div class="inspector-section-title">TRANSFORM &amp; ROTATION</div>
           <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px;">
-            <button id="m-btn-rot-left" class="btn btn-secondary" style="min-height:42px;">↺ Left</button>
-            <button id="m-btn-rot-right" class="btn btn-secondary" style="min-height:42px;">↻ Right</button>
-            <button id="m-btn-flip-h" class="btn btn-secondary" style="min-height:42px;">⇄ Horiz</button>
-            <button id="m-btn-flip-v" class="btn btn-secondary" style="min-height:42px;">⇅ Vert</button>
+            <button id="m-btn-rot-left" class="btn btn-secondary" style="min-height:44px;">↺ -90°</button>
+            <button id="m-btn-rot-right" class="btn btn-secondary" style="min-height:44px;">↻ +90°</button>
+            <button id="m-btn-flip-h" class="btn btn-secondary" style="min-height:44px;">⇄ Flip H</button>
+            <button id="m-btn-flip-v" class="btn btn-secondary" style="min-height:44px;">⇅ Flip V</button>
           </div>
 
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <label style="font-size:12px; color:#94A3B8;">Scale / Zoom</label>
-            <span id="m-val-scale" style="font-size:12px; color:#FFF; font-weight:700;">${Math.round((tf.scaleX || 1.0) * 100)}%</span>
+            <span id="m-val-scale" style="font-size:12px; color:#FFF; font-weight:800;">${Math.round((tf.scaleX || 1.0) * 100)}%</span>
           </div>
-          <input type="range" id="m-input-scale" min="0.5" max="2.5" step="0.05" value="${tf.scaleX || 1.0}" style="height:32px;">
+          <input type="range" id="m-input-scale" min="0.5" max="2.5" step="0.05" value="${tf.scaleX || 1.0}" style="height:34px;">
 
           <!-- Animation Suite -->
-          <div class="inspector-section-title" style="margin-top:6px;">PHOTO ANIMATION PRESET</div>
-          <select id="m-select-motion" class="btn btn-secondary" style="width:100%; min-height:42px; font-size:12px;">
-            <option value="ZoomIn">Zoom In (Focus Target)</option>
-            <option value="ZoomOut">Zoom Out (Reveal Background)</option>
-            <option value="ZoomInOut">Zoom In then Out</option>
-            <option value="PanLeft">Pan Left</option>
-            <option value="PanRight">Pan Right</option>
-            <option value="PanUp">Pan Up</option>
-            <option value="PanDown">Pan Down</option>
-            <option value="KenBurns">Ken Burns Cinematic</option>
-            <option value="DynamicZoom">Dynamic Zoom &amp; Drift</option>
-            <option value="Cinematic">Cinematic Multi-Keyframe</option>
-            <option value="RandomMotion">🎲 Random Motion</option>
+          <div class="inspector-section-title" style="margin-top:6px;">PHOTO CAMERA MOTION</div>
+          <select id="m-select-motion" class="btn btn-secondary" style="width:100%; min-height:44px; font-size:12px; font-weight:700;">
+            <option value="ZoomIn">🔍 Zoom In (Focus Target)</option>
+            <option value="ZoomOut">🔍 Zoom Out (Reveal Scene)</option>
+            <option value="ZoomInOut">🔍 Zoom In then Out</option>
+            <option value="PanLeft">⬅ Pan Left</option>
+            <option value="PanRight">➡ Pan Right</option>
+            <option value="PanUp">⬆ Pan Up</option>
+            <option value="PanDown">⬇ Pan Down</option>
+            <option value="KenBurns">🎬 Ken Burns Cinematic</option>
+            <option value="DynamicZoom">⚡ Dynamic Zoom &amp; Drift</option>
+            <option value="Cinematic">🎥 Cinematic Multi-Keyframe</option>
+            <option value="DiagonalUpLeft">↗ Diagonal Drift</option>
+            <option value="RandomMotion">🎲 Random Dynamic Motion</option>
           </select>
 
           <!-- Duration Setting -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
             <label style="font-size:12px; color:#94A3B8;">Photo Duration</label>
-            <span id="m-val-dur" style="font-size:12px; color:#60A5FA; font-weight:700;">${selectedClip.duration.toFixed(1)}s</span>
+            <span id="m-val-dur" style="font-size:13px; color:#60A5FA; font-weight:900;">${selectedClip.duration.toFixed(1)}s</span>
           </div>
-          <input type="range" id="m-input-dur" min="1" max="15" step="0.5" value="${selectedClip.duration}" style="height:32px;">
+          <input type="range" id="m-input-dur" min="0.5" max="15" step="0.5" value="${selectedClip.duration}" style="height:34px;">
 
           <!-- Actions -->
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
-            <button id="m-btn-apply-all" class="btn btn-secondary" style="padding:12px;">✨ Apply to All</button>
-            <button id="m-btn-del-clip" class="btn btn-danger" style="padding:12px;">🗑 Delete Clip</button>
+            <button id="m-btn-apply-all" class="btn btn-secondary" style="min-height:44px;">✨ Apply to All</button>
+            <button id="m-btn-del-clip" class="btn btn-danger" style="min-height:44px;">🗑 Delete Clip</button>
           </div>
         </div>
       `;
 
-      // Bind mobile inspector events
+      // Bind events
       container.querySelector('#m-select-motion').value = selectedClip.motion || 'ZoomIn';
       container.querySelector('#m-select-motion').addEventListener('change', (e) => {
         pushHistory();
         selectedClip.motion = e.target.value;
         refreshTimeline();
+        requestRender();
       });
 
       container.querySelector('#m-btn-rot-left').addEventListener('click', () => {
@@ -408,24 +440,28 @@
         selectedClip.transform = selectedClip.transform || {};
         selectedClip.transform.rotationDegrees = (selectedClip.transform.rotationDegrees || 0) - 90;
         updateInspector();
+        requestRender();
       });
       container.querySelector('#m-btn-rot-right').addEventListener('click', () => {
         pushHistory();
         selectedClip.transform = selectedClip.transform || {};
         selectedClip.transform.rotationDegrees = (selectedClip.transform.rotationDegrees || 0) + 90;
         updateInspector();
+        requestRender();
       });
       container.querySelector('#m-btn-flip-h').addEventListener('click', () => {
         pushHistory();
         selectedClip.transform = selectedClip.transform || {};
         selectedClip.transform.flipX = !selectedClip.transform.flipX;
         updateInspector();
+        requestRender();
       });
       container.querySelector('#m-btn-flip-v').addEventListener('click', () => {
         pushHistory();
         selectedClip.transform = selectedClip.transform || {};
         selectedClip.transform.flipY = !selectedClip.transform.flipY;
         updateInspector();
+        requestRender();
       });
 
       const scaleInput = container.querySelector('#m-input-scale');
@@ -434,6 +470,7 @@
         selectedClip.transform.scaleX = parseFloat(e.target.value);
         container.querySelector('#m-val-scale').textContent = `${Math.round(selectedClip.transform.scaleX * 100)}%`;
         updateInspector();
+        requestRender();
       });
 
       const durInput = container.querySelector('#m-input-dur');
@@ -448,6 +485,7 @@
         }
         recalculateDuration();
         refreshTimeline();
+        requestRender();
       });
 
       container.querySelector('#m-btn-apply-all').addEventListener('click', () => {
@@ -456,14 +494,184 @@
         if (videoTrack) {
           videoTrack.clips.forEach(c => { c.motion = selectedClip.motion; });
         }
-        alert('✨ Applied animation to all photos!');
+        alert('✨ Applied camera motion to all photos!');
       });
 
       container.querySelector('#m-btn-del-clip').addEventListener('click', () => {
         deleteSelectedClip();
         closeBottomSheets();
+        requestRender();
       });
     }
+  }
+
+  // --- Real-time Filters & Cinematic LUTs Sheet ---
+  function populateMobileFiltersSheet() {
+    const container = document.getElementById('mobile-filters-content');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const FILTER_PRESETS = [
+      { id: 'none', name: 'Original', desc: 'Natural color', gradient: 'linear-gradient(135deg, #374151, #1F2937)' },
+      { id: 'cinematic', name: 'Cinematic 35mm', desc: 'Warm contrast & filmic shadows', gradient: 'linear-gradient(135deg, #78350F, #1E1B4B)' },
+      { id: 'teal-orange', name: 'Teal & Orange', desc: 'Blockbuster color grade', gradient: 'linear-gradient(135deg, #0E7490, #C2410C)' },
+      { id: 'sunset', name: 'Sunset Glow', desc: 'Golden hour radiance', gradient: 'linear-gradient(135deg, #B45309, #BE123C)' },
+      { id: 'vintage', name: 'Vintage 70s', desc: 'Nostalgic sepia film', gradient: 'linear-gradient(135deg, #713F12, #451A03)' },
+      { id: 'noir', name: 'Noir B&W', desc: 'High contrast monochrome', gradient: 'linear-gradient(135deg, #000000, #4B5563)' },
+      { id: 'vibrant', name: 'Vibrant Vivid', desc: 'Punchy saturated colors', gradient: 'linear-gradient(135deg, #15803D, #0284C7)' },
+      { id: 'cyberpunk', name: 'Cyberpunk Neon', desc: 'Ultraviolet & magenta glow', gradient: 'linear-gradient(135deg, #701A75, #4338CA)' }
+    ];
+
+    const currentFilter = selectedClip?.filterPreset || 'none';
+
+    const grid = document.createElement('div');
+    grid.className = 'filters-grid';
+
+    FILTER_PRESETS.forEach(f => {
+      const card = document.createElement('div');
+      card.className = `filter-card ${currentFilter === f.id ? 'active' : ''}`;
+      card.innerHTML = `
+        <div class="filter-swatch" style="background:${f.gradient}; color:#FFF;">🎨</div>
+        <div class="filter-title">${f.name}</div>
+        <div style="font-size:9px; color:#94A3B8; text-align:center;">${f.desc}</div>
+      `;
+
+      card.addEventListener('click', () => {
+        pushHistory();
+        if (selectedClip) {
+          selectedClip.filterPreset = f.id;
+        } else {
+          // Apply to all clips on video track
+          const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+          if (videoTrack) {
+            videoTrack.clips.forEach(c => { c.filterPreset = f.id; });
+          }
+        }
+        populateMobileFiltersSheet();
+        requestRender();
+      });
+
+      grid.appendChild(card);
+    });
+
+    container.appendChild(grid);
+
+    // Apply to all button
+    const applyAllBtn = document.createElement('button');
+    applyAllBtn.className = 'btn btn-secondary';
+    applyAllBtn.style.marginTop = '10px';
+    applyAllBtn.style.width = '100%';
+    applyAllBtn.textContent = '✨ Apply Filter to All Photos';
+    applyAllBtn.addEventListener('click', () => {
+      pushHistory();
+      const activeFilter = selectedClip?.filterPreset || 'cinematic';
+      const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+      if (videoTrack) {
+        videoTrack.clips.forEach(c => { c.filterPreset = activeFilter; });
+      }
+      alert('✨ Applied filter to all photos in project!');
+      requestRender();
+    });
+    container.appendChild(applyAllBtn);
+  }
+
+  // --- Audio Trimmer & Beat Sync Sheet ---
+  function populateMobileAudioSheet() {
+    const container = document.getElementById('mobile-audio-content');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+    const audioClip = audioTrack?.clips[0];
+
+    container.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Magic Beat Sync Button -->
+        <button id="m-btn-beat-sync" class="btn btn-beat-sync" style="width:100%;">
+          ⚡ Magic Beat Sync &amp; Auto-Cut Photos
+        </button>
+
+        <!-- Audio Track Info -->
+        <div class="audio-trimmer-container">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:12px; font-weight:700; color:#FEF3C7;">🎵 ${audioClip?.name || 'Background Music'}</span>
+            <span style="font-size:11px; color:#94A3B8;">Duration: ${(audioClip?.duration || 14).toFixed(1)}s</span>
+          </div>
+
+          <div style="height:36px; background:#1E2433; border-radius:6px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+            <div class="waveform-preview-line" style="width:90%;"></div>
+          </div>
+        </div>
+
+        <!-- Audio Volume -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="font-size:12px; color:#94A3B8;">Music Volume</label>
+            <span id="m-val-vol" style="font-size:12px; font-weight:700; color:#FFF;">${Math.round((audioClip?.volume || 1.0) * 100)}%</span>
+          </div>
+          <input type="range" id="m-input-vol" min="0" max="1.5" step="0.05" value="${audioClip?.volume || 1.0}" style="width:100%; height:34px;">
+        </div>
+
+        <!-- Audio Fades -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div>
+            <label style="font-size:11px; color:#94A3B8;">Fade In (sec)</label>
+            <input type="number" id="m-input-fade-in" class="btn btn-secondary" style="width:100%; min-height:40px; margin-top:4px;" value="1.0" min="0" max="5" step="0.5">
+          </div>
+          <div>
+            <label style="font-size:11px; color:#94A3B8;">Fade Out (sec)</label>
+            <input type="number" id="m-input-fade-out" class="btn btn-secondary" style="width:100%; min-height:40px; margin-top:4px;" value="1.5" min="0" max="5" step="0.5">
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Magic Beat Sync Handler
+    container.querySelector('#m-btn-beat-sync')?.addEventListener('click', () => {
+      pushHistory();
+      autoBeatSyncPhotos();
+    });
+
+    const volInput = container.querySelector('#m-input-vol');
+    volInput?.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      if (audioClip) audioClip.volume = v;
+      container.querySelector('#m-val-vol').textContent = `${Math.round(v * 100)}%`;
+      audio.setVolume(v);
+    });
+  }
+
+  // 1-Click Magic Auto Beat Sync
+  function autoBeatSyncPhotos() {
+    const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+    if (!videoTrack || videoTrack.clips.length === 0) {
+      alert('Add photos to the timeline first!');
+      return;
+    }
+
+    const motions = ['ZoomIn', 'PanLeft', 'ZoomOut', 'PanRight', 'KenBurns', 'DynamicZoom', 'DiagonalUpLeft'];
+    const beatInterval = 2.5; // 2.5s per photo for energetic reel tempo
+
+    let t = 0;
+    videoTrack.clips.forEach((clip, idx) => {
+      clip.startTime = t;
+      clip.duration = beatInterval;
+      clip.motion = motions[idx % motions.length];
+      clip.transitionOut = { type: 'CrossDissolve', duration: 0.5 };
+      t += beatInterval;
+    });
+
+    // Match audio track length to video duration
+    const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+    if (audioTrack && audioTrack.clips.length > 0) {
+      audioTrack.clips[0].duration = t;
+    }
+
+    recalculateDuration();
+    refreshTimeline();
+    updateInspector();
+    requestRender();
+    alert(`⚡ Beat Sync Applied! ${videoTrack.clips.length} photos arranged in rhythm (${t.toFixed(1)}s total).`);
   }
 
   function populateMobileStylesSheet() {
@@ -492,6 +700,7 @@
         applyTemplateToCurrentProject(tpl);
         closeBottomSheets();
         refreshTimeline();
+        requestRender();
       });
       list.appendChild(card);
     });
@@ -505,10 +714,10 @@
     container.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:12px;">
         <label style="font-size:12px; color:#94A3B8;">Title Text Content</label>
-        <input type="text" id="m-input-text-content" class="btn btn-secondary" style="width:100%; text-align:left; min-height:42px;" value="CAPTURING THE MAGIC OF THE SUNSET">
+        <input type="text" id="m-input-text-content" class="btn btn-secondary" style="width:100%; text-align:left; min-height:44px;" value="CAPTURING THE MAGIC OF THE SUNSET">
 
         <label style="font-size:12px; color:#94A3B8;">Font Typography</label>
-        <select id="m-select-text-font" class="btn btn-secondary" style="width:100%; min-height:42px;">
+        <select id="m-select-text-font" class="btn btn-secondary" style="width:100%; min-height:44px;">
           <option value="Inter">Inter (Clean Modern)</option>
           <option value="Impact">Impact (Bold Poster)</option>
           <option value="Playfair Display">Playfair Display (Luxury)</option>
@@ -516,7 +725,14 @@
           <option value="Georgia">Georgia (Classic Serif)</option>
         </select>
 
-        <button id="m-btn-add-title-playhead" class="btn btn-primary" style="padding:12px; margin-top:8px;">➕ Add Title at Playhead</button>
+        <label style="font-size:12px; color:#94A3B8;">Entrance Animation</label>
+        <select id="m-select-text-anim" class="btn btn-secondary" style="width:100%; min-height:44px;">
+          <option value="Pop">Pop &amp; Bounce</option>
+          <option value="SlideUp">Slide Up</option>
+          <option value="Fade">Smooth Fade</option>
+        </select>
+
+        <button id="m-btn-add-title-playhead" class="btn btn-primary" style="padding:14px; margin-top:8px;">➕ Add Title at Playhead</button>
       </div>
     `;
 
@@ -529,6 +745,7 @@
       }
       const textVal = container.querySelector('#m-input-text-content').value || 'Title';
       const fontVal = container.querySelector('#m-select-text-font').value || 'Inter';
+      const animVal = container.querySelector('#m-select-text-anim').value || 'Pop';
 
       overlayTrack.clips.push({
         id: `clip-title-${Date.now()}`,
@@ -540,7 +757,7 @@
           fontSize: 52,
           colorHex: '#FFFFFF',
           backgroundColorHex: 'rgba(0,0,0,0.6)',
-          entryAnimation: 'Pop',
+          entryAnimation: animVal,
           animationDuration: 0.6
         },
         transform: { anchorX: 0.5, anchorY: 0.85 }
@@ -549,6 +766,7 @@
       closeBottomSheets();
       recalculateDuration();
       refreshTimeline();
+      requestRender();
     });
   }
 
@@ -1131,17 +1349,38 @@
     }
   }
 
-  // --- Transport Controls ---
+  // --- High-Performance On-Demand & 60 FPS Playback Rendering ---
+  let isDirty = true;
+
+  function requestRender() {
+    isDirty = true;
+    if (!isPlaying && !animFrameId) {
+      animFrameId = requestAnimationFrame(renderFrameOnce);
+    }
+  }
+
+  function renderFrameOnce() {
+    animFrameId = null;
+    engine.render(currentProject, currentTime);
+    isDirty = false;
+  }
+
   function togglePlayPause() {
     isPlaying = !isPlaying;
     const btn = document.getElementById('btn-play-pause');
-    btn.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
+    if (btn) btn.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
 
     if (isPlaying) {
       audio.playAt(currentTime);
       lastPlayTimestamp = performance.now();
+      startRenderLoop();
     } else {
       audio.pause();
+      if (animFrameId) {
+        cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+      }
+      requestRender();
     }
   }
 
@@ -1150,26 +1389,34 @@
     currentTime = Math.max(0, Math.min(totalDur, timeSec));
     audio.seek(currentTime);
     updatePlayheadPosition();
+    requestRender();
   }
 
   function startRenderLoop() {
-    function loop(timestamp) {
-      if (isPlaying) {
-        const deltaSec = (timestamp - lastPlayTimestamp) / 1000;
-        lastPlayTimestamp = timestamp;
-        currentTime += deltaSec;
+    if (animFrameId) cancelAnimationFrame(animFrameId);
 
-        const totalDur = currentProject.timeline.totalDuration || 14.0;
-        if (currentTime >= totalDur) {
-          currentTime = 0;
-          togglePlayPause();
-        }
-        updatePlayheadPosition();
+    function loop(timestamp) {
+      if (!isPlaying) {
+        animFrameId = null;
+        return;
       }
 
+      const deltaSec = Math.min(0.1, (timestamp - lastPlayTimestamp) / 1000);
+      lastPlayTimestamp = timestamp;
+      currentTime += deltaSec;
+
+      const totalDur = currentProject.timeline.totalDuration || 14.0;
+      if (currentTime >= totalDur) {
+        currentTime = 0;
+        togglePlayPause();
+        return;
+      }
+
+      updatePlayheadPosition();
       engine.render(currentProject, currentTime);
       animFrameId = requestAnimationFrame(loop);
     }
+
     animFrameId = requestAnimationFrame(loop);
   }
 
