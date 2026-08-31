@@ -259,6 +259,12 @@
           <p style="font-weight:600;">Drag &amp; drop photos here, or click to browse</p>
           <span style="font-size:11px; color:var(--text-muted);">Supports JPG, PNG, WEBP, HEIC</span>
         </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+          <span style="font-size:11px; color:#94A3B8;">No photos on hand?</span>
+          <button id="btn-wizard-load-samples" class="btn btn-secondary btn-sm" type="button" style="background:#1E2433; border:1px solid #38BDF8; color:#38BDF8; font-weight:700;">
+            ✨ Use 5 HD Sample Photos Pack
+          </button>
+        </div>
         <div id="wizard-photo-chips" class="uploaded-chips"></div>
       </div>
 
@@ -267,10 +273,19 @@
           <div class="step-number">2</div>
           <span>Add Background Music</span>
         </div>
-        <div id="music-dropzone" class="dropzone" style="padding:20px;">
+        <div id="music-dropzone" class="dropzone" style="padding:16px;">
           <input type="file" id="music-file-input" accept="audio/*" style="display:none;">
           <div style="font-size:24px; margin-bottom:4px;">🎵</div>
-          <p id="wizard-music-name" style="font-weight:600;">Upload audio (MP3, WAV, AAC, M4A)</p>
+          <p id="wizard-music-name" style="font-weight:600;">Click to upload your own music (MP3, WAV, AAC)</p>
+        </div>
+        <div style="margin-top:10px;">
+          <div style="font-size:11px; font-weight:700; color:#FEF3C7; margin-bottom:6px;">Or choose a built-in royalty-free soundtrack:</div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px;">
+            <button class="btn btn-secondary btn-sm wizard-stock-audio-btn active" data-track="lofi" type="button" style="padding:8px; font-size:11px;">☕ Sunset Chill</button>
+            <button class="btn btn-secondary btn-sm wizard-stock-audio-btn" data-track="pop" type="button" style="padding:8px; font-size:11px;">🎉 Upbeat Pop</button>
+            <button class="btn btn-secondary btn-sm wizard-stock-audio-btn" data-track="ambient" type="button" style="padding:8px; font-size:11px;">🌌 Cinematic</button>
+            <button class="btn btn-secondary btn-sm wizard-stock-audio-btn" data-track="acoustic" type="button" style="padding:8px; font-size:11px;">🎸 Acoustic</button>
+          </div>
         </div>
       </div>
 

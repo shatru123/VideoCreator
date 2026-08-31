@@ -1,8 +1,16 @@
+window.VideoCreatorSampleMedia = [
+  { name: 'Tropical Sunset Beach.jpg', url: 'assets/sample-beach.jpg' },
+  { name: 'Alpine Glacial Lake.jpg', url: 'assets/sample-mountains.jpg' },
+  { name: 'Cozy Morning Cafe.jpg', url: 'assets/sample-cafe.jpg' },
+  { name: 'Cyberpunk Neon City.jpg', url: 'assets/sample-cyberpunk.jpg' },
+  { name: 'Golden Autumn Forest.jpg', url: 'assets/sample-forest.jpg' }
+];
+
 window.VideoCreatorTemplates = [
   {
     id: "template-reel-fast-beats",
     name: "⚡ Viral Beat Drops Reel",
-    description: "Fast 1.2s high-energy cuts with beat sync, push transitions, and crisp contrast.",
+    description: "Fast 1.3s high-energy cuts with beat sync, push transitions, and crisp contrast.",
     category: "Social",
     aspectRatio: "9:16",
     photoDuration: 1.3,
@@ -11,6 +19,8 @@ window.VideoCreatorTemplates = [
     transitionDuration: 0.35,
     cropMode: "BlurBackground",
     suggestedTitle: "CAN'T STOP ⚡",
+    thumbnail: "assets/sample-cyberpunk.jpg",
+    musicTrack: "pop",
     effects: [{ type: "Contrast", intensity: 0.25 }]
   },
   {
@@ -25,6 +35,8 @@ window.VideoCreatorTemplates = [
     transitionDuration: 0.6,
     cropMode: "BlurBackground",
     suggestedTitle: "A Day in My Life ✨",
+    thumbnail: "assets/sample-cafe.jpg",
+    musicTrack: "lofi",
     effects: [{ type: "Vintage", intensity: 0.35 }]
   },
   {
@@ -39,6 +51,8 @@ window.VideoCreatorTemplates = [
     transitionDuration: 0.8,
     cropMode: "BlurBackground",
     suggestedTitle: "Golden Hour Style",
+    thumbnail: "assets/sample-beach.jpg",
+    musicTrack: "ambient",
     effects: [{ type: "Glow", intensity: 0.4 }]
   },
   {
@@ -53,6 +67,8 @@ window.VideoCreatorTemplates = [
     transitionDuration: 0.4,
     cropMode: "Fill",
     suggestedTitle: "STAY FOCUSED 🔥",
+    thumbnail: "assets/sample-forest.jpg",
+    musicTrack: "edm",
     effects: [{ type: "Contrast", intensity: 0.3 }]
   },
   {
@@ -67,35 +83,9 @@ window.VideoCreatorTemplates = [
     transitionDuration: 0.8,
     cropMode: "BlurBackground",
     suggestedTitle: "A Cinematic Journey",
+    thumbnail: "assets/sample-mountains.jpg",
+    musicTrack: "ambient",
     effects: [{ type: "Cinematic", intensity: 0.5 }]
-  },
-  {
-    id: "template-memories",
-    name: "Golden Memories",
-    description: "Warm vintage tones, soft fade transitions, and gentle pan motions.",
-    category: "Memories",
-    aspectRatio: "9:16",
-    photoDuration: 3.2,
-    motion: "ZoomIn",
-    transition: "Fade",
-    transitionDuration: 0.7,
-    cropMode: "BlurBackground",
-    suggestedTitle: "Unforgettable Moments",
-    effects: [{ type: "Vintage", intensity: 0.4 }]
-  },
-  {
-    id: "template-birthday",
-    name: "Birthday Celebration",
-    description: "Dynamic slide transitions with energetic motion and vibrant colors.",
-    category: "Celebration",
-    aspectRatio: "9:16",
-    photoDuration: 2.5,
-    motion: "ZoomOut",
-    transition: "SlideLeft",
-    transitionDuration: 0.5,
-    cropMode: "BlurBackground",
-    suggestedTitle: "Happy Birthday! 🎉",
-    effects: [{ type: "Saturation", intensity: 0.3 }]
   },
   {
     id: "template-travel",
@@ -109,7 +99,25 @@ window.VideoCreatorTemplates = [
     transitionDuration: 0.5,
     cropMode: "Fill",
     suggestedTitle: "Wanderlust Chronicles ✈️",
+    thumbnail: "assets/sample-beach.jpg",
+    musicTrack: "pop",
     effects: [{ type: "Saturation", intensity: 0.25 }]
+  },
+  {
+    id: "template-memories",
+    name: "Golden Memories",
+    description: "Warm vintage tones, soft fade transitions, and gentle pan motions.",
+    category: "Memories",
+    aspectRatio: "9:16",
+    photoDuration: 3.2,
+    motion: "ZoomIn",
+    transition: "Fade",
+    transitionDuration: 0.7,
+    cropMode: "BlurBackground",
+    suggestedTitle: "Unforgettable Moments",
+    thumbnail: "assets/sample-forest.jpg",
+    musicTrack: "acoustic",
+    effects: [{ type: "Vintage", intensity: 0.4 }]
   },
   {
     id: "template-minimal",
@@ -123,6 +131,8 @@ window.VideoCreatorTemplates = [
     transitionDuration: 0.5,
     cropMode: "Fit",
     suggestedTitle: "A Simpler View",
+    thumbnail: "assets/sample-cafe.jpg",
+    musicTrack: "lofi",
     effects: []
   },
   {
@@ -137,34 +147,8 @@ window.VideoCreatorTemplates = [
     transitionDuration: 1.0,
     cropMode: "BlurBackground",
     suggestedTitle: "Our Love Story 💍",
+    thumbnail: "assets/sample-beach.jpg",
+    musicTrack: "ambient",
     effects: [{ type: "Glow", intensity: 0.3 }]
-  },
-  {
-    id: "template-promo",
-    name: "Modern Commercial / Promo",
-    description: "High-impact fast cuts, snappy push transitions, and bold high-contrast text overlays.",
-    category: "Business",
-    aspectRatio: "16:9",
-    photoDuration: 2.0,
-    motion: "PanRight",
-    transition: "Push",
-    transitionDuration: 0.4,
-    cropMode: "Fill",
-    suggestedTitle: "INTRODUCING THE FUTURE",
-    effects: [{ type: "Contrast", intensity: 0.2 }]
-  },
-  {
-    id: "template-retro",
-    name: "Retro 90s Film",
-    description: "Classic sepia & film grain tone grading, subtle vignettes, and typewriter typography.",
-    category: "Vintage",
-    aspectRatio: "1:1",
-    photoDuration: 3.5,
-    motion: "PanLeft",
-    transition: "Fade",
-    transitionDuration: 0.6,
-    cropMode: "BlurBackground",
-    suggestedTitle: "Vintage Memories",
-    effects: [{ type: "Vintage", intensity: 0.5 }, { type: "Vignette", intensity: 0.4 }]
   }
 ];

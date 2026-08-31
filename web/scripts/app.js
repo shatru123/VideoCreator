@@ -1391,38 +1391,33 @@
   }
 
   function populateSampleMedia() {
-    // Add sample photos
-    const sampleColors = [
-      { name: 'sunset_photo.jpg', color: '#D97706', label: 'Sunset Adventure' },
-      { name: 'mountain_view.jpg', color: '#2563EB', label: 'Mountain Peaks' },
-      { name: 'portrait_girl.jpg', color: '#7C3AED', label: 'Portrait' },
-      { name: 'city_skyline.jpg', color: '#059669', label: 'City Lights' }
+    const samplePhotos = window.VideoCreatorSampleMedia || [
+      { name: 'Tropical Sunset Beach.jpg', url: 'assets/sample-beach.jpg' },
+      { name: 'Alpine Glacial Lake.jpg', url: 'assets/sample-mountains.jpg' },
+      { name: 'Cozy Morning Cafe.jpg', url: 'assets/sample-cafe.jpg' },
+      { name: 'Cyberpunk Neon City.jpg', url: 'assets/sample-cyberpunk.jpg' },
+      { name: 'Golden Autumn Forest.jpg', url: 'assets/sample-forest.jpg' }
     ];
 
-    sampleColors.forEach((s, idx) => {
-      const c = document.createElement('canvas');
-      c.width = 1280; c.height = 720;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = s.color;
-      ctx.fillRect(0, 0, 1280, 720);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 64px Inter';
-      ctx.fillText(s.label, 380, 380);
-      const url = c.toDataURL('image/jpeg');
+    const motions = ['ZoomIn', 'PanLeft', 'ZoomOut', 'KenBurns', 'DynamicZoom'];
+    const filters = ['cinematic', 'teal-orange', 'sunset', 'cyberpunk', 'vintage'];
 
-      currentProject.assets.push({ id: `sample-${idx}`, name: s.name, type: 'image', source: url });
+    samplePhotos.forEach((s, idx) => {
+      engine.loadImage(s.url);
+      currentProject.assets.push({ id: `sample-${idx}`, name: s.name, type: 'image', source: s.url });
 
       const clip = {
         id: `clip-video-${idx}`,
         name: s.name,
         startTime: idx * 3.5,
         duration: 3.5,
-        source: url,
-        motion: 'ZoomIn',
+        source: s.url,
+        motion: motions[idx % motions.length],
         cropMode: 'BlurBackground',
+        filterPreset: filters[idx % filters.length],
         transitionOut: { type: 'CrossDissolve', duration: 0.6 },
-        transform: { rotationDegrees: -5.4, scaleX: 1.35, flipX: false, flipY: false, opacity: 1.0 },
-        colorGrading: { exposure: 0.4, contrast: 60, saturation: 110 }
+        transform: { rotationDegrees: 0, scaleX: 1.0, flipX: false, flipY: false, opacity: 1.0 },
+        colorGrading: { exposure: 0.2, contrast: 55, saturation: 110 }
       };
       currentProject.timeline.tracks[0].clips.push(clip);
     });
@@ -1433,9 +1428,9 @@
       startTime: 0.5,
       duration: 5.0,
       overlay: {
-        text: 'CAPTURING THE MAGIC OF THE SUNSET',
+        text: 'SUNSET ADVENTURES ✨',
         fontFamily: 'Inter',
-        fontSize: 52,
+        fontSize: 54,
         colorHex: '#FFFFFF',
         backgroundColorHex: 'rgba(0,0,0,0.6)',
         entryAnimation: 'Pop',
@@ -1444,15 +1439,20 @@
       transform: { anchorX: 0.5, anchorY: 0.85 }
     });
 
-    // Add Sample Audio
-    currentProject.assets.push({ id: 'sample-audio-1', name: 'Epic Journey.mp3', type: 'audio', source: '' });
-    currentProject.timeline.tracks[2].clips.push({
-      id: 'clip-audio-1',
-      name: 'Epic Journey.mp3',
-      startTime: 0,
-      duration: 14.0,
-      volume: 1.0
-    });
+    // Generate and attach synthesized background audio track
+    audio.generateStockMusicTrack('lofi', 25).then(url => {
+      currentProject.assets.push({ id: 'sample-audio-1', name: 'Sunset Chill Lo-Fi.wav', type: 'audio', source: url });
+      currentProject.timeline.tracks[2].clips = [{
+        id: 'clip-audio-1',
+        name: 'Sunset Chill Lo-Fi',
+        startTime: 0,
+        duration: currentProject.timeline.totalDuration || 17.5,
+        source: url,
+        volume: 1.0
+      }];
+      audio.loadAudio(url);
+      refreshTimeline();
+    }).catch(() => {});
 
     recalculateDuration();
     selectedClip = currentProject.timeline.tracks[0].clips[0];
@@ -1471,20 +1471,34 @@
     const container = document.getElementById('home-templates-grid');
     container.innerHTML = '';
     window.VideoCreatorTemplates.forEach(t => {
+      const thumb = t.thumbnail || 'assets/sample-beach.jpg';
       const card = document.createElement('div');
       card.className = 'template-card';
+      card.style.position = 'relative';
       card.innerHTML = `
-        <div style="font-size:24px;">✨</div>
-        <h4>${t.name}</h4>
+        <div style="height:120px; border-radius:6px; overflow:hidden; position:relative; background:#1E2433;">
+          <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+          <span class="badge" style="position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.75); color:#60A5FA; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:800;">${t.aspectRatio}</span>
+        </div>
+        <h4 style="margin-top:6px;">${t.name}</h4>
         <p>${t.description}</p>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto;">
-          <span class="badge" style="background:#1E293B; color:#94A3B8; padding:3px 6px; border-radius:4px; font-size:10px;">${t.aspectRatio}</span>
+          <span style="font-size:11px; color:#34D399; font-weight:700;">🎵 ${t.musicTrack?.toUpperCase() || 'AUDIO'}</span>
           <button class="btn btn-primary btn-sm">Use Template</button>
         </div>
       `;
-      card.addEventListener('click', () => {
+      card.querySelector('button').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        pushHistory();
         applyTemplate(t);
-        switchScreen('wizard');
+        // Preload sample photos into wizard state
+        wizardState.photos = window.VideoCreatorSampleMedia.map(m => ({ name: m.name, url: m.url }));
+        const audioUrl = await audio.generateStockMusicTrack(t.musicTrack || 'lofi', 25);
+        wizardState.musicUrl = audioUrl;
+        wizardState.musicFile = { name: `${t.name} Music.wav` };
+        currentProject = generateProjectFromWizard(wizardState);
+        currentTime = 0;
+        switchScreen('editor');
       });
       container.appendChild(card);
     });
@@ -1576,6 +1590,7 @@
   }
 
   // --- Quick Create Wizard ---
+  let selectedWizardStockTrack = 'lofi';
   const wizardState = {
     photos: [],
     musicFile: null,
@@ -1588,9 +1603,20 @@
     const photoDropzone = document.getElementById('photo-dropzone');
     const photoInput = document.getElementById('photo-file-input');
     const photoChips = document.getElementById('wizard-photo-chips');
+    const loadSamplesBtn = document.getElementById('btn-wizard-load-samples');
 
     photoDropzone.addEventListener('click', () => photoInput.click());
     photoInput.addEventListener('change', (e) => handlePhotoFiles(e.target.files));
+
+    // 1-Click Load HD Sample Photos Pack
+    loadSamplesBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      wizardState.photos = (window.VideoCreatorSampleMedia || []).map(m => {
+        engine.loadImage(m.url);
+        return { name: m.name, url: m.url };
+      });
+      renderPhotoChips();
+    });
 
     photoDropzone.addEventListener('dragover', (e) => { e.preventDefault(); photoDropzone.classList.add('dragover'); });
     photoDropzone.addEventListener('dragleave', () => photoDropzone.classList.remove('dragover'));
@@ -1616,7 +1642,14 @@
       wizardState.photos.forEach((p, idx) => {
         const chip = document.createElement('div');
         chip.className = 'chip';
-        chip.innerHTML = `<span>📷 ${p.name}</span><span class="chip-remove" data-idx="${idx}">✕</span>`;
+        chip.style.display = 'inline-flex';
+        chip.style.alignItems = 'center';
+        chip.style.gap = '6px';
+        chip.innerHTML = `
+          <img src="${p.url}" style="width:22px; height:22px; border-radius:3px; object-fit:cover;">
+          <span>${p.name.split('.')[0]}</span>
+          <span class="chip-remove" data-idx="${idx}" style="cursor:pointer; margin-left:4px;">✕</span>
+        `;
         photoChips.appendChild(chip);
       });
       photoChips.querySelectorAll('.chip-remove').forEach(btn => {
@@ -1628,7 +1661,7 @@
       });
     }
 
-    // Music Upload
+    // Music Upload & Stock Track Selection
     const musicDropzone = document.getElementById('music-dropzone');
     const musicInput = document.getElementById('music-file-input');
     const musicName = document.getElementById('wizard-music-name');
@@ -1639,8 +1672,20 @@
       if (file) {
         wizardState.musicFile = file;
         wizardState.musicUrl = URL.createObjectURL(file);
-        musicName.textContent = `🎵 ${file.name}`;
+        musicName.textContent = `🎵 Custom: ${file.name}`;
+        document.querySelectorAll('.wizard-stock-audio-btn').forEach(b => b.classList.remove('active'));
       }
+    });
+
+    const stockAudioBtns = document.querySelectorAll('.wizard-stock-audio-btn');
+    stockAudioBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        stockAudioBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedWizardStockTrack = btn.getAttribute('data-track');
+        wizardState.musicFile = { name: `${btn.textContent.trim()}.wav` };
+        musicName.textContent = `🎵 Selected Track: ${btn.textContent.trim()}`;
+      });
     });
 
     // Template Picker in Wizard
@@ -1660,16 +1705,37 @@
       wizardState.aspectRatio = e.target.value;
     });
 
-    document.getElementById('wizard-generate-btn').addEventListener('click', () => {
+    document.getElementById('wizard-generate-btn').addEventListener('click', async () => {
+      // Auto load samples if empty
       if (wizardState.photos.length === 0) {
-        alert('Please upload at least 1 photo to create your video.');
-        return;
+        wizardState.photos = (window.VideoCreatorSampleMedia || []).map(m => {
+          engine.loadImage(m.url);
+          return { name: m.name, url: m.url };
+        });
       }
-      pushHistory();
-      currentProject = generateProjectFromWizard(wizardState);
-      currentTime = 0;
-      saveRecentProject(currentProject);
-      switchScreen('editor');
+
+      const generateBtn = document.getElementById('wizard-generate-btn');
+      generateBtn.disabled = true;
+      generateBtn.textContent = '⏳ Synthesizing Video & Audio...';
+
+      try {
+        if (!wizardState.musicUrl) {
+          const audioUrl = await audio.generateStockMusicTrack(selectedWizardStockTrack, 25);
+          wizardState.musicUrl = audioUrl;
+          if (!wizardState.musicFile) wizardState.musicFile = { name: `${selectedWizardStockTrack.toUpperCase()} Music.wav` };
+        }
+
+        pushHistory();
+        currentProject = generateProjectFromWizard(wizardState);
+        currentTime = 0;
+        saveRecentProject(currentProject);
+        switchScreen('editor');
+      } catch (err) {
+        alert('Error generating video: ' + err.message);
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = '✨ Generate Video Story';
+      }
     });
   }
 
