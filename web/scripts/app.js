@@ -598,6 +598,12 @@
         window._copiedMotion = selectedClip.motion || 'ZoomIn';
       }
     });
+    document.getElementById('action-btn-reorder-left')?.addEventListener('click', () => {
+      moveSelectedClip(-1);
+    });
+    document.getElementById('action-btn-reorder-right')?.addEventListener('click', () => {
+      moveSelectedClip(1);
+    });
     document.getElementById('action-btn-delete')?.addEventListener('click', () => {
       closeBottomSheets();
       deleteSelectedClip();
@@ -640,6 +646,8 @@
       populateMobileFiltersSheet();
     } else if (sheetName === 'audio') {
       populateMobileAudioSheet();
+    } else if (sheetName === 'stickers') {
+      populateMobileStickersSheet();
     } else if (sheetName === 'styles') {
       populateMobileStylesSheet();
     } else if (sheetName === 'titles') {
@@ -1026,6 +1034,191 @@
       container.querySelector('#m-val-vol').textContent = `${Math.round(v * 100)}%`;
       audio.setVolume(v);
     });
+
+    // Stock Music Tracks Library
+    const stockSec = document.createElement('div');
+    stockSec.style.marginTop = '8px';
+    stockSec.innerHTML = `
+      <div style="font-size:12px; font-weight:800; color:#38BDF8; margin-bottom:8px;">🎵 Royalty-Free Music Library (1-Click)</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <button class="btn btn-secondary btn-stock-music" data-track="lofi" style="justify-content:space-between; text-align:left; min-height:40px;">
+          <span>☕ Sunset Chill Lo-Fi</span><span style="font-size:10px; color:#60A5FA;">+ Insert</span>
+        </button>
+        <button class="btn btn-secondary btn-stock-music" data-track="pop" style="justify-content:space-between; text-align:left; min-height:40px;">
+          <span>🎉 Upbeat Pop Energy</span><span style="font-size:10px; color:#60A5FA;">+ Insert</span>
+        </button>
+        <button class="btn btn-secondary btn-stock-music" data-track="ambient" style="justify-content:space-between; text-align:left; min-height:40px;">
+          <span>🌌 Cinematic Wonder</span><span style="font-size:10px; color:#60A5FA;">+ Insert</span>
+        </button>
+        <button class="btn btn-secondary btn-stock-music" data-track="acoustic" style="justify-content:space-between; text-align:left; min-height:40px;">
+          <span>🎸 Acoustic Breeze</span><span style="font-size:10px; color:#60A5FA;">+ Insert</span>
+        </button>
+      </div>
+    `;
+    container.appendChild(stockSec);
+
+    stockSec.querySelectorAll('.btn-stock-music').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const trackId = btn.getAttribute('data-track');
+        btn.disabled = true;
+        btn.textContent = '⏳ Synthesizing Track...';
+        try {
+          const url = await audio.generateStockMusicTrack(trackId, 30);
+          pushHistory();
+          setProjectMusic(url, `${trackId.toUpperCase()} Beat`);
+          btn.textContent = '✓ Added to Project!';
+          setTimeout(() => populateMobileAudioSheet(), 1200);
+        } catch (err) {
+          alert('Could not generate track: ' + err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Voiceover Microphone Recorder
+    const voiceSec = document.createElement('div');
+    voiceSec.style.marginTop = '12px';
+    voiceSec.style.borderTop = '1px solid #1E293B';
+    voiceSec.style.paddingTop = '10px';
+    voiceSec.innerHTML = `
+      <div style="font-size:12px; font-weight:800; color:#F43F5E; margin-bottom:8px;">🎙️ Live Voiceover Recorder</div>
+      <div style="display:flex; gap:8px;">
+        <button id="btn-record-voiceover" class="btn btn-secondary" style="flex:1; min-height:42px; color:#F43F5E; font-weight:700;">
+          🔴 Record Voiceover
+        </button>
+        <button id="btn-stop-voiceover" class="btn btn-danger" style="display:none; flex:1; min-height:42px; font-weight:800;">
+          ⏹ Stop &amp; Save
+        </button>
+      </div>
+      <div id="voice-recording-status" style="font-size:11px; color:#94A3B8; margin-top:4px; text-align:center;">Microphone ready</div>
+    `;
+    container.appendChild(voiceSec);
+
+    const recBtn = voiceSec.querySelector('#btn-record-voiceover');
+    const stopBtn = voiceSec.querySelector('#btn-stop-voiceover');
+    const statusLabel = voiceSec.querySelector('#voice-recording-status');
+
+    recBtn.addEventListener('click', async () => {
+      try {
+        await audio.startVoiceoverRecording();
+        recBtn.style.display = 'none';
+        stopBtn.style.display = 'block';
+        statusLabel.textContent = '🔴 Recording live audio... Speak into microphone';
+        statusLabel.style.color = '#F43F5E';
+      } catch (err) {
+        alert('Microphone error: ' + err.message);
+      }
+    });
+
+    stopBtn.addEventListener('click', async () => {
+      stopBtn.disabled = true;
+      statusLabel.textContent = 'Processing recording...';
+      try {
+        const res = await audio.stopVoiceoverRecording();
+        pushHistory();
+        let voiceTrack = currentProject.timeline.tracks.find(t => t.type === 'voiceover');
+        if (!voiceTrack) {
+          voiceTrack = { id: 'track-voiceover-1', type: 'voiceover', clips: [] };
+          currentProject.timeline.tracks.push(voiceTrack);
+        }
+        voiceTrack.clips.push({
+          id: `clip-voice-${Date.now()}`,
+          name: `Voiceover ${(res.duration).toFixed(1)}s`,
+          startTime: currentTime,
+          duration: res.duration,
+          source: res.url,
+          volume: 1.0
+        });
+        recalculateDuration();
+        refreshTimeline();
+        statusLabel.textContent = `✓ Recorded ${res.duration}s voiceover placed on timeline!`;
+        statusLabel.style.color = '#10B981';
+        setTimeout(() => populateMobileAudioSheet(), 1500);
+      } catch (err) {
+        alert('Error saving voiceover: ' + err.message);
+        populateMobileAudioSheet();
+      }
+    });
+  }
+
+  // --- Stickers, Emojis & Atmospheric Particle Effects Sheet ---
+  function populateMobileStickersSheet() {
+    const container = document.getElementById('mobile-stickers-content');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Emojis & Stickers Grid
+    const EMOJIS = ['🔥', '❤️', '✨', '🌟', '🎉', '🚀', '🎬', '📸', '🎵', '🌴', '☕', '🍕', '👑', '💯', '🏖️', '🌺'];
+    const emojiSec = document.createElement('div');
+    emojiSec.innerHTML = `
+      <div style="font-size:12px; font-weight:800; color:#38BDF8; margin-bottom:8px;">🌟 Quick Emoji &amp; Badge Stickers (Tap to Add)</div>
+      <div style="display:grid; grid-template-columns: repeat(8, 1fr); gap:6px; margin-bottom:16px;">
+        ${EMOJIS.map(e => `<button class="btn btn-secondary btn-emoji-sticker" data-emoji="${e}" style="padding:6px; font-size:22px; min-height:42px;">${e}</button>`).join('')}
+      </div>
+    `;
+    container.appendChild(emojiSec);
+
+    emojiSec.querySelectorAll('.btn-emoji-sticker').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const emoji = btn.getAttribute('data-emoji');
+        pushHistory();
+        let overlayTrack = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+        if (!overlayTrack) {
+          overlayTrack = { id: 'track-overlay-1', type: 'overlay', clips: [] };
+          currentProject.timeline.tracks.push(overlayTrack);
+        }
+        overlayTrack.clips.push({
+          id: `clip-sticker-${Date.now()}`,
+          name: `Sticker ${emoji}`,
+          startTime: currentTime,
+          duration: 3.0,
+          sticker: {
+            emoji: emoji,
+            fontSize: 76
+          },
+          transform: { anchorX: 0.5, anchorY: 0.5 }
+        });
+        recalculateDuration();
+        refreshTimeline();
+        requestRender();
+        alert(`🌟 Added "${emoji}" sticker overlay at playhead!`);
+      });
+    });
+
+    // Atmospheric Particle Effects
+    const particleSec = document.createElement('div');
+    const currentFX = currentProject.particleEffect || 'none';
+    const EFFECTS = [
+      { id: 'none', name: 'None', desc: 'Clean Video' },
+      { id: 'sparkles', name: '✨ Golden Sparkles', desc: 'Twinkling stardust' },
+      { id: 'snow', name: '❄️ Winter Snow', desc: 'Drifting snowfall' },
+      { id: 'flare', name: '🌅 Lens Flare', desc: 'Cinematic light leak' },
+      { id: 'hearts', name: '❤️ Floating Hearts', desc: 'Romance aesthetic' },
+      { id: 'grain', name: '🎞️ 35mm Film Grain', desc: 'Nostalgic film dust' }
+    ];
+
+    particleSec.innerHTML = `
+      <div style="font-size:12px; font-weight:800; color:#F59E0B; margin-bottom:8px;">✨ Atmospheric Particle Overlays</div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+        ${EFFECTS.map(fx => `
+          <button class="btn ${currentFX === fx.id ? 'btn-primary' : 'btn-secondary'} btn-particle-fx" data-fx="${fx.id}" style="flex-direction:column; align-items:flex-start; padding:10px; min-height:48px;">
+            <span style="font-size:12px; font-weight:800;">${fx.name}</span>
+            <span style="font-size:9px; color:#CBD5E1; font-weight:normal;">${fx.desc}</span>
+          </button>
+        `).join('')}
+      </div>
+    `;
+    container.appendChild(particleSec);
+
+    particleSec.querySelectorAll('.btn-particle-fx').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const fx = btn.getAttribute('data-fx');
+        pushHistory();
+        currentProject.particleEffect = fx;
+        populateMobileStickersSheet();
+        requestRender();
+      });
+    });
   }
 
   // 1-Click Magic Auto Beat Sync
@@ -1149,12 +1342,40 @@
         },
         transform: { anchorX: 0.5, anchorY: 0.85 }
       });
-
-      closeBottomSheets();
       recalculateDuration();
       refreshTimeline();
       requestRender();
+      closeBottomSheets();
     });
+  }
+
+  // --- Clip Reordering (Move Left / Right on Timeline) ---
+  function moveSelectedClip(direction) {
+    if (!selectedClip) return;
+    const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+    if (!videoTrack) return;
+
+    const idx = videoTrack.clips.indexOf(selectedClip);
+    if (idx === -1) return;
+
+    const targetIdx = idx + direction;
+    if (targetIdx < 0 || targetIdx >= videoTrack.clips.length) return;
+
+    pushHistory();
+    const temp = videoTrack.clips[idx];
+    videoTrack.clips[idx] = videoTrack.clips[targetIdx];
+    videoTrack.clips[targetIdx] = temp;
+
+    // Recalculate start times sequentially
+    let t = 0;
+    videoTrack.clips.forEach(c => {
+      c.startTime = t;
+      t += c.duration;
+    });
+
+    recalculateDuration();
+    refreshTimeline();
+    requestRender();
   }
 
   function applyTemplateToCurrentProject(tpl) {
@@ -2238,11 +2459,14 @@
       const progressFill = document.getElementById('export-progress-fill');
       const progressLabel = document.getElementById('export-progress-label');
 
+      const res = document.getElementById('export-resolution-select')?.value || '1080';
+      const fps = parseInt(document.getElementById('export-fps-select')?.value) || 30;
+
       exportBtn.disabled = true;
       progressContainer.style.display = 'block';
 
       try {
-        const result = await exporter.exportVideo(currentProject, { fps: 30 }, (p) => {
+        const result = await exporter.exportVideo(currentProject, { resolution: res, fps: fps }, (p) => {
           progressFill.style.width = `${p.percentage}%`;
           progressLabel.textContent = `Encoding: ${p.percentage}% (${p.currentTime}s / ${p.totalDuration}s)`;
         });

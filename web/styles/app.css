@@ -1072,19 +1072,26 @@ canvas#videoCanvas {
 /* Mobile Bottom Tab Bar */
 .mobile-editor-tabs {
   display: none;
-  height: 54px;
+  height: 56px;
   background: #0E121B;
   border-top: 1px solid var(--border-color);
-  padding: 0 8px;
+  padding: 0 4px;
   padding-bottom: var(--safe-bottom);
-  justify-content: space-around;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   align-items: center;
   flex-shrink: 0;
   z-index: 25;
 }
 
+.mobile-editor-tabs::-webkit-scrollbar {
+  display: none;
+}
+
 .mobile-tab-btn {
   flex: 1;
+  min-width: 54px;
   background: none;
   border: none;
   color: var(--text-secondary);
@@ -1092,14 +1099,15 @@ canvas#videoCanvas {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 6px 0;
+  gap: 2px;
+  padding: 4px 4px;
   min-height: 48px;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .mobile-tab-btn .tab-icon {

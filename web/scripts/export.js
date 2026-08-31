@@ -3,15 +3,39 @@ class VideoWebExporter {
     this.engine = engine;
   }
 
-  async exportVideo(project, options, onProgress) {
-    const { width, height } = project.canvas;
-    const fps = options.fps || 30;
+  async exportVideo(project, options = {}, onProgress) {
+    let targetWidth = project.canvas.width;
+    let targetHeight = project.canvas.height;
+
+    const res = options.resolution || '1080';
+    const isPortrait = project.canvas.height > project.canvas.width;
+    const isSquare = project.canvas.width === project.canvas.height;
+
+    if (res === '4k') {
+      if (isSquare) { targetWidth = 2160; targetHeight = 2160; }
+      else if (isPortrait) { targetWidth = 2160; targetHeight = 3840; }
+      else { targetWidth = 3840; targetHeight = 2160; }
+    } else if (res === '1080') {
+      if (isSquare) { targetWidth = 1080; targetHeight = 1080; }
+      else if (isPortrait) { targetWidth = 1080; targetHeight = 1920; }
+      else { targetWidth = 1920; targetHeight = 1080; }
+    } else if (res === '720') {
+      if (isSquare) { targetWidth = 720; targetHeight = 720; }
+      else if (isPortrait) { targetWidth = 720; targetHeight = 1280; }
+      else { targetWidth = 1280; targetHeight = 720; }
+    } else if (res === '480') {
+      if (isSquare) { targetWidth = 480; targetHeight = 480; }
+      else if (isPortrait) { targetWidth = 480; targetHeight = 854; }
+      else { targetWidth = 854; targetHeight = 480; }
+    }
+
+    const fps = parseInt(options.fps) || 30;
     const totalDuration = project.timeline.totalDuration || 5.0;
 
     // Create offscreen export canvas
     const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = width;
-    exportCanvas.height = height;
+    exportCanvas.width = targetWidth;
+    exportCanvas.height = targetHeight;
     const exportEngine = new VideoCanvasEngine(exportCanvas);
 
     // Preload all clip images into export engine
@@ -22,7 +46,7 @@ class VideoWebExporter {
       }
     }
 
-    // Determine the optimal universally supported MIME type
+    // Determine candidate MIME type
     const candidateMimes = [
       'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
       'video/mp4; codecs=avc1.42E01E',
@@ -34,17 +58,17 @@ class VideoWebExporter {
 
     let selectedMime = '';
     for (const mime of candidateMimes) {
-      if (MediaRecorder.isTypeSupported(mime)) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(mime)) {
         selectedMime = mime;
         break;
       }
     }
     if (!selectedMime) selectedMime = 'video/webm';
 
-    // Capture Canvas Stream at standard 30fps
+    // Capture Canvas Stream at requested FPS
     const stream = exportCanvas.captureStream(fps);
 
-    // Setup Web Audio Stream Destination for synchronized audio
+    // Setup Web Audio Stream Destination for synchronized audio tracks
     const audioTrack = project.timeline.tracks.find(t => t.type === 'audio');
     let audioElem = null;
     let actx = null;
@@ -68,13 +92,14 @@ class VideoWebExporter {
           });
         }
       } catch (e) {
-        console.warn('Audio capture stream fallback:', e);
+        console.warn('Audio capture fallback:', e);
       }
     }
 
+    const defaultBitrate = res === '4k' ? 24000000 : (res === '1080' ? 10000000 : 5000000);
     const mediaRecorder = new MediaRecorder(stream, {
       mimeType: selectedMime,
-      videoBitsPerSecond: options.bitrate || 8000000
+      videoBitsPerSecond: options.bitrate || defaultBitrate
     });
 
     const chunks = [];
@@ -105,7 +130,7 @@ class VideoWebExporter {
       mediaRecorder.onerror = (err) => reject(err);
 
       // Start recording
-      mediaRecorder.start(250); // Request chunks every 250ms for reliable streaming buffers
+      mediaRecorder.start(250);
       if (audioElem) {
         audioElem.currentTime = 0;
         audioElem.play().catch(() => {});
@@ -117,7 +142,12 @@ class VideoWebExporter {
         const elapsedSec = (performance.now() - startWallClock) / 1000;
         const currentTimestamp = Math.min(totalDuration, elapsedSec);
 
-        exportEngine.render(project, currentTimestamp);
+        // Render project state
+        const renderProject = {
+          ...project,
+          canvas: { ...project.canvas, width: targetWidth, height: targetHeight }
+        };
+        exportEngine.render(renderProject, currentTimestamp);
 
         const pct = Math.min(100, Math.round((currentTimestamp / totalDuration) * 100));
         if (onProgress) {
@@ -129,12 +159,11 @@ class VideoWebExporter {
         }
 
         if (elapsedSec >= totalDuration) {
-          // Finished rendering timeline
           setTimeout(() => {
             if (mediaRecorder.state !== 'inactive') {
               mediaRecorder.stop();
             }
-          }, 300);
+          }, 350);
           return;
         }
 

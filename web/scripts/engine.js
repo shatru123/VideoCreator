@@ -4,7 +4,6 @@ class VideoCanvasEngine {
     this.ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
     this.imageCache = new Map(); // url -> Image
     this.blurCache = new Map();  // url -> offscreen Canvas (fast blurred bg)
-    this.lastRenderKey = '';
   }
 
   loadImage(src) {
@@ -56,16 +55,24 @@ class VideoCanvasEngine {
       this.renderVideoTrack(ctx, videoTrack, timestamp, width, height);
     }
 
-    // 2. Render Overlay / Text Track
+    // 2. Render Overlay / Text Track & Stickers
     const overlayTrack = project.timeline.tracks.find(t => t.type === 'overlay' && !t.isMuted);
     if (overlayTrack) {
       this.renderOverlayTrack(ctx, overlayTrack, timestamp, width, height);
     }
 
-    // 3. Render Global Vignette if enabled
+    // 3. Render Atmospheric Particle Effects if enabled
+    if (project.particleEffect && project.particleEffect !== 'none') {
+      this.renderParticleEffects(ctx, width, height, project.particleEffect, timestamp);
+    }
+
+    // 4. Render Global Vignette if enabled
     const effectTrack = project.timeline.tracks.find(t => t.type === 'effect' && !t.isMuted);
-    if (effectTrack) {
-      this.renderVignette(ctx, width, height, 0.35);
+    if (effectTrack || project.vignette) {
+      const intensity = project.vignette !== undefined ? project.vignette : 0.35;
+      if (intensity > 0) {
+        this.renderVignette(ctx, width, height, intensity);
+      }
     }
   }
 
@@ -198,7 +205,6 @@ class VideoCanvasEngine {
         break;
       }
       default:
-        // Static
         break;
     }
 
@@ -241,6 +247,11 @@ class VideoCanvasEngine {
       const cnt = (cg.contrast !== undefined ? cg.contrast : 50) / 50;
       const sat = (cg.saturation !== undefined ? cg.saturation : 100) / 100;
       filterString += ` brightness(${exp}) contrast(${cnt}) saturate(${sat})`;
+
+      if (cg.temperature) {
+        const warm = cg.temperature > 0 ? `sepia(${cg.temperature * 0.3})` : `hue-rotate(${cg.temperature * 0.2}deg)`;
+        filterString += ` ${warm}`;
+      }
     }
 
     if (filterString.trim()) {
@@ -339,7 +350,11 @@ class VideoCanvasEngine {
     track.clips.forEach(clip => {
       if (timestamp >= clip.startTime && timestamp < clip.startTime + clip.duration) {
         const localTime = timestamp - clip.startTime;
-        this.renderTextClip(ctx, clip, localTime, width, height);
+        if (clip.overlay) {
+          this.renderTextClip(ctx, clip, localTime, width, height);
+        } else if (clip.sticker) {
+          this.renderStickerClip(ctx, clip, localTime, width, height);
+        }
       }
     });
   }
@@ -409,6 +424,114 @@ class VideoCanvasEngine {
 
       startY += lineHeight;
     });
+
+    ctx.restore();
+  }
+
+  // --- Sticker & Emoji Overlay Renderer ---
+  renderStickerClip(ctx, clip, localTime, width, height) {
+    if (!clip.sticker) return;
+    const st = clip.sticker;
+
+    ctx.save();
+
+    let scale = 1.0;
+    const animDur = 0.5;
+    if (localTime < animDur) {
+      const p = localTime / animDur;
+      scale = 0.3 + 0.7 * this.easeInOut(p);
+    }
+
+    const emojiSize = Math.round((st.fontSize || 72) * (width / 1920));
+    ctx.font = `${emojiSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const x = width * (clip.transform?.anchorX || 0.5);
+    const y = height * (clip.transform?.anchorY || 0.5);
+
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 12;
+    ctx.fillText(st.emoji || '🔥', 0, 0);
+
+    ctx.restore();
+  }
+
+  // --- Real-Time Procedural Atmospheric Particle Overlays ---
+  renderParticleEffects(ctx, width, height, effectType, timestamp) {
+    ctx.save();
+
+    if (effectType === 'sparkles') {
+      // Golden shimmering stardust particles
+      const count = 28;
+      for (let i = 0; i < count; i++) {
+        const seed = i * 137.5;
+        const x = ((seed + timestamp * 40) % width);
+        const y = ((seed * 1.5 + Math.sin(timestamp + i) * 30 + timestamp * 15) % height);
+        const alpha = Math.abs(Math.sin(timestamp * 2 + i)) * 0.8 + 0.1;
+        const radius = (i % 3) + 2;
+
+        ctx.fillStyle = `rgba(253, 224, 71, ${alpha})`;
+        ctx.shadowColor = '#FBBF24';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (effectType === 'snow') {
+      // Drifting snowfall
+      const count = 35;
+      for (let i = 0; i < count; i++) {
+        const seed = i * 89.3;
+        const speed = (i % 4) + 1.5;
+        const y = ((seed + timestamp * speed * 60) % (height + 20));
+        const x = ((seed * 2 + Math.sin(timestamp * 1.5 + i) * 40) % width);
+        const radius = (i % 3) + 1.5;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (effectType === 'flare') {
+      // Warm Cinematic Lens Flare & Anamorphic Light Leak
+      const pulse = Math.sin(timestamp * 1.2) * 0.15 + 0.35;
+      const grad = ctx.createRadialGradient(
+        width * 0.8, height * 0.2, 20,
+        width * 0.8, height * 0.2, width * 0.7
+      );
+      grad.addColorStop(0, `rgba(251, 146, 60, ${pulse * 1.2})`);
+      grad.addColorStop(0.4, `rgba(239, 68, 68, ${pulse * 0.5})`);
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+    } else if (effectType === 'hearts') {
+      // Floating romantic heart particles
+      const count = 12;
+      for (let i = 0; i < count; i++) {
+        const seed = i * 120.7;
+        const y = height - ((seed + timestamp * 50) % (height + 60));
+        const x = ((seed * 1.8 + Math.sin(timestamp * 2 + i) * 35) % width);
+        const alpha = Math.max(0, 1 - (y / height)) * 0.7;
+
+        ctx.font = '24px serif';
+        ctx.fillStyle = `rgba(244, 63, 94, ${alpha})`;
+        ctx.fillText('❤️', x, y);
+      }
+    } else if (effectType === 'grain') {
+      // Film dust / scratch
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      for (let i = 0; i < 20; i++) {
+        const rx = Math.random() * width;
+        const ry = Math.random() * height;
+        ctx.fillRect(rx, ry, Math.random() * 2, Math.random() * 2);
+      }
+    }
 
     ctx.restore();
   }

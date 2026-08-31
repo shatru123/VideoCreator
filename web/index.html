@@ -536,6 +536,10 @@
             <span class="tab-icon">🎵</span>
             <span class="tab-label">Audio &amp; Beats</span>
           </button>
+          <button class="mobile-tab-btn" data-sheet="stickers">
+            <span class="tab-icon">🌟</span>
+            <span class="tab-label">FX &amp; Stickers</span>
+          </button>
           <button class="mobile-tab-btn" data-sheet="titles">
             <span class="tab-icon">🔤</span>
             <span class="tab-label">Titles</span>
@@ -604,6 +608,16 @@
       <div id="mobile-audio-content" class="bottom-sheet-body"></div>
     </div>
 
+    <!-- Mobile Bottom Sheet: Stickers & Atmospheric Effects -->
+    <div id="mobile-sheet-stickers" class="bottom-sheet">
+      <div class="bottom-sheet-handle"></div>
+      <div class="bottom-sheet-header">
+        <span class="bottom-sheet-title">🌟 Stickers &amp; Particle Effects</span>
+        <button class="btn-close-sheet" data-close="stickers">✕</button>
+      </div>
+      <div id="mobile-stickers-content" class="bottom-sheet-body"></div>
+    </div>
+
     <!-- Mobile Bottom Sheet: Styles & Templates -->
     <div id="mobile-sheet-styles" class="bottom-sheet">
       <div class="bottom-sheet-handle"></div>
@@ -636,6 +650,8 @@
         <button id="action-btn-animation" class="action-sheet-btn">✨ Change Animation</button>
         <button id="action-btn-split" class="action-sheet-btn">✂️ Split Clip at Playhead</button>
         <button id="action-btn-copy-anim" class="action-sheet-btn">📋 Copy Animation</button>
+        <button id="action-btn-reorder-left" class="action-sheet-btn">⬅ Move Clip Left</button>
+        <button id="action-btn-reorder-right" class="action-sheet-btn">➡ Move Clip Right</button>
         <button id="action-btn-delete" class="action-sheet-btn danger">🗑 Delete Clip</button>
       </div>
     </div>
@@ -646,31 +662,49 @@
   <div id="export-modal" class="modal-overlay">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="font-size:16px; font-weight:700;">🚀 Universal Video Export</h3>
+        <h3 style="font-size:16px; font-weight:800; color:#38BDF8;">🚀 Universal Video Export Studio</h3>
         <button id="btn-close-export" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer;">✕</button>
       </div>
       <p style="font-size:12px; color:var(--text-secondary); line-height:1.4;">
-        Renders your video directly in your browser with universal player compatibility (playable on QuickTime, Windows Media Player, iPhone, Android, and Web).
+        Renders your video directly in browser with universal player compatibility (playable on QuickTime, Windows Media Player, iPhone, Android, and Web).
       </p>
 
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <label style="font-size:12px; font-weight:600;">Export Resolution</label>
-        <select id="export-resolution-select" class="btn btn-secondary" style="width:100%; padding:8px;">
-          <option value="1080">1080p Full HD (Crisp Quality)</option>
-          <option value="720">720p HD (Faster Render)</option>
-        </select>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <label style="font-size:11px; font-weight:700; color:#94A3B8;">Resolution</label>
+          <select id="export-resolution-select" class="btn btn-secondary" style="width:100%; min-height:40px; font-size:12px;">
+            <option value="4k">4K UHD (3840x2160 Ultra)</option>
+            <option value="1080" selected>1080p Full HD (Crisp)</option>
+            <option value="720">720p HD (Fast Render)</option>
+            <option value="480">480p SD (Small Size)</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <label style="font-size:11px; font-weight:700; color:#94A3B8;">Framerate</label>
+          <select id="export-fps-select" class="btn btn-secondary" style="width:100%; min-height:40px; font-size:12px;">
+            <option value="60">60 FPS (Ultra Smooth)</option>
+            <option value="30" selected>30 FPS (Standard)</option>
+            <option value="24">24 FPS (Cinematic Film)</option>
+          </select>
+        </div>
       </div>
 
       <div id="export-progress-group" style="display:none;">
         <div class="progress-bar-track">
           <div id="export-progress-fill" class="progress-bar-fill"></div>
         </div>
-        <div id="export-progress-label" style="font-size:11px; color:var(--text-secondary); margin-top:6px; text-align:center;">Rendering: 0%</div>
+        <div id="export-progress-label" style="font-size:11px; color:#38BDF8; font-weight:700; margin-top:6px; text-align:center;">Rendering: 0%</div>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:10px;">
-        <button id="btn-start-export" class="btn btn-primary" style="width:100%; padding:10px;">Render &amp; Download Video</button>
+        <button id="btn-start-export" class="btn btn-primary" style="width:100%; padding:12px; font-weight:800; font-size:13px;">Render &amp; Download Video</button>
       </div>
+
+      <div style="border-top:1px solid var(--border-color); padding-top:10px; font-size:11px; color:#64748B; text-align:center;">
+        Created by <strong>Shatrughna Ambhore</strong> (ambhoreshtrughna@gmail.com | +91 9604466334)
+      </div>
+    </div>
+  </div>
 
       <div style="border-top:1px solid var(--border-color); padding-top:10px; font-size:11px; color:#64748B; text-align:center;">
         Created by <strong>Shatrughna Ambhore</strong> (ambhoreshtrughna@gmail.com | +91 9604466334)
