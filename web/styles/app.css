@@ -53,24 +53,29 @@ body {
 }
 
 /* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0B0F17;
+}
+
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-main);
+  background: #0B0F17;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-hover);
+  background: #334155;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-light);
+  background: #60A5FA;
 }
 
 /* Top App Header / Title Bar */
 header.app-header {
-  height: 48px;
+  height: 52px;
   background-color: #0D1017;
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -80,12 +85,16 @@ header.app-header {
   padding-top: var(--safe-top);
   flex-shrink: 0;
   z-index: 30;
+  min-width: 0;
+  overflow: hidden;
+  gap: 12px;
 }
 
 .logo-group {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .mobile-menu-btn {
@@ -213,27 +222,33 @@ header.app-header {
 .header-center-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .project-title-badge {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #94A3B8;
   background: #141824;
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
 }
 
 .creator-badge {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: #141926;
   border: 1px solid rgba(96, 165, 250, 0.4);
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: 20px;
   font-size: 11px;
   white-space: nowrap;
@@ -243,6 +258,9 @@ header.app-header {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+  z-index: 35;
 }
 
 .nav-tabs {
@@ -635,17 +653,27 @@ header.app-header {
 /* Screen 3: Studio Editor (Desktop Layout) */
 .editor-screen {
   display: grid;
-  grid-template-rows: 1fr 220px;
+  grid-template-rows: 1fr 230px;
   height: 100%;
   width: 100%;
+  overflow: hidden;
+}
+
+.editor-screen.active {
+  display: grid !important;
+  grid-template-rows: 1fr 230px !important;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 .editor-body {
   display: grid;
-  grid-template-columns: 290px 1fr 310px;
-  overflow: hidden;
+  grid-template-columns: 280px 1fr 310px;
   height: 100%;
+  min-height: 0;
   width: 100%;
+  overflow: hidden;
 }
 
 .left-panel, .right-panel {
@@ -653,16 +681,35 @@ header.app-header {
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
+}
+
+.left-panel-content {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .right-panel {
   border-right: none;
   border-left: 1px solid var(--border-color);
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 14px;
+  padding-bottom: 40px;
   gap: 14px;
   background: #0E1119;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .panel-header-title {
@@ -676,15 +723,17 @@ header.app-header {
   justify-content: space-between;
   padding: 10px 14px;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .photos-grid-view {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  padding: 10px;
+  gap: 8px;
+  padding: 2px;
   max-height: 220px;
   overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .photo-thumb-card {
@@ -890,25 +939,36 @@ canvas#videoCanvas {
   border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   user-select: none;
   width: 100%;
 }
 
 .timeline-toolbar {
-  height: 34px;
+  height: 38px;
   background: #0E121A;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: 8px;
+}
+
+.timeline-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .timeline-tool-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .timeline-heading {
@@ -922,12 +982,14 @@ canvas#videoCanvas {
   font-size: 12px;
   font-weight: 800;
   color: #F8FAFC;
+  flex-shrink: 0;
 }
 
 .timeline-zoom-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .timeline-ruler {
@@ -936,18 +998,21 @@ canvas#videoCanvas {
   border-bottom: 1px solid var(--border-color);
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .timeline-tracks-area {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   position: relative;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   padding: 6px 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .timeline-track-row {
@@ -1355,6 +1420,19 @@ canvas#videoCanvas {
 /* ========================================================================= */
 /* RESPONSIVE MEDIA QUERIES                                                  */
 /* ========================================================================= */
+
+/* Laptop Viewport (1024px - 1380px) */
+@media (max-width: 1380px) {
+  .creator-badge {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1140px) {
+  .project-title-badge {
+    display: none !important;
+  }
+}
 
 /* 1. Tablet Viewport (768px - 1023px) */
 @media (max-width: 1023px) {
