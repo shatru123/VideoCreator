@@ -19,14 +19,102 @@
       </button>
       <span class="logo-text">🎬 VideoCreator</span>
       <nav class="header-menu-bar">
-        <span>File</span>
-        <span>Edit</span>
-        <span>Media</span>
-        <span>View</span>
-        <span>Window</span>
-        <span>Help</span>
+        <!-- File Dropdown -->
+        <div class="menu-dropdown">
+          <button class="menu-dropdown-trigger" type="button">File</button>
+          <div class="menu-dropdown-content">
+            <button class="menu-item" id="menu-file-new"><span>📄 New Project</span><kbd>Ctrl+N</kbd></button>
+            <button class="menu-item" id="menu-file-open"><span>📂 Open Project...</span><kbd>Ctrl+O</kbd></button>
+            <button class="menu-item" id="menu-file-save"><span>💾 Save Project</span><kbd>Ctrl+S</kbd></button>
+            <button class="menu-item" id="menu-file-save-as"><span>💾 Save As...</span><kbd>Ctrl+Shift+S</kbd></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-file-import-photo"><span>📷 Import Photos...</span><kbd>Ctrl+I</kbd></button>
+            <button class="menu-item" id="menu-file-import-audio"><span>🎵 Import Audio...</span></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-file-export"><span>🚀 Export MP4 Video...</span><kbd>Ctrl+E</kbd></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-file-home"><span>🏠 Close to Home</span></button>
+          </div>
+        </div>
+
+        <!-- Edit Dropdown -->
+        <div class="menu-dropdown">
+          <button class="menu-dropdown-trigger" type="button">Edit</button>
+          <div class="menu-dropdown-content">
+            <button class="menu-item" id="menu-edit-undo"><span>↩ Undo</span><kbd>Ctrl+Z</kbd></button>
+            <button class="menu-item" id="menu-edit-redo"><span>↪ Redo</span><kbd>Ctrl+Y</kbd></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-edit-split"><span>✂ Split Clip at Playhead</span><kbd>S</kbd></button>
+            <button class="menu-item" id="menu-edit-duplicate"><span>📋 Duplicate Clip</span><kbd>Ctrl+D</kbd></button>
+            <button class="menu-item" id="menu-edit-delete"><span>🗑 Delete Selected Clip</span><kbd>Del</kbd></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-edit-reset-transform"><span>🔄 Reset Transform</span></button>
+            <button class="menu-item" id="menu-edit-clear-all"><span>⚠️ Clear Entire Timeline</span></button>
+          </div>
+        </div>
+
+        <!-- Media Dropdown -->
+        <div class="menu-dropdown">
+          <button class="menu-dropdown-trigger" type="button">Media</button>
+          <div class="menu-dropdown-content">
+            <button class="menu-item" id="menu-media-add-photos"><span>📷 Add Photos to Project...</span></button>
+            <button class="menu-item" id="menu-media-add-audio"><span>🎵 Add Background Audio...</span></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-media-beat-sync"><span>⚡ Magic Beat Sync &amp; Auto-Cut</span></button>
+            <button class="menu-item" id="menu-media-apply-motion-all"><span>✨ Apply Camera Motion to All</span></button>
+            <button class="menu-item" id="menu-media-apply-filter-all"><span>🎨 Apply Color Filter to All</span></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-media-add-title"><span>🔤 Add Animated Title Overlay</span></button>
+          </div>
+        </div>
+
+        <!-- View Dropdown -->
+        <div class="menu-dropdown">
+          <button class="menu-dropdown-trigger" type="button">View</button>
+          <div class="menu-dropdown-content">
+            <button class="menu-item" id="menu-view-aspect-16-9"><span>🖥 Aspect Ratio: 16:9 (Landscape)</span></button>
+            <button class="menu-item" id="menu-view-aspect-9-16"><span>📱 Aspect Ratio: 9:16 (Vertical Reel)</span></button>
+            <button class="menu-item" id="menu-view-aspect-1-1"><span>⏹ Aspect Ratio: 1:1 (Square Post)</span></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-view-zoom-in"><span>🔍 Zoom In Timeline</span><kbd>Ctrl +</kbd></button>
+            <button class="menu-item" id="menu-view-zoom-out"><span>🔍 Zoom Out Timeline</span><kbd>Ctrl -</kbd></button>
+            <button class="menu-item" id="menu-view-zoom-fit"><span>↔ Fit Timeline to View</span></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-view-fullscreen"><span>⛶ Fullscreen Preview</span><kbd>F</kbd></button>
+          </div>
+        </div>
+
+        <!-- Window Dropdown -->
+        <div class="menu-dropdown">
+          <button class="menu-dropdown-trigger" type="button">Window</button>
+          <div class="menu-dropdown-content">
+            <button class="menu-item" id="menu-window-home"><span>🏠 Home Screen</span></button>
+            <button class="menu-item" id="menu-window-wizard"><span>⚡ Quick Create Wizard</span></button>
+            <button class="menu-item" id="menu-window-editor"><span>🎬 Studio Timeline Editor</span></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-window-media"><span>📁 Media Library</span></button>
+            <button class="menu-item" id="menu-window-inspector"><span>🎛 Clip Inspector</span></button>
+            <button class="menu-item" id="menu-window-filters"><span>🎨 Filters &amp; LUTs</span></button>
+            <button class="menu-item" id="menu-window-audio"><span>🎵 Audio Trimmer</span></button>
+            <button class="menu-item" id="menu-window-export"><span>🚀 Export Video Dialog</span></button>
+          </div>
+        </div>
+
+        <!-- Help Dropdown -->
+        <div class="menu-dropdown">
+          <button class="menu-dropdown-trigger" type="button">Help</button>
+          <div class="menu-dropdown-content">
+            <button class="menu-item" id="menu-help-shortcuts"><span>⌨️ Keyboard Shortcuts Reference</span><kbd>?</kbd></button>
+            <button class="menu-item" id="menu-help-guide"><span>📖 Quick Start Guide</span></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-help-about"><span>ℹ️ About VideoCreator Studio</span></button>
+          </div>
+        </div>
       </nav>
     </div>
+
+    <!-- Hidden file inputs for File Menu -->
+    <input type="file" id="menu-open-project-input" accept=".vcproj,.json" style="display:none;">
 
     <!-- Center Creator Badge & Project Info -->
     <div class="header-center-info">
@@ -587,6 +675,107 @@
       <div style="border-top:1px solid var(--border-color); padding-top:10px; font-size:11px; color:#64748B; text-align:center;">
         Created by <strong>Shatrughna Ambhore</strong> (ambhoreshtrughna@gmail.com | +91 9604466334)
       </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div id="shortcuts-modal" class="modal-overlay">
+    <div class="modal-card" style="width:500px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:16px; font-weight:800; color:#60A5FA;">⌨️ Keyboard Shortcuts Reference</h3>
+        <button id="btn-close-shortcuts" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:12px; margin-top:8px;">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1F2937; padding-bottom:6px;">
+          <span>Play / Pause Video</span><kbd style="background:#1E293B; padding:2px 8px; border-radius:4px; font-weight:bold;">Space</kbd>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1F2937; padding-bottom:6px;">
+          <span>Undo Action</span><kbd style="background:#1E293B; padding:2px 8px; border-radius:4px; font-weight:bold;">Ctrl / Cmd + Z</kbd>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1F2937; padding-bottom:6px;">
+          <span>Redo Action</span><kbd style="background:#1E293B; padding:2px 8px; border-radius:4px; font-weight:bold;">Ctrl / Cmd + Y</kbd>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1F2937; padding-bottom:6px;">
+          <span>Save Project File</span><kbd style="background:#1E293B; padding:2px 8px; border-radius:4px; font-weight:bold;">Ctrl / Cmd + S</kbd>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1F2937; padding-bottom:6px;">
+          <span>Export MP4 Video</span><kbd style="background:#1E293B; padding:2px 8px; border-radius:4px; font-weight:bold;">Ctrl / Cmd + E</kbd>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1F2937; padding-bottom:6px;">
+          <span>Split Selected Clip</span><kbd style="background:#1E293B; padding:2px 8px; border-radius:4px; font-weight:bold;">S</kbd>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1F2937; padding-bottom:6px;">
+          <span>Delete Selected Clip</span><kbd style="background:#1E293B; padding:2px 8px; border-radius:4px; font-weight:bold;">Del / Backspace</kbd>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1F2937; padding-bottom:6px;">
+          <span>Step 1 Frame Forward / Back</span><kbd style="background:#1E293B; padding:2px 8px; border-radius:4px; font-weight:bold;">← / → Arrow</kbd>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #1F2937; padding-bottom:6px;">
+          <span>Fullscreen Preview</span><kbd style="background:#1E293B; padding:2px 8px; border-radius:4px; font-weight:bold;">F</kbd>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-ok-shortcuts" style="width:100%; margin-top:8px;">Got It</button>
+    </div>
+  </div>
+
+  <!-- Quick Start Guide Modal -->
+  <div id="guide-modal" class="modal-overlay">
+    <div class="modal-card" style="width:520px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:16px; font-weight:800; color:#38BDF8;">📖 VideoCreator Quick Start Guide</h3>
+        <button id="btn-close-guide" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px; font-size:12px; line-height:1.5; color:#CBD5E1;">
+        <div style="background:#141824; padding:10px 14px; border-radius:8px; border:1px solid #1E293B;">
+          <strong style="color:#FFF;">1. Import Photos &amp; Music:</strong> Use the <em>Media</em> panel or <em>File &gt; Import</em> to upload your photos and music track.
+        </div>
+        <div style="background:#141824; padding:10px 14px; border-radius:8px; border:1px solid #1E293B;">
+          <strong style="color:#FFF;">2. Customize Animation &amp; Duration:</strong> Tap any photo clip to change its camera trajectory (Ken Burns, Zoom In/Out, Pan) or drag its edge to set duration.
+        </div>
+        <div style="background:#141824; padding:10px 14px; border-radius:8px; border:1px solid #1E293B;">
+          <strong style="color:#FFF;">3. ⚡ 1-Click Beat Sync:</strong> Open the <em>Audio &amp; Beats</em> tab and tap <strong>Magic Beat Sync</strong> to automatically align your photos with music beats!
+        </div>
+        <div style="background:#141824; padding:10px 14px; border-radius:8px; border:1px solid #1E293B;">
+          <strong style="color:#FFF;">4. Apply Color Grading:</strong> Select from 8 cinematic LUT filters (Cinematic 35mm, Teal &amp; Orange, Sunset Glow, Noir).
+        </div>
+        <div style="background:#141824; padding:10px 14px; border-radius:8px; border:1px solid #1E293B;">
+          <strong style="color:#FFF;">5. Export &amp; Share:</strong> Click <strong>🚀 Export MP4</strong> to download your video in universal 1080p full HD format.
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-ok-guide" style="width:100%; margin-top:6px;">Start Creating</button>
+    </div>
+  </div>
+
+  <!-- About VideoCreator Modal -->
+  <div id="about-modal" class="modal-overlay">
+    <div class="modal-card" style="width:460px; text-align:center;">
+      <div style="display:flex; justify-content:flex-end;">
+        <button id="btn-close-about" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:36px; margin-bottom:8px;">🎬</div>
+      <h2 style="font-size:20px; font-weight:900; color:#60A5FA; margin-bottom:4px;">VideoCreator Pro Studio</h2>
+      <div style="font-size:12px; color:#94A3B8; margin-bottom:16px;">Version 2.5 — Universal Photo &amp; Reels Editor</div>
+      
+      <div style="background:#141824; border:1px solid #1E293B; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:10px; text-align:left; font-size:12px;">
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:#94A3B8;">Creator &amp; Lead Architect:</span>
+          <strong style="color:#FFF;">Shatrughna Ambhore</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:#94A3B8;">Email Support:</span>
+          <a href="mailto:ambhoreshtrughna@gmail.com" style="color:#60A5FA; text-decoration:none; font-weight:bold;">ambhoreshtrughna@gmail.com</a>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:#94A3B8;">Phone Contact:</span>
+          <a href="tel:+919604466334" style="color:#34D399; text-decoration:none; font-weight:bold;">+91 9604466334</a>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:#94A3B8;">Rendering Engine:</span>
+          <span style="color:#FFF;">Hardware-Accelerated 60 FPS Canvas</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-ok-about" style="width:100%; margin-top:16px;">Close</button>
     </div>
   </div>
 

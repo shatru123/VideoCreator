@@ -35,6 +35,9 @@
   // --- Initialization ---
   function init() {
     setupNavigation();
+    setupHeaderMenu();
+    setupKeyboardShortcuts();
+    setupHelpModals();
     setupMobileDrawerAndTabs();
     setupHomeScreen();
     setupWizard();
@@ -103,6 +106,7 @@
 
     closeMobileDrawer();
     closeBottomSheets();
+    closeAllDropdowns();
 
     if (screenName === 'editor') {
       refreshTimeline();
@@ -134,6 +138,389 @@
     a.href = URL.createObjectURL(blob);
     a.download = `${currentProject.metadata.name || 'project'}.vcproj`;
     a.click();
+  }
+
+  // --- Workable Top Header Menu Bar (File, Edit, Media, View, Window, Help) ---
+  function setupHeaderMenu() {
+    const dropdowns = document.querySelectorAll('.menu-dropdown');
+
+    dropdowns.forEach(dropdown => {
+      const trigger = dropdown.querySelector('.menu-dropdown-trigger');
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wasActive = dropdown.classList.contains('active');
+        closeAllDropdowns();
+        if (!wasActive) dropdown.classList.add('active');
+      });
+
+      trigger.addEventListener('mouseenter', () => {
+        const anyOpen = Array.from(dropdowns).some(d => d.classList.contains('active'));
+        if (anyOpen) {
+          closeAllDropdowns();
+          dropdown.classList.add('active');
+        }
+      });
+    });
+
+    window.addEventListener('click', () => {
+      closeAllDropdowns();
+    });
+
+    // 1. FILE MENU ACTIONS
+    document.getElementById('menu-file-new')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      if (confirm('Create a new project? Unsaved changes in the current project will be replaced.')) {
+        pushHistory();
+        currentProject = createDefaultProject('My New Video', '16:9');
+        currentTime = 0;
+        selectedClip = null;
+        switchScreen('editor');
+        refreshTimeline();
+        refreshMediaLibrary();
+        updateInspector();
+        requestRender();
+      }
+    });
+
+    const openInput = document.getElementById('menu-open-project-input');
+    document.getElementById('menu-file-open')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      openInput?.click();
+    });
+
+    openInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          if (parsed.canvas && parsed.timeline) {
+            pushHistory();
+            currentProject = parsed;
+            currentTime = 0;
+            selectedClip = null;
+            switchScreen('editor');
+            refreshTimeline();
+            refreshMediaLibrary();
+            updateInspector();
+            requestRender();
+            alert(`📂 Project "${currentProject.metadata?.name || 'Project'}" opened successfully!`);
+          } else {
+            alert('Invalid project file structure.');
+          }
+        } catch (err) {
+          alert('Could not parse project file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      openInput.value = '';
+    });
+
+    document.getElementById('menu-file-save')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      saveProjectFile();
+    });
+
+    document.getElementById('menu-file-save-as')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      const newName = prompt('Enter project name:', currentProject.metadata?.name || 'My Project');
+      if (newName) {
+        currentProject.metadata.name = newName;
+        saveProjectFile();
+      }
+    });
+
+    document.getElementById('menu-file-import-photo')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      document.getElementById('editor-photo-input')?.click();
+    });
+
+    document.getElementById('menu-file-import-audio')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      document.getElementById('editor-music-input')?.click();
+    });
+
+    document.getElementById('menu-file-export')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      document.getElementById('export-modal')?.classList.add('active');
+    });
+
+    document.getElementById('menu-file-home')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      switchScreen('home');
+    });
+
+    // 2. EDIT MENU ACTIONS
+    document.getElementById('menu-edit-undo')?.addEventListener('click', () => { closeAllDropdowns(); undo(); });
+    document.getElementById('menu-edit-redo')?.addEventListener('click', () => { closeAllDropdowns(); redo(); });
+    document.getElementById('menu-edit-split')?.addEventListener('click', () => { closeAllDropdowns(); splitSelectedClip(); });
+    
+    document.getElementById('menu-edit-duplicate')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      if (!selectedClip) { alert('Select a clip on the timeline first to duplicate.'); return; }
+      pushHistory();
+      const track = currentProject.timeline.tracks.find(t => t.clips.includes(selectedClip));
+      if (track) {
+        const cloned = JSON.parse(JSON.stringify(selectedClip));
+        cloned.id = `clip-dup-${Date.now()}`;
+        cloned.startTime = currentProject.timeline.totalDuration;
+        track.clips.push(cloned);
+        selectedClip = cloned;
+        recalculateDuration();
+        refreshTimeline();
+        updateInspector();
+        requestRender();
+      }
+    });
+
+    document.getElementById('menu-edit-delete')?.addEventListener('click', () => { closeAllDropdowns(); deleteSelectedClip(); });
+
+    document.getElementById('menu-edit-reset-transform')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      if (selectedClip && selectedClip.transform) {
+        pushHistory();
+        selectedClip.transform = { rotationDegrees: 0, scaleX: 1.0, flipX: false, flipY: false, opacity: 1.0 };
+        updateInspector();
+        requestRender();
+      }
+    });
+
+    document.getElementById('menu-edit-clear-all')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      if (confirm('Clear all clips from the timeline?')) {
+        pushHistory();
+        currentProject.timeline.tracks.forEach(t => t.clips = []);
+        selectedClip = null;
+        recalculateDuration();
+        refreshTimeline();
+        updateInspector();
+        requestRender();
+      }
+    });
+
+    // 3. MEDIA MENU ACTIONS
+    document.getElementById('menu-media-add-photos')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      document.getElementById('editor-photo-input')?.click();
+    });
+
+    document.getElementById('menu-media-add-audio')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      document.getElementById('editor-music-input')?.click();
+    });
+
+    document.getElementById('menu-media-beat-sync')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      autoBeatSyncPhotos();
+    });
+
+    document.getElementById('menu-media-apply-motion-all')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      const motion = selectedClip?.motion || 'ZoomIn';
+      pushHistory();
+      const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+      if (videoTrack) {
+        videoTrack.clips.forEach(c => c.motion = motion);
+        alert(`✨ Applied "${motion}" motion to all photos!`);
+      }
+    });
+
+    document.getElementById('menu-media-apply-filter-all')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      const filter = selectedClip?.filterPreset || 'cinematic';
+      pushHistory();
+      const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+      if (videoTrack) {
+        videoTrack.clips.forEach(c => c.filterPreset = filter);
+        alert(`🎨 Applied "${filter}" color grade to all photos!`);
+        requestRender();
+      }
+    });
+
+    document.getElementById('menu-media-add-title')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      pushHistory();
+      let overlayTrack = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+      if (!overlayTrack) {
+        overlayTrack = { id: 'track-overlay-1', type: 'overlay', clips: [] };
+        currentProject.timeline.tracks.push(overlayTrack);
+      }
+      overlayTrack.clips.push({
+        id: `clip-title-${Date.now()}`,
+        startTime: currentTime,
+        duration: 3.5,
+        overlay: {
+          text: 'NEW TITLE OVERLAY',
+          fontFamily: 'Inter',
+          fontSize: 54,
+          colorHex: '#FFFFFF',
+          entryAnimation: 'Pop',
+          animationDuration: 0.6
+        },
+        transform: { anchorX: 0.5, anchorY: 0.85 }
+      });
+      recalculateDuration();
+      refreshTimeline();
+      requestRender();
+    });
+
+    // 4. VIEW MENU ACTIONS
+    document.getElementById('menu-view-aspect-16-9')?.addEventListener('click', () => { closeAllDropdowns(); setAspectRatio('16:9'); });
+    document.getElementById('menu-view-aspect-9-16')?.addEventListener('click', () => { closeAllDropdowns(); setAspectRatio('9:16'); });
+    document.getElementById('menu-view-aspect-1-1')?.addEventListener('click', () => { closeAllDropdowns(); setAspectRatio('1:1'); });
+
+    document.getElementById('menu-view-zoom-in')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      timelineZoom = Math.min(200, timelineZoom + 20);
+      refreshTimeline();
+    });
+
+    document.getElementById('menu-view-zoom-out')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      timelineZoom = Math.max(30, timelineZoom - 20);
+      refreshTimeline();
+    });
+
+    document.getElementById('menu-view-zoom-fit')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      const tracksArea = document.getElementById('timeline-tracks-area');
+      const totalDur = currentProject.timeline.totalDuration || 14.0;
+      if (tracksArea && totalDur > 0) {
+        timelineZoom = Math.max(30, Math.min(200, (tracksArea.clientWidth - 120) / totalDur));
+        refreshTimeline();
+      }
+    });
+
+    document.getElementById('menu-view-fullscreen')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      toggleFullscreenPreview();
+    });
+
+    // 5. WINDOW MENU ACTIONS
+    document.getElementById('menu-window-home')?.addEventListener('click', () => { closeAllDropdowns(); switchScreen('home'); });
+    document.getElementById('menu-window-wizard')?.addEventListener('click', () => { closeAllDropdowns(); switchScreen('wizard'); });
+    document.getElementById('menu-window-editor')?.addEventListener('click', () => { closeAllDropdowns(); switchScreen('editor'); });
+
+    document.getElementById('menu-window-media')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      switchScreen('editor');
+      if (window.innerWidth < 768) openBottomSheet('media');
+    });
+
+    document.getElementById('menu-window-inspector')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      switchScreen('editor');
+      if (window.innerWidth < 768) openBottomSheet('inspector');
+    });
+
+    document.getElementById('menu-window-filters')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      switchScreen('editor');
+      openBottomSheet('filters');
+    });
+
+    document.getElementById('menu-window-audio')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      switchScreen('editor');
+      openBottomSheet('audio');
+    });
+
+    document.getElementById('menu-window-export')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      document.getElementById('export-modal')?.classList.add('active');
+    });
+
+    // 6. HELP MENU ACTIONS
+    document.getElementById('menu-help-shortcuts')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      document.getElementById('shortcuts-modal')?.classList.add('active');
+    });
+
+    document.getElementById('menu-help-guide')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      document.getElementById('guide-modal')?.classList.add('active');
+    });
+
+    document.getElementById('menu-help-about')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      document.getElementById('about-modal')?.classList.add('active');
+    });
+  }
+
+  function closeAllDropdowns() {
+    document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('active'));
+  }
+
+  // --- Help & Shortcut Modals Setup ---
+  function setupHelpModals() {
+    document.getElementById('btn-close-shortcuts')?.addEventListener('click', () => {
+      document.getElementById('shortcuts-modal')?.classList.remove('active');
+    });
+    document.getElementById('btn-ok-shortcuts')?.addEventListener('click', () => {
+      document.getElementById('shortcuts-modal')?.classList.remove('active');
+    });
+
+    document.getElementById('btn-close-guide')?.addEventListener('click', () => {
+      document.getElementById('guide-modal')?.classList.remove('active');
+    });
+    document.getElementById('btn-ok-guide')?.addEventListener('click', () => {
+      document.getElementById('guide-modal')?.classList.remove('active');
+    });
+
+    document.getElementById('btn-close-about')?.addEventListener('click', () => {
+      document.getElementById('about-modal')?.classList.remove('active');
+    });
+    document.getElementById('btn-ok-about')?.addEventListener('click', () => {
+      document.getElementById('about-modal')?.classList.remove('active');
+    });
+  }
+
+  // --- Global Keyboard Shortcuts ---
+  function setupKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
+        if (e.key === 'Escape') document.activeElement.blur();
+        return;
+      }
+
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        togglePlayPause();
+      } else if (isCtrlOrCmd && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (isCtrlOrCmd && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        redo();
+      } else if (isCtrlOrCmd && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        saveProjectFile();
+      } else if (isCtrlOrCmd && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        document.getElementById('export-modal')?.classList.add('active');
+      } else if (e.key === 's' || e.key === 'S') {
+        splitSelectedClip();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        deleteSelectedClip();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        seek(currentTime - (e.shiftKey ? 1.0 : 1 / 30));
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        seek(currentTime + (e.shiftKey ? 1.0 : 1 / 30));
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullscreenPreview();
+      } else if (e.key === 'Escape') {
+        closeAllDropdowns();
+        closeBottomSheets();
+        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+      }
+    });
   }
 
   // --- Mobile Navigation Drawer & Bottom Sheet Controller ---
