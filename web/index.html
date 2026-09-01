@@ -711,15 +711,10 @@
         <div id="export-progress-label" style="font-size:11px; color:#38BDF8; font-weight:700; margin-top:6px; text-align:center;">Rendering: 0%</div>
       </div>
 
-      <div style="display:flex; justify-content:flex-end; gap:10px;">
-        <button id="btn-start-export" class="btn btn-primary" style="width:100%; padding:12px; font-weight:800; font-size:13px;">Render &amp; Download Video</button>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button id="btn-start-export" class="btn btn-primary" style="width:100%; padding:12px; font-weight:800; font-size:13px;">Render &amp; Download MP4</button>
+        <button id="btn-share-export" class="btn btn-secondary" style="width:100%; padding:10px; font-weight:700; font-size:12px; display:none;">📤 Share to WhatsApp / Social Media</button>
       </div>
-
-      <div style="border-top:1px solid var(--border-color); padding-top:10px; font-size:11px; color:#64748B; text-align:center;">
-        Created by <strong>Shatrughna Ambhore</strong> (ambhoreshtrughna@gmail.com | +91 9604466334)
-      </div>
-    </div>
-  </div>
 
       <div style="border-top:1px solid var(--border-color); padding-top:10px; font-size:11px; color:#64748B; text-align:center;">
         Created by <strong>Shatrughna Ambhore</strong> (ambhoreshtrughna@gmail.com | +91 9604466334)
@@ -830,6 +825,7 @@
 
   <!-- Scripts -->
   <script src="scripts/templates.js"></script>
+  <script src="scripts/mp4-muxer.min.js"></script>
   <script src="scripts/engine.js"></script>
   <script src="scripts/audio.js"></script>
   <script src="scripts/export.js"></script>

@@ -2510,40 +2510,69 @@
   // --- Export Modal ---
   function setupExportModal() {
     const modal = document.getElementById('export-modal');
-    document.getElementById('btn-close-export').addEventListener('click', () => modal.classList.remove('active'));
+    const exportBtn = document.getElementById('btn-start-export');
+    const shareBtn = document.getElementById('btn-share-export');
+    const progressContainer = document.getElementById('export-progress-group');
+    const progressFill = document.getElementById('export-progress-fill');
+    const progressLabel = document.getElementById('export-progress-label');
 
-    document.getElementById('btn-start-export').addEventListener('click', async () => {
-      const exportBtn = document.getElementById('btn-start-export');
-      const progressContainer = document.getElementById('export-progress-group');
-      const progressFill = document.getElementById('export-progress-fill');
-      const progressLabel = document.getElementById('export-progress-label');
+    document.getElementById('btn-close-export').addEventListener('click', () => {
+      modal.classList.remove('active');
+      shareBtn.style.display = 'none';
+    });
 
+    let lastExportResult = null;
+
+    exportBtn.addEventListener('click', async () => {
       const res = document.getElementById('export-resolution-select')?.value || '1080';
       const fps = parseInt(document.getElementById('export-fps-select')?.value) || 30;
 
       exportBtn.disabled = true;
+      shareBtn.style.display = 'none';
       progressContainer.style.display = 'block';
+      progressFill.style.width = '0%';
+      progressLabel.textContent = 'Preparing render engine...';
 
       try {
         const result = await exporter.exportVideo(currentProject, { resolution: res, fps: fps }, (p) => {
           progressFill.style.width = `${p.percentage}%`;
-          progressLabel.textContent = `Encoding: ${p.percentage}% (${p.currentTime}s / ${p.totalDuration}s)`;
+          progressLabel.textContent = `Encoding MP4: ${p.percentage}% (${p.currentTime}s / ${p.totalDuration}s)`;
         });
 
-        progressLabel.textContent = 'Export Complete! Downloading video...';
+        lastExportResult = result;
+        progressLabel.textContent = '✓ Video Rendered Successfully! Downloading...';
+
+        const fileName = `${(currentProject.metadata?.name || 'video').replace(/[^a-zA-Z0-9_-]/g, '_')}.${result.ext}`;
         const a = document.createElement('a');
         a.href = result.url;
-        a.download = `${currentProject.metadata.name || 'video'}.${result.ext}`;
+        a.download = fileName;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
 
-        setTimeout(() => {
-          modal.classList.remove('active');
-          exportBtn.disabled = false;
-          progressContainer.style.display = 'none';
-        }, 1500);
+        // Show native Share button if available on device (Mobile WhatsApp / Social Media)
+        const fileObj = new File([result.blob], fileName, { type: result.blob.type });
+        if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
+          shareBtn.style.display = 'block';
+          shareBtn.onclick = async () => {
+            try {
+              await navigator.share({
+                files: [fileObj],
+                title: currentProject.metadata?.name || 'VideoCreator Story',
+                text: 'Created with VideoCreator Pro Studio'
+              });
+            } catch (err) {
+              if (err.name !== 'AbortError') console.warn('Share error:', err);
+            }
+          };
+        }
+
+        exportBtn.disabled = false;
+        exportBtn.textContent = '🔄 Render Again';
       } catch (err) {
         alert('Export failed: ' + err.message);
         exportBtn.disabled = false;
+        exportBtn.textContent = 'Render & Download MP4';
       }
     });
   }
