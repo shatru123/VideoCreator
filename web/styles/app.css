@@ -2039,3 +2039,30 @@ canvas#videoCanvas {
 .recording-active-btn {
   animation: micRecordPulse 1.5s infinite;
 }
+
+/* Unified Audio Modal Tabs & Dropzone */
+.audio-modal-tabs .audio-tab-btn {
+  background: #141824;
+  border: 1px solid #1E293B;
+  color: #94A3B8;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.audio-modal-tabs .audio-tab-btn:hover {
+  background: #1E293B;
+  color: #FFF;
+}
+
+.audio-modal-tabs .audio-tab-btn.active {
+  background: #3B82F6;
+  border-color: #60A5FA;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+}
+
+#audio-upload-dropzone:hover {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: #60A5FA;
+}

@@ -49,6 +49,7 @@
     setupSafeZonesAndCoverExport();
     setupAutosaveAndRecovery();
     setupPWAInstall();
+    setupUnifiedAudioModal();
     setupYouTubeAudioModal();
     setupMicRecorderModal();
     setupThumbnailModal();
@@ -3451,6 +3452,240 @@
       console.log('[PWA] VideoCreator successfully installed!');
       if (pwaModal) pwaModal.classList.remove('active');
     });
+  }
+
+  // --- Unified All-in-One Audio Hub Modal Setup ---
+  function setupUnifiedAudioModal() {
+    const modal = document.getElementById('unified-audio-modal');
+    const closeBtn = document.getElementById('btn-close-unified-audio');
+    const tabBtns = modal ? modal.querySelectorAll('.audio-tab-btn') : [];
+    const panes = {
+      upload: document.getElementById('audio-tab-upload-pane'),
+      youtube: document.getElementById('audio-tab-youtube-pane'),
+      record: document.getElementById('audio-tab-record-pane'),
+      stock: document.getElementById('audio-tab-stock-pane')
+    };
+
+    function switchAudioTab(tabKey) {
+      tabBtns.forEach(b => {
+        if (b.dataset.tab === tabKey) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+      Object.keys(panes).forEach(k => {
+        if (panes[k]) panes[k].style.display = k === tabKey ? 'block' : 'none';
+      });
+    }
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => switchAudioTab(btn.dataset.tab));
+    });
+
+    function openUnifiedModal(defaultTab = 'upload') {
+      if (modal) {
+        modal.classList.add('active');
+        switchAudioTab(defaultTab);
+      }
+    }
+
+    // Connect all Audio buttons across app (Header, Media Panel, Timeline, Mobile)
+    document.getElementById('editor-add-music-btn')?.addEventListener('click', () => openUnifiedModal('upload'));
+    document.getElementById('btn-mobile-open-audio')?.addEventListener('click', () => openUnifiedModal('upload'));
+    document.getElementById('menu-file-import-audio')?.addEventListener('click', () => openUnifiedModal('upload'));
+    document.getElementById('menu-insert-youtube-audio')?.addEventListener('click', () => openUnifiedModal('youtube'));
+    document.getElementById('menu-tool-youtube')?.addEventListener('click', () => openUnifiedModal('youtube'));
+    document.getElementById('menu-insert-mic-record')?.addEventListener('click', () => openUnifiedModal('record'));
+    document.getElementById('menu-tool-mic')?.addEventListener('click', () => openUnifiedModal('record'));
+    document.getElementById('menu-insert-music')?.addEventListener('click', () => openUnifiedModal('stock'));
+
+    closeBtn?.addEventListener('click', () => modal?.classList.remove('active'));
+
+    // 1. Device File Upload Handlers
+    const fileInput = document.getElementById('unified-audio-file-input');
+    const dropzone = document.getElementById('audio-upload-dropzone');
+    const browseBtn = document.getElementById('btn-trigger-audio-browse');
+
+    browseBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput?.click();
+    });
+
+    dropzone?.addEventListener('click', () => fileInput?.click());
+    dropzone?.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.style.background = 'rgba(59, 130, 246, 0.18)';
+    });
+    dropzone?.addEventListener('dragleave', () => {
+      dropzone.style.background = 'rgba(59, 130, 246, 0.05)';
+    });
+    dropzone?.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.style.background = 'rgba(59, 130, 246, 0.05)';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleAudioFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleAudioFile(e.target.files[0]);
+      }
+    });
+
+    function handleAudioFile(file) {
+      const url = URL.createObjectURL(file);
+      const testAudio = new Audio();
+      testAudio.preload = 'metadata';
+      testAudio.onloadedmetadata = () => {
+        const duration = testAudio.duration || 14.0;
+        insertAudioClipOntoTimeline(file.name, url, duration);
+        audio.loadAudio(url);
+        modal?.classList.remove('active');
+      };
+      testAudio.onerror = () => {
+        insertAudioClipOntoTimeline(file.name, url, 14.0);
+        audio.loadAudio(url);
+        modal?.classList.remove('active');
+      };
+      testAudio.src = url;
+    }
+
+    // 2. YouTube / Web Link Handlers
+    const ytInput = document.getElementById('unified-youtube-input');
+    const ytBtn = document.getElementById('btn-unified-load-youtube');
+
+    ytBtn?.addEventListener('click', async () => {
+      const url = (ytInput?.value || '').trim();
+      if (!url) {
+        alert('Please enter a YouTube video URL or audio stream URL.');
+        return;
+      }
+      ytBtn.disabled = true;
+      ytBtn.textContent = '⏳ Loading YouTube Audio Stream...';
+
+      try {
+        const audioInfo = await audio.loadWebOrYouTubeAudio(url);
+        insertAudioClipOntoTimeline(audioInfo.title || 'YouTube Audio Stream', audioInfo.src, audioInfo.duration || 14.0);
+        modal?.classList.remove('active');
+        if (ytInput) ytInput.value = '';
+      } catch (err) {
+        alert('Could not stream audio: ' + err.message);
+      } finally {
+        ytBtn.disabled = false;
+        ytBtn.textContent = '⚡ Stream YouTube Audio & Add to Timeline';
+      }
+    });
+
+    // 3. Live Microphone Voiceover Handlers
+    const startMicBtn = document.getElementById('btn-unified-start-mic');
+    const stopMicBtn = document.getElementById('btn-unified-stop-mic');
+    const micTimer = document.getElementById('unified-mic-timer');
+    const micWaveCanvas = document.getElementById('unified-mic-waveform-canvas');
+    let micInterval = null;
+    let micStart = 0;
+
+    startMicBtn?.addEventListener('click', async () => {
+      try {
+        micStart = Date.now();
+        startMicBtn.style.display = 'none';
+        stopMicBtn.style.display = 'block';
+        stopMicBtn.classList.add('recording-active-btn');
+
+        micInterval = setInterval(() => {
+          const elapsed = (Date.now() - micStart) / 1000;
+          const mins = Math.floor(elapsed / 60);
+          const secs = (elapsed % 60).toFixed(1);
+          if (micTimer) micTimer.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(4, '0')}`;
+        }, 100);
+
+        const wctx = micWaveCanvas?.getContext('2d');
+        await audio.startLiveMicRecording((level, freqData) => {
+          if (!wctx || !micWaveCanvas) return;
+          const w = micWaveCanvas.width, h = micWaveCanvas.height;
+          wctx.fillStyle = '#080A0F';
+          wctx.fillRect(0, 0, w, h);
+
+          const barW = w / freqData.length;
+          for (let i = 0; i < freqData.length; i++) {
+            const barH = (freqData[i] / 255) * h;
+            const grad = wctx.createLinearGradient(0, h, 0, h - barH);
+            grad.addColorStop(0, '#EF4444');
+            grad.addColorStop(1, '#FDE047');
+            wctx.fillStyle = grad;
+            wctx.fillRect(i * barW + 1, h - barH, barW - 2, barH);
+          }
+        });
+      } catch (err) {
+        alert('Microphone recording error: ' + err.message);
+        startMicBtn.style.display = 'block';
+        stopMicBtn.style.display = 'none';
+        clearInterval(micInterval);
+      }
+    });
+
+    stopMicBtn?.addEventListener('click', async () => {
+      clearInterval(micInterval);
+      stopMicBtn.classList.remove('recording-active-btn');
+      stopMicBtn.disabled = true;
+      stopMicBtn.textContent = 'Processing...';
+
+      const result = await audio.stopLiveMicRecording();
+      stopMicBtn.disabled = false;
+      stopMicBtn.style.display = 'none';
+      startMicBtn.style.display = 'block';
+
+      if (result) {
+        insertAudioClipOntoTimeline('🎙️ Live Voiceover', result.url, result.duration, 'voiceover');
+        modal?.classList.remove('active');
+      }
+    });
+
+    // 4. Stock Lo-Fi Track Handlers
+    if (modal) {
+      modal.querySelectorAll('.btn-insert-stock-track').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const stockType = btn.dataset.stock || 'lofi';
+          const buffer = await audio.generateStockMusicTrack(stockType, 30);
+          const wavBlob = audio.audioBufferToWav(buffer);
+          const url = URL.createObjectURL(wavBlob);
+          insertAudioClipOntoTimeline(`Stock ${stockType.toUpperCase()} Beats`, url, 30.0);
+          audio.loadAudio(url);
+          modal?.classList.remove('active');
+        });
+      });
+    }
+
+    function insertAudioClipOntoTimeline(name, src, duration, trackType = 'audio') {
+      pushHistory();
+      let track = currentProject.timeline.tracks.find(t => t.type === trackType);
+      if (!track) {
+        track = {
+          id: `track-${trackType}-${Date.now()}`,
+          type: trackType,
+          name: trackType === 'voiceover' ? '🎙️ Voiceover' : 'Audio Track',
+          isMuted: false,
+          clips: []
+        };
+        currentProject.timeline.tracks.push(track);
+      }
+
+      const newClip = {
+        id: `clip-${trackType}-${Date.now()}`,
+        name: name,
+        startTime: currentTime,
+        duration: duration,
+        source: src,
+        volume: 1.0
+      };
+      track.clips.push(newClip);
+
+      currentProject.timeline.totalDuration = Math.max(
+        currentProject.timeline.totalDuration || 14.0,
+        currentTime + duration
+      );
+
+      refreshTimeline();
+      requestRender();
+    }
   }
 
   // --- 1. YouTube & Web Audio Streamer Modal Setup ---

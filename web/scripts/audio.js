@@ -22,39 +22,195 @@ class WebAudioPlayer {
     if (this.audioCtx && this.audioCtx.state === 'suspended') {
       this.audioCtx.resume();
     }
+    this.isYouTubeActive = false;
+    this.ytPlayer = null;
+    this.ytApiReadyPromise = null;
+  }
+
+  // --- YouTube Video ID Extractor & IFrame API Loader ---
+  extractYouTubeVideoId(url) {
+    if (!url) return null;
+    const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const match = url.match(regExp);
+    return match ? match[1] : null;
+  }
+
+  initYouTubeIFrameAPI() {
+    if (window.YT && window.YT.Player) {
+      return Promise.resolve();
+    }
+    if (this.ytApiReadyPromise) {
+      return this.ytApiReadyPromise;
+    }
+
+    this.ytApiReadyPromise = new Promise((resolve) => {
+      const prevCallback = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (prevCallback) prevCallback();
+        resolve();
+      };
+
+      if (!document.getElementById('youtube-iframe-api-script')) {
+        const tag = document.createElement('script');
+        tag.id = 'youtube-iframe-api-script';
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      }
+    });
+
+    return this.ytApiReadyPromise;
+  }
+
+  async loadYouTubeAudio(videoId, originalUrl) {
+    await this.initYouTubeIFrameAPI();
+
+    return new Promise((resolve) => {
+      let container = document.getElementById('hidden-yt-audio-player');
+      if (!container) {
+        let parent = document.getElementById('yt-player-container');
+        if (!parent) {
+          parent = document.createElement('div');
+          parent.id = 'yt-player-container';
+          parent.style.cssText = 'position:fixed; bottom:-9999px; right:-9999px; width:200px; height:200px; opacity:0.01; pointer-events:none; z-index:-1;';
+          document.body.appendChild(parent);
+        }
+        container = document.createElement('div');
+        container.id = 'hidden-yt-audio-player';
+        parent.appendChild(container);
+      }
+
+      if (this.ytPlayer && typeof this.ytPlayer.loadVideoById === 'function') {
+        this.ytPlayer.loadVideoById(videoId, 0);
+        this.ytPlayer.pauseVideo();
+        this.isYouTubeActive = true;
+        this.currentTrackSrc = originalUrl;
+        setTimeout(() => {
+          const title = this.ytPlayer.getVideoData?.()?.title || 'YouTube Audio Track';
+          const dur = this.ytPlayer.getDuration?.() || 30.0;
+          resolve({
+            src: originalUrl,
+            videoId: videoId,
+            duration: dur > 0 ? dur : 30.0,
+            title: title,
+            isYouTube: true
+          });
+        }, 1200);
+      } else {
+        this.ytPlayer = new window.YT.Player('hidden-yt-audio-player', {
+          height: '200',
+          width: '200',
+          videoId: videoId,
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            disablekb: 1,
+            enablejsapi: 1,
+            origin: window.location.origin
+          },
+          events: {
+            onReady: (event) => {
+              this.isYouTubeActive = true;
+              this.currentTrackSrc = originalUrl;
+              event.target.pauseVideo();
+              const title = event.target.getVideoData?.()?.title || 'YouTube Audio Track';
+              const dur = event.target.getDuration?.() || 30.0;
+              resolve({
+                src: originalUrl,
+                videoId: videoId,
+                duration: dur > 0 ? dur : 30.0,
+                title: title,
+                isYouTube: true
+              });
+            },
+            onError: (err) => {
+              console.warn('YouTube Player Event Error, fallback to stream:', err);
+              this.isYouTubeActive = false;
+              resolve({
+                src: originalUrl,
+                duration: 30.0,
+                title: 'YouTube Audio Track',
+                isYouTube: false
+              });
+            }
+          }
+        });
+      }
+    });
   }
 
   loadAudio(src) {
-    this.currentTrackSrc = src;
-    this.audioElement.src = src;
+    const ytId = this.extractYouTubeVideoId(src);
+    if (ytId) {
+      this.loadYouTubeAudio(ytId, src);
+    } else {
+      this.isYouTubeActive = false;
+      this.currentTrackSrc = src;
+      this.audioElement.src = src;
+    }
   }
 
   playAt(timeSec, volume = 1.0) {
     this.ensureAudioContext();
     if (!this.currentTrackSrc) return;
 
-    this.audioElement.volume = Math.max(0, Math.min(1, volume));
-    if (timeSec >= 0 && timeSec < (this.audioElement.duration || 9999)) {
-      this.audioElement.currentTime = timeSec;
-      this.audioElement.play().catch(() => {});
-      this.isPlaying = true;
+    if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+      try {
+        this.ytPlayer.seekTo(timeSec, true);
+        this.ytPlayer.setVolume(Math.round(Math.max(0, Math.min(1, volume)) * 100));
+        this.ytPlayer.playVideo();
+      } catch (err) {
+        console.warn('YouTube play sync notice:', err);
+      }
     }
+
+    if (this.audioElement && !this.isYouTubeActive) {
+      this.audioElement.volume = Math.max(0, Math.min(1, volume));
+      if (timeSec >= 0 && timeSec < (this.audioElement.duration || 9999)) {
+        this.audioElement.currentTime = timeSec;
+        this.audioElement.play().catch(() => {});
+      }
+    }
+    this.isPlaying = true;
   }
 
   pause() {
-    this.audioElement.pause();
+    if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
+      try {
+        this.ytPlayer.pauseVideo();
+      } catch (err) {}
+    }
+    if (this.audioElement) {
+      this.audioElement.pause();
+    }
     this.isPlaying = false;
   }
 
   seek(timeSec) {
     if (!this.currentTrackSrc) return;
-    if (timeSec >= 0 && timeSec < (this.audioElement.duration || 9999)) {
-      this.audioElement.currentTime = timeSec;
+
+    if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.seekTo === 'function') {
+      try {
+        this.ytPlayer.seekTo(timeSec, true);
+      } catch (err) {}
+    }
+
+    if (this.audioElement && !this.isYouTubeActive) {
+      if (timeSec >= 0 && timeSec < (this.audioElement.duration || 9999)) {
+        this.audioElement.currentTime = timeSec;
+      }
     }
   }
 
   setVolume(vol) {
-    this.audioElement.volume = Math.max(0, Math.min(1, vol));
+    if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.setVolume === 'function') {
+      try {
+        this.ytPlayer.setVolume(Math.round(Math.max(0, Math.min(1, vol)) * 100));
+      } catch (err) {}
+    }
+    if (this.audioElement) {
+      this.audioElement.volume = Math.max(0, Math.min(1, vol));
+    }
   }
 
   // --- Royalty-Free Synthesized Stock Music Generator ---
@@ -522,6 +678,13 @@ class WebAudioPlayer {
     const cleanUrl = (url || '').trim();
     if (!cleanUrl) throw new Error('Audio URL cannot be empty');
 
+    const ytId = this.extractYouTubeVideoId(cleanUrl);
+    if (ytId) {
+      return await this.loadYouTubeAudio(ytId, cleanUrl);
+    }
+
+    // Direct Web Audio (.mp3, .wav, .aac, stream)
+    this.isYouTubeActive = false;
     return new Promise((resolve) => {
       const testAudio = new Audio();
       testAudio.crossOrigin = 'anonymous';
@@ -533,7 +696,8 @@ class WebAudioPlayer {
         resolve({
           src: cleanUrl,
           duration: 30.0,
-          title: cleanUrl.includes('youtube') ? 'YouTube Audio Stream' : 'Web Audio Track'
+          title: 'Web Audio Track',
+          isYouTube: false
         });
       }, 3500);
 
@@ -544,7 +708,8 @@ class WebAudioPlayer {
         resolve({
           src: cleanUrl,
           duration: testAudio.duration || 30.0,
-          title: cleanUrl.includes('youtube') ? 'YouTube Audio Stream' : 'Web Audio Track'
+          title: 'Web Audio Track',
+          isYouTube: false
         });
       };
 
@@ -555,7 +720,8 @@ class WebAudioPlayer {
         resolve({
           src: cleanUrl,
           duration: 30.0,
-          title: cleanUrl.includes('youtube') ? 'YouTube Audio Stream' : 'Web Audio Track'
+          title: 'Web Audio Track',
+          isYouTube: false
         });
       };
 
