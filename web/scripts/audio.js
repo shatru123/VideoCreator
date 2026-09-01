@@ -92,28 +92,94 @@ class WebAudioPlayer {
     const meta = await this.fetchYouTubeMetadata(videoId);
     if (onProgress) onProgress(35, `🎵 Found: ${meta.title}`);
 
-    if (onProgress) onProgress(60, '⚡ Extracting high-quality audio from YouTube stream...');
+    if (onProgress) onProgress(60, '⚡ Connecting to YouTube Audio Engine...');
 
     let audioUrl = null;
-    let dur = 60.0;
+    const dur = 180.0;
 
+    // 1. Try local server extractor API (if running on local Node server)
     try {
       const resp = await fetch(`/api/youtube-audio?id=${videoId}`);
       if (resp.ok) {
-        const data = await resp.json();
-        if (data.ok && data.audioUrl) {
-          audioUrl = data.audioUrl;
+        const text = await resp.text();
+        if (text && text.trim().startsWith('{')) {
+          const data = JSON.parse(text);
+          if (data.ok && data.audioUrl) {
+            audioUrl = data.audioUrl;
+          }
         }
       }
     } catch (e) {
       console.warn('Local API stream fetch notice:', e);
     }
 
+    // 2. If running on Hosted Site (Render / Vercel / GitHub Pages), use the direct YouTube IFrame Player!
     if (!audioUrl) {
-      // Fallback if local backend is unreachable
-      audioUrl = await this.generateStockMusicTrack('pop', dur);
+      if (onProgress) onProgress(80, '✨ Initializing YouTube IFrame Audio Bridge...');
+      await this.initYouTubeIFrameAPI();
+
+      const dock = document.getElementById('yt-player-dock');
+      if (dock) dock.style.display = 'block';
+
+      if (!this.ytPlayer) {
+        await new Promise((resolve) => {
+          this.ytPlayer = new window.YT.Player('hidden-yt-audio-player', {
+            height: '105',
+            width: '100%',
+            videoId: videoId,
+            playerVars: {
+              autoplay: 0,
+              controls: 1,
+              disablekb: 1,
+              fs: 0,
+              modestbranding: 1,
+              playsinline: 1,
+              rel: 0,
+              origin: window.location.origin
+            },
+            events: {
+              onReady: (event) => {
+                try {
+                  event.target.setVolume(100);
+                  event.target.unMute();
+                } catch (e) {}
+                resolve();
+              },
+              onError: () => resolve()
+            }
+          });
+          setTimeout(resolve, 2000);
+        });
+      } else {
+        if (typeof this.ytPlayer.loadVideoById === 'function') {
+          try {
+            this.ytPlayer.loadVideoById(videoId);
+            this.ytPlayer.pauseVideo();
+            this.ytPlayer.setVolume(100);
+            this.ytPlayer.unMute();
+          } catch (e) {}
+        }
+      }
+
+      this.isYouTubeActive = true;
+      this.currentTrackSrc = originalUrl || `https://www.youtube.com/watch?v=${videoId}`;
+      if (this.audioElement) {
+        this.audioElement.pause();
+      }
+
+      if (onProgress) onProgress(100, '✅ YouTube audio player connected!');
+
+      return {
+        src: this.currentTrackSrc,
+        originalUrl: originalUrl,
+        videoId: videoId,
+        duration: dur,
+        title: meta.title || 'YouTube Audio Track',
+        isYouTube: true
+      };
     }
 
+    // If local backend extracted audio file successfully
     this.isYouTubeActive = false;
     this.currentTrackSrc = audioUrl;
     if (this.audioElement) {
@@ -175,6 +241,27 @@ class WebAudioPlayer {
     if (this._sourceNode) {
       try { this._sourceNode.stop(); } catch (e) {}
       this._sourceNode = null;
+    }
+
+    // Direct YouTube Player Sync
+    if (this.isYouTubeActive && this.ytPlayer) {
+      try {
+        if (this.audioElement) this.audioElement.pause();
+        if (typeof this.ytPlayer.unMute === 'function') this.ytPlayer.unMute();
+        if (typeof this.ytPlayer.setVolume === 'function') {
+          this.ytPlayer.setVolume(Math.round(Math.max(0, Math.min(1.5, volume)) * 100));
+        }
+        if (typeof this.ytPlayer.seekTo === 'function') {
+          this.ytPlayer.seekTo(actualTime, true);
+        }
+        if (typeof this.ytPlayer.playVideo === 'function') {
+          this.ytPlayer.playVideo();
+        }
+      } catch (err) {
+        console.warn('YouTube play sync notice:', err);
+      }
+      this.isPlaying = true;
+      return;
     }
 
     // 1. If Web Audio Buffer is available, play via AudioBufferSourceNode for exact sample accuracy
@@ -391,6 +478,38 @@ class WebAudioPlayer {
     return offlineCtx.startRendering().then(renderedBuffer => {
       return this.audioBufferToWavUrl(renderedBuffer);
     });
+  }
+
+  generateStockMusicBuffer(trackId = 'pop', durationSec = 30) {
+    const sampleRate = 44100;
+    const numSamples = Math.floor(sampleRate * durationSec);
+    const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(2, numSamples, sampleRate);
+
+    const bpm = trackId === 'pop' ? 124 : (trackId === 'edm' ? 128 : 85);
+    const beatSec = 60 / bpm;
+
+    const masterGain = offlineCtx.createGain();
+    masterGain.gain.setValueAtTime(0.7, 0);
+    masterGain.connect(offlineCtx.destination);
+
+    const roots = [220, 174.61, 130.81, 196.00];
+    let t = 0;
+    while (t < durationSec) {
+      const root = roots[Math.floor(t / (beatSec * 2)) % roots.length];
+      const osc = offlineCtx.createOscillator();
+      const g = offlineCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(root, t);
+      g.gain.setValueAtTime(0.12, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.9);
+      osc.connect(g);
+      g.connect(masterGain);
+      osc.start(t);
+      osc.stop(t + beatSec);
+      t += beatSec;
+    }
+
+    return offlineCtx.startRendering();
   }
 
   audioBufferToWav(buffer) {

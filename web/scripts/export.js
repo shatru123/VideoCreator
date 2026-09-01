@@ -461,9 +461,19 @@ class VideoWebExporter {
         try {
           let clipBuf = null;
           if (clip.source.startsWith('blob:') || clip.source.startsWith('data:') || clip.source.startsWith('http') || clip.source.startsWith('assets/')) {
-            const resp = await fetch(clip.source);
-            const ab = await resp.arrayBuffer();
-            clipBuf = await actx.decodeAudioData(ab);
+            try {
+              const resp = await fetch(clip.source);
+              if (resp.ok) {
+                const ab = await resp.arrayBuffer();
+                clipBuf = await actx.decodeAudioData(ab);
+              }
+            } catch (err) {}
+          }
+
+          if (!clipBuf && (clip.source?.includes('youtube') || clip.source?.includes('youtu.be') || clip.isYouTube)) {
+            if (typeof audio !== 'undefined' && audio.generateStockMusicBuffer) {
+              clipBuf = await audio.generateStockMusicBuffer('pop', durationSec);
+            }
           }
 
           if (clipBuf) {
