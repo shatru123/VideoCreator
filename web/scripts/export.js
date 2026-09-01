@@ -213,7 +213,8 @@ class VideoWebExporter {
       // Deterministic frame render
       exportEngine.render(renderProject, Math.min(totalDuration, currentTimestamp));
 
-      const isKeyFrame = (frameIdx % (fps * 2) === 0) || (frameIdx === 0);
+      // Keyframe every 1 second (fps frames) for instant seeking & WhatsApp compatibility
+      const isKeyFrame = (frameIdx % fps === 0) || (frameIdx === 0);
       const videoFrame = new VideoFrame(exportCanvas, {
         timestamp: timestampUs
       });
@@ -251,7 +252,15 @@ class VideoWebExporter {
     // Finalize MP4 File
     muxer.finalize();
     const buffer = muxer.target.buffer;
-    const blob = new Blob([buffer], { type: 'video/mp4' });
+    let blob = new Blob([buffer], { type: 'video/mp4' });
+
+    // Explicitly verify and patch ISO-BMFF track & movie headers (mvhd, tkhd, mdhd) for 100% WhatsApp duration retention
+    try {
+      blob = await this._fixMp4Duration(blob, totalDuration);
+    } catch (e) {
+      console.warn('[VideoWebExporter] Post-muxing duration patch warning:', e);
+    }
+
     const url = URL.createObjectURL(blob);
 
     if (onProgress) {
@@ -553,51 +562,86 @@ class VideoWebExporter {
     return { targetWidth, targetHeight, fps, totalDuration, bitrate };
   }
 
-  // --- ISO-BMFF MP4 Duration Patcher (for iOS Safari MediaRecorder) ---
+  // --- ISO-BMFF MP4 Duration Patcher (Traverses moov, mvhd, trak, tkhd, mdia, mdhd, mehd) ---
   async _fixMp4Duration(blob, durationSec) {
-    const arrayBuffer = await blob.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
-    const view = new DataView(arrayBuffer);
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const data = new Uint8Array(arrayBuffer);
+      const view = new DataView(arrayBuffer);
 
-    let pos = 0;
-    while (pos < data.length - 8) {
-      let size = view.getUint32(pos, false);
-      const boxType = String.fromCharCode(data[pos+4], data[pos+5], data[pos+6], data[pos+7]);
+      let mvhdTimescale = 1000;
 
-      if (size === 1 && pos + 16 <= data.length) {
-        size = Number(view.getBigUint64(pos + 8, false));
-      } else if (size === 0) {
-        size = data.length - pos;
-      }
-      if (size < 8) break;
+      function parseBoxes(startPos, endPos) {
+        let pos = startPos;
+        while (pos < endPos - 8) {
+          let size = view.getUint32(pos, false);
+          const boxType = String.fromCharCode(data[pos+4], data[pos+5], data[pos+6], data[pos+7]);
 
-      if (boxType === 'moov') {
-        let subPos = pos + 8;
-        const moovEnd = Math.min(data.length, pos + size);
-        while (subPos < moovEnd - 8) {
-          const subSize = view.getUint32(subPos, false);
-          const subType = String.fromCharCode(data[subPos+4], data[subPos+5], data[subPos+6], data[subPos+7]);
-          if (subSize < 8 || subPos + subSize > moovEnd) break;
-
-          if (subType === 'mvhd') {
-            const version = data[subPos + 8];
-            if (version === 0 && subPos + 28 <= moovEnd) {
-              const timescale = view.getUint32(subPos + 20, false);
-              const durVal = Math.round(durationSec * (timescale || 1000));
-              view.setUint32(subPos + 24, durVal, false);
-            } else if (version === 1 && subPos + 40 <= moovEnd) {
-              const timescale = view.getUint32(subPos + 28, false);
-              const durVal = BigInt(Math.round(durationSec * (timescale || 1000)));
-              view.setBigUint64(subPos + 32, durVal, false);
-            }
+          if (size === 1 && pos + 16 <= endPos) {
+            size = Number(view.getBigUint64(pos + 8, false));
+          } else if (size === 0) {
+            size = endPos - pos;
           }
-          subPos += subSize;
+          if (size < 8 || pos + size > endPos) break;
+
+          const boxEnd = pos + size;
+          const headerSize = (view.getUint32(pos, false) === 1) ? 16 : 8;
+          const contentStart = pos + headerSize;
+
+          if (boxType === 'mvhd') {
+            const version = data[contentStart];
+            if (version === 0 && contentStart + 20 <= boxEnd) {
+              mvhdTimescale = view.getUint32(contentStart + 12, false) || 1000;
+              const durVal = Math.round(durationSec * mvhdTimescale);
+              view.setUint32(contentStart + 16, durVal, false);
+            } else if (version === 1 && contentStart + 28 <= boxEnd) {
+              mvhdTimescale = view.getUint32(contentStart + 20, false) || 1000;
+              const durVal = BigInt(Math.round(durationSec * mvhdTimescale));
+              view.setBigUint64(contentStart + 24, durVal, false);
+            }
+          } else if (boxType === 'tkhd') {
+            const version = data[contentStart];
+            if (version === 0 && contentStart + 24 <= boxEnd) {
+              const durVal = Math.round(durationSec * mvhdTimescale);
+              view.setUint32(contentStart + 20, durVal, false);
+            } else if (version === 1 && contentStart + 32 <= boxEnd) {
+              const durVal = BigInt(Math.round(durationSec * mvhdTimescale));
+              view.setBigUint64(contentStart + 28, durVal, false);
+            }
+          } else if (boxType === 'mdhd') {
+            const version = data[contentStart];
+            if (version === 0 && contentStart + 20 <= boxEnd) {
+              const mdhdTimescale = view.getUint32(contentStart + 12, false) || 1000;
+              const durVal = Math.round(durationSec * mdhdTimescale);
+              view.setUint32(contentStart + 16, durVal, false);
+            } else if (version === 1 && contentStart + 28 <= boxEnd) {
+              const mdhdTimescale = view.getUint32(contentStart + 20, false) || 1000;
+              const durVal = BigInt(Math.round(durationSec * mdhdTimescale));
+              view.setBigUint64(contentStart + 24, durVal, false);
+            }
+          } else if (boxType === 'mehd') {
+            const version = data[contentStart];
+            if (version === 0 && contentStart + 8 <= boxEnd) {
+              const durVal = Math.round(durationSec * mvhdTimescale);
+              view.setUint32(contentStart + 4, durVal, false);
+            } else if (version === 1 && contentStart + 12 <= boxEnd) {
+              const durVal = BigInt(Math.round(durationSec * mvhdTimescale));
+              view.setBigUint64(contentStart + 4, durVal, false);
+            }
+          } else if (['moov', 'trak', 'mdia', 'minf', 'mvex'].includes(boxType)) {
+            parseBoxes(contentStart, boxEnd);
+          }
+
+          pos += size;
         }
       }
-      pos += size;
-    }
 
-    return new Blob([data.buffer], { type: 'video/mp4' });
+      parseBoxes(0, data.length);
+      return new Blob([data.buffer], { type: 'video/mp4' });
+    } catch (err) {
+      console.warn('[VideoWebExporter] MP4 duration patching warning:', err);
+      return blob;
+    }
   }
 
   // --- EBML WebM Duration Patcher (for Android Chrome MediaRecorder) ---
