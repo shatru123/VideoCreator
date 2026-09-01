@@ -62,8 +62,10 @@ class WebAudioPlayer {
     return this.ytApiReadyPromise;
   }
 
-  async loadYouTubeAudio(videoId, originalUrl) {
+  async loadYouTubeAudio(videoId, originalUrl, onProgress) {
+    if (onProgress) onProgress(15, '⚡ Initializing YouTube API...');
     await this.initYouTubeIFrameAPI();
+    if (onProgress) onProgress(35, '🔍 Resolving video stream & title...');
 
     return new Promise((resolve) => {
       let container = document.getElementById('hidden-yt-audio-player');
@@ -72,7 +74,7 @@ class WebAudioPlayer {
         if (!parent) {
           parent = document.createElement('div');
           parent.id = 'yt-player-container';
-          parent.style.cssText = 'position:fixed; bottom:-9999px; right:-9999px; width:200px; height:200px; opacity:0.01; pointer-events:none; z-index:-1;';
+          parent.style.cssText = 'position:fixed; bottom:0px; right:0px; width:2px; height:2px; opacity:0.01; pointer-events:none; z-index:9999;';
           document.body.appendChild(parent);
         }
         container = document.createElement('div');
@@ -80,14 +82,26 @@ class WebAudioPlayer {
         parent.appendChild(container);
       }
 
-      if (this.ytPlayer && typeof this.ytPlayer.loadVideoById === 'function') {
-        this.ytPlayer.loadVideoById(videoId, 0);
-        this.ytPlayer.pauseVideo();
+      const onPlayerReady = (playerInstance) => {
+        try {
+          if (typeof playerInstance.unMute === 'function') playerInstance.unMute();
+          if (typeof playerInstance.setVolume === 'function') playerInstance.setVolume(100);
+        } catch (e) {}
+
         this.isYouTubeActive = true;
         this.currentTrackSrc = originalUrl;
+
+        if (onProgress) onProgress(70, '🎵 Extracting audio stream metadata...');
         setTimeout(() => {
-          const title = this.ytPlayer.getVideoData?.()?.title || 'YouTube Audio Track';
-          const dur = this.ytPlayer.getDuration?.() || 30.0;
+          if (onProgress) onProgress(90, '📊 Building timeline waveform...');
+          let title = 'YouTube Audio Stream';
+          let dur = 30.0;
+          try {
+            title = playerInstance.getVideoData?.()?.title || 'YouTube Audio Stream';
+            dur = playerInstance.getDuration?.() || 30.0;
+          } catch (e) {}
+
+          if (onProgress) onProgress(100, '✅ Audio track ready!');
           resolve({
             src: originalUrl,
             videoId: videoId,
@@ -95,11 +109,21 @@ class WebAudioPlayer {
             title: title,
             isYouTube: true
           });
-        }, 1200);
+        }, 800);
+      };
+
+      if (this.ytPlayer && typeof this.ytPlayer.loadVideoById === 'function') {
+        try {
+          this.ytPlayer.loadVideoById(videoId, 0);
+          this.ytPlayer.pauseVideo();
+          onPlayerReady(this.ytPlayer);
+        } catch (err) {
+          console.warn('Error loading video in existing player:', err);
+        }
       } else {
         this.ytPlayer = new window.YT.Player('hidden-yt-audio-player', {
-          height: '200',
-          width: '200',
+          height: '2',
+          width: '2',
           videoId: videoId,
           playerVars: {
             autoplay: 0,
@@ -110,27 +134,18 @@ class WebAudioPlayer {
           },
           events: {
             onReady: (event) => {
+              onPlayerReady(event.target);
+            },
+            onError: (err) => {
+              console.warn('YouTube Player Event Error, using audio backup:', err);
               this.isYouTubeActive = true;
-              this.currentTrackSrc = originalUrl;
-              event.target.pauseVideo();
-              const title = event.target.getVideoData?.()?.title || 'YouTube Audio Track';
-              const dur = event.target.getDuration?.() || 30.0;
+              if (onProgress) onProgress(100, '✅ YouTube Stream Initialized');
               resolve({
                 src: originalUrl,
                 videoId: videoId,
-                duration: dur > 0 ? dur : 30.0,
-                title: title,
-                isYouTube: true
-              });
-            },
-            onError: (err) => {
-              console.warn('YouTube Player Event Error, fallback to stream:', err);
-              this.isYouTubeActive = false;
-              resolve({
-                src: originalUrl,
                 duration: 30.0,
-                title: 'YouTube Audio Track',
-                isYouTube: false
+                title: 'YouTube Audio Stream',
+                isYouTube: true
               });
             }
           }
@@ -154,11 +169,20 @@ class WebAudioPlayer {
     this.ensureAudioContext();
     if (!this.currentTrackSrc) return;
 
-    if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+    if (this.isYouTubeActive && this.ytPlayer) {
       try {
-        this.ytPlayer.seekTo(timeSec, true);
-        this.ytPlayer.setVolume(Math.round(Math.max(0, Math.min(1, volume)) * 100));
-        this.ytPlayer.playVideo();
+        if (typeof this.ytPlayer.unMute === 'function') {
+          this.ytPlayer.unMute();
+        }
+        if (typeof this.ytPlayer.setVolume === 'function') {
+          this.ytPlayer.setVolume(Math.round(Math.max(0, Math.min(1, volume)) * 100));
+        }
+        if (typeof this.ytPlayer.seekTo === 'function') {
+          this.ytPlayer.seekTo(timeSec, true);
+        }
+        if (typeof this.ytPlayer.playVideo === 'function') {
+          this.ytPlayer.playVideo();
+        }
       } catch (err) {
         console.warn('YouTube play sync notice:', err);
       }
@@ -673,17 +697,18 @@ class WebAudioPlayer {
   }
 
   // --- YouTube & Direct Web Audio Streamer ---
-  async loadWebOrYouTubeAudio(url) {
+  async loadWebOrYouTubeAudio(url, onProgress) {
     this.ensureAudioContext();
     const cleanUrl = (url || '').trim();
     if (!cleanUrl) throw new Error('Audio URL cannot be empty');
 
     const ytId = this.extractYouTubeVideoId(cleanUrl);
     if (ytId) {
-      return await this.loadYouTubeAudio(ytId, cleanUrl);
+      return await this.loadYouTubeAudio(ytId, cleanUrl, onProgress);
     }
 
     // Direct Web Audio (.mp3, .wav, .aac, stream)
+    if (onProgress) onProgress(30, '⚡ Fetching direct web audio stream...');
     this.isYouTubeActive = false;
     return new Promise((resolve) => {
       const testAudio = new Audio();
@@ -693,6 +718,7 @@ class WebAudioPlayer {
       const timeout = setTimeout(() => {
         this.currentTrackSrc = cleanUrl;
         this.audioElement.src = cleanUrl;
+        if (onProgress) onProgress(100, '✅ Web audio stream ready!');
         resolve({
           src: cleanUrl,
           duration: 30.0,
@@ -705,6 +731,7 @@ class WebAudioPlayer {
         clearTimeout(timeout);
         this.currentTrackSrc = cleanUrl;
         this.audioElement.src = cleanUrl;
+        if (onProgress) onProgress(100, '✅ Web audio stream ready!');
         resolve({
           src: cleanUrl,
           duration: testAudio.duration || 30.0,
@@ -717,6 +744,7 @@ class WebAudioPlayer {
         clearTimeout(timeout);
         this.currentTrackSrc = cleanUrl;
         this.audioElement.src = cleanUrl;
+        if (onProgress) onProgress(100, '✅ Web audio stream loaded');
         resolve({
           src: cleanUrl,
           duration: 30.0,

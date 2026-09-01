@@ -622,12 +622,43 @@
     // Fullscreen Toggle Button
     document.getElementById('btn-toggle-fullscreen')?.addEventListener('click', toggleFullscreenPreview);
 
-    // Mobile Add Media in Sheet
+    // Mobile Quick Action Toolbar Buttons (Always visible on mobile/tablets)
     document.getElementById('mobile-add-photo-btn')?.addEventListener('click', () => {
       document.getElementById('editor-photo-input')?.click();
     });
-    document.getElementById('mobile-add-music-btn')?.addEventListener('click', () => {
-      document.getElementById('editor-music-input')?.click();
+    document.getElementById('mobile-add-video-btn')?.addEventListener('click', () => {
+      document.getElementById('editor-video-input')?.click();
+    });
+    document.getElementById('mobile-add-audio-btn')?.addEventListener('click', () => {
+      document.getElementById('unified-audio-modal')?.classList.add('active');
+    });
+    document.getElementById('mobile-add-voiceover-btn')?.addEventListener('click', () => {
+      document.getElementById('voiceover-modal')?.classList.add('active');
+    });
+    document.getElementById('mobile-add-text-btn')?.addEventListener('click', () => {
+      document.getElementById('editor-add-text-btn')?.click();
+    });
+
+    // Mobile Drawer Media Buttons
+    document.getElementById('btn-mobile-import-video')?.addEventListener('click', () => {
+      closeMobileDrawer();
+      switchScreen('editor');
+      setTimeout(() => document.getElementById('editor-video-input')?.click(), 150);
+    });
+    document.getElementById('btn-mobile-import-photo')?.addEventListener('click', () => {
+      closeMobileDrawer();
+      switchScreen('editor');
+      setTimeout(() => document.getElementById('editor-photo-input')?.click(), 150);
+    });
+    document.getElementById('btn-mobile-import-voiceover')?.addEventListener('click', () => {
+      closeMobileDrawer();
+      switchScreen('editor');
+      document.getElementById('voiceover-modal')?.classList.add('active');
+    });
+    document.getElementById('btn-mobile-import-text')?.addEventListener('click', () => {
+      closeMobileDrawer();
+      switchScreen('editor');
+      document.getElementById('editor-add-text-btn')?.click();
     });
   }
 
@@ -3552,6 +3583,10 @@
     // 2. YouTube / Web Link Handlers
     const ytInput = document.getElementById('unified-youtube-input');
     const ytBtn = document.getElementById('btn-unified-load-youtube');
+    const progCont = document.getElementById('yt-import-progress-container');
+    const progStatus = document.getElementById('yt-progress-status');
+    const progPercent = document.getElementById('yt-progress-percent');
+    const progFill = document.getElementById('yt-progress-bar-fill');
 
     ytBtn?.addEventListener('click', async () => {
       const url = (ytInput?.value || '').trim();
@@ -3560,14 +3595,26 @@
         return;
       }
       ytBtn.disabled = true;
-      ytBtn.textContent = '⏳ Loading YouTube Audio Stream...';
+      ytBtn.textContent = '⏳ Streaming YouTube Audio...';
+      if (progCont) progCont.style.display = 'block';
+      if (progStatus) progStatus.textContent = '⚡ Connecting to YouTube...';
+      if (progPercent) progPercent.textContent = '10%';
+      if (progFill) progFill.style.width = '10%';
 
       try {
-        const audioInfo = await audio.loadWebOrYouTubeAudio(url);
+        const audioInfo = await audio.loadWebOrYouTubeAudio(url, (percent, status) => {
+          if (progPercent) progPercent.textContent = `${percent}%`;
+          if (progFill) progFill.style.width = `${percent}%`;
+          if (progStatus) progStatus.textContent = status;
+        });
         insertAudioClipOntoTimeline(audioInfo.title || 'YouTube Audio Stream', audioInfo.src, audioInfo.duration || 14.0);
-        modal?.classList.remove('active');
-        if (ytInput) ytInput.value = '';
+        setTimeout(() => {
+          if (progCont) progCont.style.display = 'none';
+          modal?.classList.remove('active');
+          if (ytInput) ytInput.value = '';
+        }, 600);
       } catch (err) {
+        if (progCont) progCont.style.display = 'none';
         alert('Could not stream audio: ' + err.message);
       } finally {
         ytBtn.disabled = false;
@@ -3711,10 +3758,24 @@
         return;
       }
       loadBtn.disabled = true;
-      loadBtn.textContent = '⏳ Loading Audio Stream...';
+      loadBtn.textContent = '⏳ Streaming Audio...';
+
+      const progCont = document.getElementById('standalone-yt-progress-container');
+      const progStatus = document.getElementById('standalone-yt-progress-status');
+      const progPercent = document.getElementById('standalone-yt-progress-percent');
+      const progFill = document.getElementById('standalone-yt-progress-bar-fill');
+
+      if (progCont) progCont.style.display = 'block';
+      if (progStatus) progStatus.textContent = '⚡ Connecting to YouTube...';
+      if (progPercent) progPercent.textContent = '10%';
+      if (progFill) progFill.style.width = '10%';
 
       try {
-        const audioInfo = await audio.loadWebOrYouTubeAudio(url);
+        const audioInfo = await audio.loadWebOrYouTubeAudio(url, (percent, status) => {
+          if (progPercent) progPercent.textContent = `${percent}%`;
+          if (progFill) progFill.style.width = `${percent}%`;
+          if (progStatus) progStatus.textContent = status;
+        });
         pushHistory();
 
         let audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
@@ -3740,9 +3801,13 @@
 
         refreshTimeline();
         requestRender();
-        modal?.classList.remove('active');
-        if (inputUrl) inputUrl.value = '';
+        setTimeout(() => {
+          if (progCont) progCont.style.display = 'none';
+          modal?.classList.remove('active');
+          if (inputUrl) inputUrl.value = '';
+        }, 600);
       } catch (err) {
+        if (progCont) progCont.style.display = 'none';
         alert('Could not stream audio from URL: ' + err.message);
       } finally {
         loadBtn.disabled = false;

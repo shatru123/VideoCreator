@@ -189,8 +189,14 @@
         <button id="btn-mobile-aspect-1-1" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">🔳 1:1 Square</button>
       </div>
 
-      <div class="drawer-section-title">AUDIO &amp; SOUNDTRACK</div>
-      <button id="btn-mobile-open-audio" class="btn btn-primary" style="width:100%; justify-content:center; background:linear-gradient(135deg, #EC4899, #8B5CF6); font-weight:800; padding:11px;">🎵 Add Audio (YouTube / Upload / Mic)</button>
+      <div class="drawer-section-title">MEDIA &amp; SOUNDTRACK</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <button id="btn-mobile-import-video" class="btn btn-secondary" style="width:100%; color:#38BDF8; font-weight:700; justify-content:flex-start;">🎞 Import Video (+ MP4 / WebM)</button>
+        <button id="btn-mobile-import-photo" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">📷 Import Photos...</button>
+        <button id="btn-mobile-open-audio" class="btn btn-primary" style="width:100%; justify-content:center; background:linear-gradient(135deg, #EC4899, #8B5CF6); font-weight:800; padding:11px;">🎵 Add Audio (YouTube / Upload / Mic)</button>
+        <button id="btn-mobile-import-voiceover" class="btn btn-secondary" style="width:100%; color:#FDE047; justify-content:flex-start;">🎙️ AI Voiceover &amp; Karaoke Subtitles</button>
+        <button id="btn-mobile-import-text" class="btn btn-secondary" style="width:100%; justify-content:flex-start;">🔤 Add Animated Text Title</button>
+      </div>
 
       <div class="drawer-section-title">APP INSTALLATION</div>
       <button id="btn-mobile-install-pwa" class="btn btn-secondary" style="width:100%; color:#38BDF8; font-weight:800; justify-content:center;">📥 Install Mobile App (PWA)</button>
@@ -394,6 +400,15 @@
 
         <!-- Center Viewport: VIDEO PREVIEW -->
         <main class="center-viewport">
+          <!-- Mobile Quick Action Bar (Visible on Mobile/Tablets) -->
+          <div class="mobile-quick-toolbar">
+            <button id="mobile-add-photo-btn" class="btn btn-primary btn-sm">📷 + Photo</button>
+            <button id="mobile-add-video-btn" class="btn btn-secondary btn-sm" style="color:#38BDF8; font-weight:700;">🎞 + Video</button>
+            <button id="mobile-add-audio-btn" class="btn btn-secondary btn-sm" style="color:#EC4899; font-weight:800; background:rgba(236,72,153,0.15); border-color:#EC4899;">🎵 + Audio</button>
+            <button id="mobile-add-voiceover-btn" class="btn btn-secondary btn-sm" style="color:#FDE047; font-weight:700;">🎙️ Voiceover</button>
+            <button id="mobile-add-text-btn" class="btn btn-secondary btn-sm">🔤 + Text</button>
+          </div>
+
           <div class="viewport-header">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:11px; font-weight:800; color:#94A3B8; letter-spacing:0.8px;">VIDEO PREVIEW</span>
@@ -1049,6 +1064,18 @@
           <label style="font-size:11px; font-weight:700; color:#94A3B8;">YouTube Video / Shorts Link or Direct Web Audio URL</label>
           <input type="url" id="unified-youtube-input" class="btn btn-secondary" style="width:100%; text-align:left; font-size:12px; padding:10px;" placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/... or https://.../audio.mp3">
           <div style="font-size:10px; color:#64748B;">✨ Powered by YouTube IFrame Audio Bridge. Works seamlessly across desktop and mobile.</div>
+          
+          <!-- YouTube Import Progress Indicator -->
+          <div id="yt-import-progress-container" style="display:none; margin-top:6px; background:#0B0F17; border:1px solid #1E293B; border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:6px;">
+              <span id="yt-progress-status" style="color:#60A5FA; font-weight:700;">⚡ Connecting to YouTube Audio Stream...</span>
+              <span id="yt-progress-percent" style="color:#FFF; font-weight:800;">35%</span>
+            </div>
+            <div style="width:100%; height:6px; background:#1E293B; border-radius:3px; overflow:hidden;">
+              <div id="yt-progress-bar-fill" style="width:35%; height:100%; background:linear-gradient(90deg, #EF4444, #F59E0B); transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+
           <button id="btn-unified-load-youtube" class="btn btn-primary" style="width:100%; padding:12px; font-weight:800; font-size:13px; margin-top:6px; background:linear-gradient(135deg, #EF4444, #DC2626);">⚡ Stream YouTube Audio &amp; Add to Timeline</button>
         </div>
       </div>
@@ -1106,6 +1133,17 @@
       <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
         <label style="font-size:11px; font-weight:700; color:#94A3B8;">Audio / Video URL</label>
         <input type="url" id="input-youtube-url" class="btn btn-secondary" style="width:100%; text-align:left; font-size:12px; padding:10px;" placeholder="https://www.youtube.com/watch?v=... or https://example.com/audio.mp3">
+      </div>
+
+      <!-- YouTube Import Progress Indicator (Standalone Modal) -->
+      <div id="standalone-yt-progress-container" style="display:none; margin-top:8px; background:#0B0F17; border:1px solid #1E293B; border-radius:8px; padding:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:6px;">
+          <span id="standalone-yt-progress-status" style="color:#60A5FA; font-weight:700;">⚡ Connecting to YouTube...</span>
+          <span id="standalone-yt-progress-percent" style="color:#FFF; font-weight:800;">35%</span>
+        </div>
+        <div style="width:100%; height:6px; background:#1E293B; border-radius:3px; overflow:hidden;">
+          <div id="standalone-yt-progress-bar-fill" style="width:35%; height:100%; background:linear-gradient(90deg, #EF4444, #F59E0B); transition: width 0.3s ease;"></div>
+        </div>
       </div>
       <div style="display:flex; gap:8px; margin-top:12px;">
         <button id="btn-load-youtube-audio" class="btn btn-primary" style="width:100%; padding:12px; font-weight:800; font-size:13px; background:linear-gradient(135deg, #EF4444, #DC2626);">⚡ Stream Audio &amp; Add to Timeline</button>
