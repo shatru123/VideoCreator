@@ -46,11 +46,24 @@ class VideoWebExporter {
     exportCanvas.height = targetHeight;
     const exportEngine = new VideoCanvasEngine(exportCanvas);
 
-    // Preload images
+    // Preload images into exportEngine and transfer from main engine cache
+    if (this.engine && this.engine.imageCache) {
+      this.engine.imageCache.forEach((img, src) => {
+        exportEngine.imageCache.set(src, img);
+        exportEngine.createPreBlurredBackground(src, img);
+      });
+    }
+
     const videoTrack = project.timeline.tracks.find(t => t.type === 'video');
     if (videoTrack) {
       for (const clip of videoTrack.clips) {
-        if (clip.source) await exportEngine.loadImage(clip.source);
+        if (clip.source) {
+          const img = await exportEngine.loadImage(clip.source);
+          if (img) {
+            exportEngine.imageCache.set(clip.source, img);
+            exportEngine.createPreBlurredBackground(clip.source, img);
+          }
+        }
       }
     }
 
@@ -228,10 +241,24 @@ class VideoWebExporter {
     exportCanvas.height = targetHeight;
     const exportEngine = new VideoCanvasEngine(exportCanvas);
 
+    // Preload images into exportEngine and transfer from main engine cache
+    if (this.engine && this.engine.imageCache) {
+      this.engine.imageCache.forEach((img, src) => {
+        exportEngine.imageCache.set(src, img);
+        exportEngine.createPreBlurredBackground(src, img);
+      });
+    }
+
     const videoTrack = project.timeline.tracks.find(t => t.type === 'video');
     if (videoTrack) {
       for (const clip of videoTrack.clips) {
-        if (clip.source) await exportEngine.loadImage(clip.source);
+        if (clip.source) {
+          const img = await exportEngine.loadImage(clip.source);
+          if (img) {
+            exportEngine.imageCache.set(clip.source, img);
+            exportEngine.createPreBlurredBackground(clip.source, img);
+          }
+        }
       }
     }
 

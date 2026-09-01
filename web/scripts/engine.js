@@ -7,22 +7,33 @@ class VideoCanvasEngine {
   }
 
   loadImage(src) {
-    if (this.imageCache.has(src)) return Promise.resolve(this.imageCache.get(src));
+    if (!src) return Promise.resolve(null);
+    if (this.imageCache.has(src)) {
+      const cached = this.imageCache.get(src);
+      if (cached && (cached.complete || cached instanceof ImageBitmap)) return Promise.resolve(cached);
+    }
     return new Promise((resolve) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      // Only set crossOrigin for remote HTTP URLs. Setting crossOrigin on blob: or data: URLs fails in WebKit/iOS Safari!
+      if (src.startsWith('http://') || src.startsWith('https://')) {
+        img.crossOrigin = 'anonymous';
+      }
       img.onload = () => {
         this.imageCache.set(src, img);
         this.createPreBlurredBackground(src, img);
         resolve(img);
       };
-      img.onerror = () => resolve(null);
+      img.onerror = (err) => {
+        console.warn('[VideoCanvasEngine] Image load failed for:', src, err);
+        resolve(null);
+      };
       img.src = src;
     });
   }
 
   // Pre-renders a small offscreen blurred canvas once per image (100x faster than real-time CSS filter)
   createPreBlurredBackground(src, img) {
+    if (!img) return;
     try {
       const off = document.createElement('canvas');
       off.width = 160;
@@ -78,28 +89,45 @@ class VideoCanvasEngine {
 
   renderVideoTrack(ctx, track, timestamp, width, height) {
     const clips = track.clips;
+    if (!clips || clips.length === 0) return;
+
+    // Find the active clip for timestamp
+    let activeClipIdx = -1;
     for (let i = 0; i < clips.length; i++) {
       const clip = clips[i];
-      if (timestamp >= clip.startTime && timestamp < clip.startTime + clip.duration) {
-        const localTime = timestamp - clip.startTime;
+      const end = clip.startTime + clip.duration;
+      if (timestamp >= clip.startTime && (i === clips.length - 1 ? timestamp <= end : timestamp < end)) {
+        activeClipIdx = i;
+        break;
+      }
+    }
 
-        // Transition Out
-        if (clip.transitionOut && clip.transitionOut.type !== 'None' && i + 1 < clips.length) {
-          const nextClip = clips[i + 1];
-          const transDur = clip.transitionOut.duration || 0.6;
-          const transStartTime = clip.duration - transDur;
+    // Boundary fallback (e.g. at or beyond the exact end of timeline)
+    if (activeClipIdx === -1) {
+      if (timestamp >= clips[clips.length - 1].startTime) {
+        activeClipIdx = clips.length - 1;
+      } else {
+        activeClipIdx = 0;
+      }
+    }
 
-          if (localTime >= transStartTime && transDur > 0) {
-            const progress = (localTime - transStartTime) / transDur;
-            this.renderTransition(ctx, clip, nextClip, localTime, clip.transitionOut, progress, width, height);
-            return;
-          }
-        }
+    const clip = clips[activeClipIdx];
+    const localTime = Math.max(0, timestamp - clip.startTime);
 
-        this.renderSingleClip(ctx, clip, localTime, width, height);
+    // Transition Out
+    if (clip.transitionOut && clip.transitionOut.type !== 'None' && activeClipIdx + 1 < clips.length) {
+      const nextClip = clips[activeClipIdx + 1];
+      const transDur = clip.transitionOut.duration || 0.6;
+      const transStartTime = Math.max(0, clip.duration - transDur);
+
+      if (localTime >= transStartTime && transDur > 0) {
+        const progress = Math.min(1.0, (localTime - transStartTime) / transDur);
+        this.renderTransition(ctx, clip, nextClip, localTime, clip.transitionOut, progress, width, height);
         return;
       }
     }
+
+    this.renderSingleClip(ctx, clip, localTime, width, height);
   }
 
   renderSingleClip(ctx, clip, localTime, width, height) {
