@@ -28,6 +28,12 @@ TestResults/
 *.png.cache
 .cache/
 
+## Node
+node_modules/
+package-lock.json
+web/assets/yt_cache_*
+web/assets/yt-test.*
+
 ## OS Files
 .DS_Store
 Thumbs.db
