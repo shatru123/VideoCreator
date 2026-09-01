@@ -261,6 +261,130 @@ class WebAudioPlayer {
       this.mediaRecorder.stop();
     });
   }
+
+  // --- Offline Spectral Energy Beat Detector (100% Free & Native) ---
+  async detectBeats(audioSource, maxBeats = 32) {
+    let audioBuffer = null;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return [];
+    const actx = new AudioContextClass({ sampleRate: 44100 });
+
+    if (audioSource instanceof AudioBuffer) {
+      audioBuffer = audioSource;
+    } else if (typeof audioSource === 'string') {
+      try {
+        const resp = await fetch(audioSource);
+        const ab = await resp.arrayBuffer();
+        audioBuffer = await actx.decodeAudioData(ab);
+      } catch (err) {
+        console.warn('Could not decode audio for beat detection:', err);
+      }
+    }
+    actx.close();
+
+    if (!audioBuffer) return [];
+
+    // Extract mono downmix
+    const sampleRate = audioBuffer.sampleRate;
+    const numChannels = audioBuffer.numberOfChannels;
+    const length = audioBuffer.length;
+    const mono = new Float32Array(length);
+
+    for (let c = 0; c < numChannels; c++) {
+      const chData = audioBuffer.getChannelData(c);
+      for (let i = 0; i < length; i++) {
+        mono[i] += chData[i] / numChannels;
+      }
+    }
+
+    // Step 1: Calculate short-time RMS energy windows (1024 samples = ~23ms)
+    const windowSize = 1024;
+    const hopSize = 512;
+    const numFrames = Math.floor((length - windowSize) / hopSize);
+    const energies = new Float32Array(numFrames);
+
+    for (let f = 0; f < numFrames; f++) {
+      const start = f * hopSize;
+      let sumSq = 0;
+      for (let i = 0; i < windowSize; i++) {
+        const s = mono[start + i];
+        sumSq += s * s;
+      }
+      energies[f] = Math.sqrt(sumSq / windowSize);
+    }
+
+    // Step 2: Adaptive Local Threshold Peak Detection
+    const beatTimes = [];
+    const localWindow = 14; // ~300ms window
+    const thresholdMultiplier = 1.35;
+    const minTimeBetweenBeats = 0.35; // Min 350ms between cuts
+    let lastBeatTime = -1;
+
+    for (let f = localWindow; f < numFrames - localWindow; f++) {
+      let localSum = 0;
+      for (let k = -localWindow; k <= localWindow; k++) {
+        localSum += energies[f + k];
+      }
+      const localAvg = localSum / (localWindow * 2 + 1);
+      const curEnergy = energies[f];
+      const timeSec = (f * hopSize) / sampleRate;
+
+      if (curEnergy > localAvg * thresholdMultiplier && curEnergy > 0.035) {
+        if (curEnergy >= energies[f - 1] && curEnergy >= energies[f + 1]) {
+          if (lastBeatTime === -1 || (timeSec - lastBeatTime) >= minTimeBetweenBeats) {
+            beatTimes.push(parseFloat(timeSec.toFixed(2)));
+            lastBeatTime = timeSec;
+            if (beatTimes.length >= maxBeats) break;
+          }
+        }
+      }
+    }
+
+    return beatTimes;
+  }
+
+  // --- Native Web Speech API Voiceover & Word Tokenizer (100% Free & Native) ---
+  synthesizeSpeech(text, options = {}) {
+    return new Promise((resolve, reject) => {
+      if (!('speechSynthesis' in window)) {
+        reject(new Error('Web Speech API is not supported in this browser.'));
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.pitch = options.pitch !== undefined ? options.pitch : 1.0;
+      utterance.rate = options.rate !== undefined ? options.rate : 1.0;
+
+      if (options.voiceName) {
+        const voices = window.speechSynthesis.getVoices();
+        const found = voices.find(v => v.name === options.voiceName || v.lang === options.voiceName);
+        if (found) utterance.voice = found;
+      }
+
+      const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+      const wordDur = Math.max(0.22, 0.42 / (options.rate || 1.0));
+      const timedWords = words.map((w, idx) => ({
+        word: w,
+        startTime: parseFloat((idx * wordDur).toFixed(2)),
+        duration: parseFloat(wordDur.toFixed(2))
+      }));
+      const totalEstimatedDur = parseFloat((words.length * wordDur).toFixed(2));
+
+      resolve({
+        text: text,
+        words: timedWords,
+        duration: totalEstimatedDur,
+        utterance: utterance
+      });
+    });
+  }
+
+  getAvailableVoices() {
+    if (!('speechSynthesis' in window)) return [];
+    return window.speechSynthesis.getVoices();
+  }
 }
 
 window.WebAudioPlayer = WebAudioPlayer;

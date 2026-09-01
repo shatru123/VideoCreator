@@ -96,6 +96,11 @@ class VideoCanvasEngine {
         this.renderVignette(ctx, width, height, intensity);
       }
     }
+
+    // 5. Render Platform Safe-Zone Guide Overlay if active (Reels, TikTok, Shorts)
+    if (project.safeZone && project.safeZone !== 'none') {
+      this.renderSafeZones(ctx, width, height, project.safeZone);
+    }
   }
 
   renderVideoTrack(ctx, track, timestamp, width, height) {
@@ -382,6 +387,86 @@ class VideoCanvasEngine {
         }
         break;
       }
+      case 'Glitch': {
+        this.renderSingleClip(ctx, clipA, localTime, width, height);
+        if (p > 0.05 && p < 0.95) {
+          const sliceCount = 6;
+          for (let s = 0; s < sliceCount; s++) {
+            const sy = Math.random() * height;
+            const sh = Math.max(10, Math.random() * (height * 0.12));
+            const dx = (Math.random() - 0.5) * width * 0.12;
+            ctx.drawImage(this.canvas, 0, sy, width, sh, dx, sy, width, sh);
+          }
+          ctx.save();
+          ctx.globalCompositeOperation = 'screen';
+          ctx.fillStyle = `rgba(239, 68, 68, ${Math.random() * 0.35})`;
+          ctx.fillRect(0, 0, width, height);
+          ctx.restore();
+        }
+        if (p >= 0.45) {
+          ctx.save();
+          ctx.globalAlpha = Math.min(1.0, (p - 0.45) * 1.8);
+          this.renderSingleClip(ctx, clipB, 0, width, height);
+          ctx.restore();
+        }
+        break;
+      }
+      case 'WhipPan': {
+        const easeFast = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+        ctx.save();
+        ctx.translate(-width * easeFast, 0);
+        this.renderSingleClip(ctx, clipA, localTime, width, height);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(width * (1 - easeFast), 0);
+        this.renderSingleClip(ctx, clipB, 0, width, height);
+        ctx.restore();
+        break;
+      }
+      case 'FilmBurn': {
+        this.renderSingleClip(ctx, clipA, localTime, width, height);
+        const burnIntensity = Math.sin(p * Math.PI);
+        const burnGrad = ctx.createRadialGradient(
+          width * (0.2 + p * 0.6), height * 0.5, 20,
+          width * (0.2 + p * 0.6), height * 0.5, width * 0.8
+        );
+        burnGrad.addColorStop(0, `rgba(255, 210, 60, ${burnIntensity * 0.85})`);
+        burnGrad.addColorStop(0.35, `rgba(251, 113, 36, ${burnIntensity * 0.7})`);
+        burnGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.save();
+        ctx.fillStyle = burnGrad;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+        if (p >= 0.5) {
+          ctx.save();
+          ctx.globalAlpha = (p - 0.5) * 2;
+          this.renderSingleClip(ctx, clipB, 0, width, height);
+          ctx.restore();
+        }
+        break;
+      }
+      case 'ZoomBlur': {
+        const zoomA = 1.0 + easeP * 0.35;
+        ctx.save();
+        ctx.translate(width * 0.5, height * 0.5);
+        ctx.scale(zoomA, zoomA);
+        ctx.translate(-width * 0.5, -height * 0.5);
+        this.renderSingleClip(ctx, clipA, localTime, width, height);
+        ctx.restore();
+
+        if (p >= 0.3) {
+          const zoomB = 1.35 - (p - 0.3) * (0.35 / 0.7);
+          ctx.save();
+          ctx.globalAlpha = Math.min(1.0, (p - 0.3) / 0.7);
+          ctx.translate(width * 0.5, height * 0.5);
+          ctx.scale(zoomB, zoomB);
+          ctx.translate(-width * 0.5, -height * 0.5);
+          this.renderSingleClip(ctx, clipB, 0, width, height);
+          ctx.restore();
+        }
+        break;
+      }
       default:
         this.renderSingleClip(ctx, clipA, localTime, width, height);
         break;
@@ -392,7 +477,7 @@ class VideoCanvasEngine {
     track.clips.forEach(clip => {
       if (timestamp >= clip.startTime && timestamp < clip.startTime + clip.duration) {
         const localTime = timestamp - clip.startTime;
-        if (clip.overlay) {
+        if (clip.overlay || clip.words) {
           this.renderTextClip(ctx, clip, localTime, width, height);
         } else if (clip.sticker) {
           this.renderStickerClip(ctx, clip, localTime, width, height);
@@ -402,8 +487,7 @@ class VideoCanvasEngine {
   }
 
   renderTextClip(ctx, clip, localTime, width, height) {
-    if (!clip.overlay) return;
-    const ov = clip.overlay;
+    const ov = clip.overlay || { text: clip.name || '', fontSize: 56, fontFamily: 'Inter' };
 
     ctx.save();
 
@@ -444,6 +528,63 @@ class VideoCanvasEngine {
 
     ctx.translate(x, y);
     ctx.scale(scale, scale);
+
+    // Check for Karaoke Word Sync (Hormozi / TikTok Bouncing Subtitles)
+    if (clip.words && clip.words.length > 0) {
+      const words = clip.words;
+      const fullText = words.map(w => w.word).join(' ');
+      const totalTextWidth = ctx.measureText(fullText).width;
+
+      // Draw frosted backdrop pill
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.beginPath();
+      const padX = fontSize * 0.8;
+      const padY = fontSize * 0.45;
+      const pillW = totalTextWidth + padX * 2;
+      const pillH = fontSize * 1.5 + padY;
+      ctx.roundRect(-pillW * 0.5, -pillH * 0.5, pillW, pillH, 16);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      // Render words with active word highlight & spring bounce
+      let curX = -totalTextWidth * 0.5;
+      words.forEach(wObj => {
+        const wordStr = wObj.word + ' ';
+        const wordW = ctx.measureText(wordStr).width;
+        const isWordActive = localTime >= wObj.startTime && localTime < (wObj.startTime + wObj.duration);
+
+        ctx.save();
+        if (isWordActive) {
+          // Bouncy word scale and glowing highlight
+          ctx.translate(curX + wordW * 0.5, 0);
+          ctx.scale(1.2, 1.2);
+          ctx.translate(-(curX + wordW * 0.5), 0);
+
+          ctx.fillStyle = '#FDE047'; // Neon Yellow
+          ctx.shadowColor = '#EAB308';
+          ctx.shadowBlur = 16;
+        } else {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.shadowColor = '#000000';
+          ctx.shadowBlur = 4;
+        }
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = Math.max(3, fontSize * 0.12);
+        ctx.strokeText(wObj.word, curX + wordW * 0.5, 0);
+        ctx.fillText(wObj.word, curX + wordW * 0.5, 0);
+        ctx.restore();
+
+        curX += wordW;
+      });
+
+      ctx.restore();
+      return;
+    }
 
     const lines = (ov.text || '').split('\n');
     const lineHeight = fontSize * 1.25;
@@ -588,6 +729,68 @@ class VideoCanvasEngine {
     grad.addColorStop(1, `rgba(0, 0, 0, ${intensity})`);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
+  renderSafeZones(ctx, width, height, platform) {
+    if (!platform || platform === 'none') return;
+    ctx.save();
+
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.75)';
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+
+    if (platform === 'reels') {
+      const topH = height * 0.12;
+      const bottomH = height * 0.20;
+      const rightW = width * 0.18;
+
+      ctx.strokeRect(width * 0.05, topH, width * 0.90 - rightW, height - topH - bottomH);
+
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.9)';
+      ctx.font = `bold ${Math.max(12, Math.round(width * 0.024))}px sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('📐 Instagram Reels Safe Zone', width * 0.06, topH + 24);
+
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+      ctx.fillRect(width - rightW, topH, rightW, height - topH - bottomH);
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
+      ctx.font = `bold ${Math.max(10, Math.round(width * 0.018))}px sans-serif`;
+      ctx.fillText('Actions Zone', width - rightW + 6, topH + 24);
+    } else if (platform === 'tiktok') {
+      const topH = height * 0.14;
+      const bottomH = height * 0.24;
+      const rightW = width * 0.20;
+
+      ctx.strokeRect(width * 0.05, topH, width * 0.90 - rightW, height - topH - bottomH);
+
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.9)';
+      ctx.font = `bold ${Math.max(12, Math.round(width * 0.024))}px sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('📐 TikTok Safe Zone', width * 0.06, topH + 24);
+
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+      ctx.fillRect(width - rightW, topH, rightW, height - topH - bottomH);
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
+      ctx.font = `bold ${Math.max(10, Math.round(width * 0.018))}px sans-serif`;
+      ctx.fillText('TikTok Icons', width - rightW + 6, topH + 24);
+    } else if (platform === 'shorts') {
+      const topH = height * 0.10;
+      const bottomH = height * 0.22;
+      const rightW = width * 0.18;
+
+      ctx.strokeRect(width * 0.05, topH, width * 0.90 - rightW, height - topH - bottomH);
+
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+      ctx.font = `bold ${Math.max(12, Math.round(width * 0.024))}px sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('📐 YouTube Shorts Safe Zone', width * 0.06, topH + 24);
+    }
+
     ctx.restore();
   }
 

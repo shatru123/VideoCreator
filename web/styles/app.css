@@ -1115,15 +1115,42 @@ canvas#videoCanvas {
   top: 0;
   bottom: 0;
   width: 14px;
-  background: rgba(245, 158, 11, 0.6);
+  background: rgba(245, 158, 11, 0.7);
   cursor: ew-resize;
   touch-action: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+  z-index: 5;
 }
 
 .clip-resize-handle::after {
+  content: '||';
+  font-size: 8px;
+  color: #000;
+  font-weight: bold;
+}
+
+.clip-trim-left-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  background: rgba(245, 158, 11, 0.7);
+  cursor: ew-resize;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+  z-index: 5;
+}
+
+.clip-trim-left-handle::after {
   content: '||';
   font-size: 8px;
   color: #000;

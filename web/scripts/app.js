@@ -44,6 +44,8 @@
     setupEditor();
     setupInspector();
     setupExportModal();
+    setupVoiceoverModal();
+    setupSafeZonesAndCoverExport();
     setupAutosaveAndRecovery();
 
     // Populate initial sample content
@@ -1220,28 +1222,50 @@
     });
   }
 
-  // 1-Click Magic Auto Beat Sync
-  function autoBeatSyncPhotos() {
+  // 1-Click Intelligent Spectral Audio Beat Sync (100% Free & Native)
+  async function autoBeatSyncPhotos() {
     const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
     if (!videoTrack || videoTrack.clips.length === 0) {
       alert('Add photos to the timeline first!');
       return;
     }
 
+    pushHistory();
     const motions = ['ZoomIn', 'PanLeft', 'ZoomOut', 'PanRight', 'KenBurns', 'DynamicZoom', 'DiagonalUpLeft'];
-    const beatInterval = 2.5; // 2.5s per photo for energetic reel tempo
+    const transitions = ['Glitch', 'WhipPan', 'FilmBurn', 'CrossDissolve', 'ZoomBlur'];
+
+    const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+    const audioSrc = audioTrack?.clips[0]?.source;
+
+    let beatTimes = [];
+    if (audioSrc) {
+      try {
+        beatTimes = await audio.detectBeats(audioSrc, videoTrack.clips.length + 1);
+      } catch (e) {
+        console.warn('Beat detection fallback:', e);
+      }
+    }
 
     let t = 0;
     videoTrack.clips.forEach((clip, idx) => {
+      let dur = 2.5; // fallback
+      if (beatTimes.length > idx + 1) {
+        const beatDelta = beatTimes[idx + 1] - (beatTimes[idx] || 0);
+        if (beatDelta >= 0.6 && beatDelta <= 6.0) {
+          dur = parseFloat(beatDelta.toFixed(2));
+        }
+      }
+
       clip.startTime = t;
-      clip.duration = beatInterval;
+      clip.duration = dur;
       clip.motion = motions[idx % motions.length];
-      clip.transitionOut = { type: 'CrossDissolve', duration: 0.5 };
-      t += beatInterval;
+      clip.transitionOut = {
+        type: transitions[idx % transitions.length],
+        duration: Math.min(0.5, dur * 0.3)
+      };
+      t += dur;
     });
 
-    // Match audio track length to video duration
-    const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
     if (audioTrack && audioTrack.clips.length > 0) {
       audioTrack.clips[0].duration = t;
     }
@@ -1250,7 +1274,9 @@
     refreshTimeline();
     updateInspector();
     requestRender();
-    alert(`⚡ Beat Sync Applied! ${videoTrack.clips.length} photos arranged in rhythm (${t.toFixed(1)}s total).`);
+
+    const beatStatus = beatTimes.length > 0 ? `Detected ${beatTimes.length} musical transients` : 'Using rhythmic 2.5s intervals';
+    alert(`⚡ Magic Beat Sync Complete! ${beatStatus}. ${videoTrack.clips.length} photos synced with punchy transitions.`);
   }
 
   function populateMobileStylesSheet() {
@@ -1965,6 +1991,27 @@
     document.getElementById('select-text-font').addEventListener('change', (e) => {
       if (selectedClip && selectedClip.overlay) selectedClip.overlay.fontFamily = e.target.value;
     });
+
+    // Motion, Transition & Particle Selectors
+    document.getElementById('select-clip-motion')?.addEventListener('change', (e) => {
+      if (selectedClip && selectedClip.source) {
+        selectedClip.motion = e.target.value;
+        requestRender();
+      }
+    });
+
+    document.getElementById('select-clip-transition')?.addEventListener('change', (e) => {
+      if (selectedClip && selectedClip.source) {
+        if (!selectedClip.transitionOut) selectedClip.transitionOut = { duration: 0.5 };
+        selectedClip.transitionOut.type = e.target.value;
+        requestRender();
+      }
+    });
+
+    document.getElementById('select-particle-fx')?.addEventListener('change', (e) => {
+      currentProject.particleEffect = e.target.value;
+      requestRender();
+    });
   }
 
   function bindSlider(sliderId, valId, onChange, unit = '') {
@@ -1996,6 +2043,9 @@
     const textSec = document.getElementById('inspector-text-section');
     const titleLabel = document.getElementById('inspector-clip-title');
 
+    const particleSelect = document.getElementById('select-particle-fx');
+    if (particleSelect) particleSelect.value = currentProject.particleEffect || 'none';
+
     if (!selectedClip) {
       titleLabel.textContent = 'NO CLIP SELECTED';
       textSec.style.display = 'none';
@@ -2005,6 +2055,12 @@
     if (selectedClip.source) {
       titleLabel.textContent = (selectedClip.name || 'PHOTO CLIP').toUpperCase();
       textSec.style.display = 'none';
+
+      const motionSelect = document.getElementById('select-clip-motion');
+      if (motionSelect) motionSelect.value = selectedClip.motion || 'KenBurns';
+
+      const transSelect = document.getElementById('select-clip-transition');
+      if (transSelect) transSelect.value = selectedClip.transitionOut?.type || 'CrossDissolve';
 
       const tf = selectedClip.transform || { rotationDegrees: 0, scaleX: 1.0, opacity: 1.0 };
       document.getElementById('input-rotation-angle').value = tf.rotationDegrees || 0;
@@ -2218,7 +2274,8 @@
     div.style.left = `${clip.startTime * timelineZoom}px`;
     div.style.width = `${clip.duration * timelineZoom}px`;
     div.innerHTML = `
-      <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; pointer-events:none;">${label} (${clip.duration.toFixed(1)}s)</span>
+      <div class="clip-trim-left-handle" title="Drag to trim start"></div>
+      <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; margin:0 12px;">${label} (${clip.duration.toFixed(1)}s)</span>
       <div class="clip-resize-handle" title="Drag to adjust duration"></div>
     `;
 
@@ -2241,7 +2298,7 @@
     });
 
     div.addEventListener('click', (e) => {
-      if (e.target.classList.contains('clip-resize-handle')) return;
+      if (e.target.classList.contains('clip-resize-handle') || e.target.classList.contains('clip-trim-left-handle')) return;
       e.stopPropagation();
       selectedClip = clip;
       seek(clip.startTime);
@@ -2254,7 +2311,7 @@
       }
     });
 
-    // Duration Resize Handle Dragging (Mouse & Touch)
+    // 1. Right Duration Resize Handle Dragging (Mouse & Touch)
     const resizeHandle = div.querySelector('.clip-resize-handle');
     let isResizing = false;
     let startX = 0;
@@ -2324,6 +2381,74 @@
 
     window.addEventListener('mouseup', onResizeEnd);
     window.addEventListener('touchend', onResizeEnd);
+
+    // 2. Left Start-Trim Handle Dragging (Mouse & Touch)
+    const trimLeftHandle = div.querySelector('.clip-trim-left-handle');
+    let isTrimmingLeft = false;
+    let trimStartX = 0;
+    let origStartTime = clip.startTime;
+    let origDuration = clip.duration;
+
+    function onTrimLeftStart(clientX) {
+      isTrimmingLeft = true;
+      trimStartX = clientX;
+      origStartTime = clip.startTime;
+      origDuration = clip.duration;
+      pushHistory();
+    }
+
+    function onTrimLeftMove(clientX) {
+      if (!isTrimmingLeft) return;
+      const deltaX = clientX - trimStartX;
+      const deltaSec = deltaX / timelineZoom;
+
+      const maxShift = origDuration - 0.5; // keep at least 0.5s duration
+      const clampedDelta = Math.max(-origStartTime, Math.min(maxShift, deltaSec));
+
+      clip.startTime = parseFloat((origStartTime + clampedDelta).toFixed(1));
+      clip.duration = parseFloat((origDuration - clampedDelta).toFixed(1));
+
+      div.style.left = `${clip.startTime * timelineZoom}px`;
+      div.style.width = `${clip.duration * timelineZoom}px`;
+
+      recalculateDuration();
+      updateInspector();
+      updatePlayheadPosition();
+    }
+
+    function onTrimLeftEnd() {
+      if (isTrimmingLeft) {
+        isTrimmingLeft = false;
+        refreshTimeline();
+        updateInspector();
+      }
+    }
+
+    trimLeftHandle?.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      onTrimLeftStart(e.clientX);
+    });
+
+    trimLeftHandle?.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      if (e.touches.length > 0) {
+        onTrimLeftStart(e.touches[0].clientX);
+      }
+    }, { passive: false });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isTrimmingLeft) onTrimLeftMove(e.clientX);
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isTrimmingLeft && e.touches.length > 0) {
+        onTrimLeftMove(e.touches[0].clientX);
+      }
+    }, { passive: false });
+
+    window.addEventListener('mouseup', onTrimLeftEnd);
+    window.addEventListener('touchend', onTrimLeftEnd);
 
     return div;
   }
@@ -2609,6 +2734,166 @@
         exportBtn.disabled = false;
         exportBtn.textContent = 'Render & Download MP4';
       }
+    });
+  }
+
+  // --- Native Web Speech AI Voiceover & Karaoke Subtitles Setup (100% Free & Native) ---
+  function setupVoiceoverModal() {
+    const modal = document.getElementById('voiceover-modal');
+    const closeBtn = document.getElementById('btn-close-voiceover');
+    const previewBtn = document.getElementById('btn-preview-voice');
+    const createBtn = document.getElementById('btn-create-voiceover');
+    const textInput = document.getElementById('voiceover-script-input');
+    const voiceSelect = document.getElementById('voiceover-voice-select');
+    const rateSelect = document.getElementById('voiceover-rate-select');
+
+    function populateVoices() {
+      if (!voiceSelect) return;
+      voiceSelect.innerHTML = '';
+      const voices = audio.getAvailableVoices();
+      if (voices.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Default System Voice';
+        voiceSelect.appendChild(opt);
+        return;
+      }
+      voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})${v.default ? ' — Recommended' : ''}`;
+        voiceSelect.appendChild(opt);
+      });
+    }
+
+    populateVoices();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = populateVoices;
+    }
+
+    document.getElementById('editor-add-voiceover-btn')?.addEventListener('click', () => {
+      populateVoices();
+      modal?.classList.add('active');
+    });
+
+    closeBtn?.addEventListener('click', () => {
+      window.speechSynthesis?.cancel();
+      modal?.classList.remove('active');
+    });
+
+    previewBtn?.addEventListener('click', async () => {
+      const text = textInput?.value?.trim() || 'Welcome to our sunset adventure!';
+      const voiceName = voiceSelect?.value;
+      const rate = parseFloat(rateSelect?.value || '1.0');
+      try {
+        const res = await audio.synthesizeSpeech(text, { voiceName, rate });
+        window.speechSynthesis.speak(res.utterance);
+      } catch (err) {
+        alert('Voice preview error: ' + err.message);
+      }
+    });
+
+    createBtn?.addEventListener('click', async () => {
+      const text = textInput?.value?.trim();
+      if (!text) {
+        alert('Please enter some narration text first!');
+        return;
+      }
+      const voiceName = voiceSelect?.value;
+      const rate = parseFloat(rateSelect?.value || '1.0');
+
+      createBtn.disabled = true;
+      createBtn.textContent = 'Generating Voiceover & Subtitles...';
+
+      try {
+        pushHistory();
+        const res = await audio.synthesizeSpeech(text, { voiceName, rate });
+
+        // 1. Add/Update Voiceover Track in Timeline
+        let voiceTrack = currentProject.timeline.tracks.find(t => t.type === 'voiceover');
+        if (!voiceTrack) {
+          voiceTrack = { id: 'track-voiceover-1', type: 'voiceover', clips: [] };
+          currentProject.timeline.tracks.push(voiceTrack);
+        }
+
+        voiceTrack.clips = [{
+          id: `clip-vo-${Date.now()}`,
+          name: `🎙 ${text.slice(0, 20)}...`,
+          startTime: currentTime,
+          duration: res.duration,
+          text: text,
+          volume: 1.0
+        }];
+
+        // 2. Add Synchronized Bouncing Karaoke Subtitles Overlay
+        let overlayTrack = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+        if (!overlayTrack) {
+          overlayTrack = { id: 'track-overlay-1', type: 'overlay', clips: [] };
+          currentProject.timeline.tracks.push(overlayTrack);
+        }
+
+        const subtitleClip = {
+          id: `clip-karaoke-${Date.now()}`,
+          name: 'Karaoke Subtitles',
+          startTime: currentTime,
+          duration: res.duration,
+          words: res.words,
+          overlay: {
+            text: text,
+            fontFamily: 'Montserrat',
+            fontSize: 54,
+            colorHex: '#FFFFFF',
+            entryAnimation: 'Pop',
+            animationDuration: 0.3
+          },
+          transform: { anchorX: 0.5, anchorY: 0.82 }
+        };
+
+        overlayTrack.clips.push(subtitleClip);
+        selectedClip = subtitleClip;
+
+        recalculateDuration();
+        refreshTimeline();
+        updateInspector();
+        requestRender();
+
+        modal?.classList.remove('active');
+        alert(`✨ Voiceover & Bouncing Karaoke Subtitles generated (${res.duration}s)!`);
+      } catch (err) {
+        alert('Voice generation error: ' + err.message);
+      } finally {
+        createBtn.disabled = false;
+        createBtn.textContent = '✨ Generate & Sync Subtitles';
+      }
+    });
+  }
+
+  // --- Social Media Safe Zones & 1-Click Cover Photo Export (100% Free & Native) ---
+  function setupSafeZonesAndCoverExport() {
+    const safeZoneSelect = document.getElementById('editor-safezone-select');
+    safeZoneSelect?.addEventListener('change', (e) => {
+      currentProject.safeZone = e.target.value;
+      requestRender();
+    });
+
+    document.getElementById('btn-export-cover')?.addEventListener('click', () => {
+      const prevSafeZone = currentProject.safeZone;
+      currentProject.safeZone = 'none';
+      engine.render(currentProject, currentTime);
+
+      canvas.toBlob((blob) => {
+        currentProject.safeZone = prevSafeZone;
+        requestRender();
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(currentProject.metadata?.name || 'cover').replace(/[^a-zA-Z0-9_-]/g, '_')}_thumb.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 'image/jpeg', 0.95);
     });
   }
 
