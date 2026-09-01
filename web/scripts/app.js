@@ -47,6 +47,7 @@
     setupVoiceoverModal();
     setupSafeZonesAndCoverExport();
     setupAutosaveAndRecovery();
+    setupPWAInstall();
 
     // Populate initial sample content
     populateSampleMedia();
@@ -1869,6 +1870,27 @@
       refreshMediaLibrary();
     });
 
+    // Video uploads in editor
+    const editorVideoInput = document.getElementById('editor-video-input');
+    const editorAddVideoBtn = document.getElementById('editor-add-video-btn');
+    if (editorAddVideoBtn && editorVideoInput) {
+      editorAddVideoBtn.addEventListener('click', () => editorVideoInput.click());
+      editorVideoInput.addEventListener('change', (e) => {
+        pushHistory();
+        Array.from(e.target.files).forEach(file => {
+          if (file.type.startsWith('video/')) {
+            const url = URL.createObjectURL(file);
+            currentProject.assets.push({ id: `asset-vid-${Date.now()}-${Math.random()}`, name: file.name, type: 'video', source: url });
+            engine.loadVideo(url).then(vid => {
+              addVideoClipToTimeline(url, file.name, vid ? vid.duration : 5.0);
+            });
+          }
+        });
+        editorVideoInput.value = '';
+        refreshMediaLibrary();
+      });
+    }
+
     const editorMusicInput = document.getElementById('editor-music-input');
     document.getElementById('editor-add-music-btn').addEventListener('click', () => editorMusicInput.click());
     editorMusicInput.addEventListener('change', (e) => {
@@ -1884,10 +1906,28 @@
       editorMusicInput.value = '';
     });
 
+    const editorAddSocialBtn = document.getElementById('editor-add-social-btn');
+    if (editorAddSocialBtn) {
+      editorAddSocialBtn.addEventListener('click', () => {
+        pushHistory();
+        addSocialBadgeAtPlayhead('@videocreator', 'instagram');
+      });
+    }
+
     document.getElementById('editor-add-text-btn').addEventListener('click', () => {
       pushHistory();
       addTextAtPlayhead('New Title', 'Inter', 48, '#FFFFFF');
     });
+
+    // SFX Menu Triggers
+    document.getElementById('menu-insert-sfx-whoosh')?.addEventListener('click', () => audio.playSFX('whoosh'));
+    document.getElementById('menu-insert-sfx-shutter')?.addEventListener('click', () => audio.playSFX('shutter'));
+    document.getElementById('menu-insert-sfx-pop')?.addEventListener('click', () => audio.playSFX('pop'));
+    document.getElementById('menu-insert-social')?.addEventListener('click', () => {
+      pushHistory();
+      addSocialBadgeAtPlayhead('@videocreator', 'instagram');
+    });
+    document.getElementById('menu-file-import-video')?.addEventListener('click', () => editorVideoInput?.click());
 
     // Populate Reels Templates Cards
     populateReelsTemplates();
@@ -1962,6 +2002,61 @@
     recalculateDuration();
     refreshTimeline();
     updateInspector();
+  }
+
+  function addVideoClipToTimeline(sourceUrl, name, dur = 5.0) {
+    const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+    if (!videoTrack) return;
+    const startTime = videoTrack.clips.length > 0
+      ? videoTrack.clips[videoTrack.clips.length - 1].startTime + videoTrack.clips[videoTrack.clips.length - 1].duration
+      : 0;
+    const clipDur = Math.max(1.0, isFinite(dur) && dur > 0 ? dur : 5.0);
+    const newClip = {
+      id: `clip-vid-${Date.now()}-${Math.random()}`,
+      name: name || 'Video Clip',
+      mediaType: 'video',
+      source: sourceUrl,
+      startTime: startTime,
+      duration: clipDur,
+      cropMode: 'BlurBackground',
+      motion: 'KenBurns',
+      transitionOut: { type: 'CrossDissolve', duration: 0.6 },
+      transform: { scaleX: 1.0, rotationDegrees: 0, opacity: 1.0, positionX: 0, positionY: 0 },
+      colorGrading: { exposure: 0, contrast: 50, saturation: 100 }
+    };
+    videoTrack.clips.push(newClip);
+    selectedClip = newClip;
+    recalculateDuration();
+    refreshTimeline();
+    updateInspector();
+    requestRender();
+  }
+
+  function addSocialBadgeAtPlayhead(handle = '@videocreator', platform = 'instagram') {
+    let overlayTrack = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+    if (!overlayTrack) {
+      overlayTrack = { id: 'track-overlay-1', type: 'overlay', clips: [] };
+      currentProject.timeline.tracks.push(overlayTrack);
+    }
+    const newClip = {
+      id: `clip-badge-${Date.now()}`,
+      name: `${platform.toUpperCase()} Badge`,
+      startTime: currentTime,
+      duration: 3.5,
+      socialBadge: {
+        type: 'social_badge',
+        platform: platform,
+        handle: handle,
+        animationDuration: 0.5
+      },
+      transform: { anchorX: 0.5, anchorY: 0.88 }
+    };
+    overlayTrack.clips.push(newClip);
+    selectedClip = newClip;
+    recalculateDuration();
+    refreshTimeline();
+    updateInspector();
+    requestRender();
   }
 
   function setProjectMusic(url, trackName = 'Music Track') {
@@ -2060,6 +2155,50 @@
       currentProject.particleEffect = e.target.value;
       requestRender();
     });
+
+    // Keyframe Engine Controls
+    document.getElementById('btn-add-keyframe')?.addEventListener('click', () => {
+      if (!selectedClip) return;
+      pushHistory();
+      if (!selectedClip.keyframes) selectedClip.keyframes = [];
+      const relTime = Math.max(0, Math.min(selectedClip.duration, currentTime - selectedClip.startTime));
+      const tf = selectedClip.transform || { scaleX: 1.0, rotationDegrees: 0, opacity: 1.0, positionX: 0, positionY: 0 };
+      const existingIdx = selectedClip.keyframes.findIndex(k => Math.abs(k.time - relTime) < 0.1);
+      const newKf = {
+        time: parseFloat(relTime.toFixed(2)),
+        scaleX: tf.scaleX || 1.0,
+        rotationDegrees: tf.rotationDegrees || 0,
+        opacity: tf.opacity !== undefined ? tf.opacity : 1.0,
+        x: tf.positionX || 0,
+        y: tf.positionY || 0
+      };
+      if (existingIdx !== -1) {
+        selectedClip.keyframes[existingIdx] = newKf;
+      } else {
+        selectedClip.keyframes.push(newKf);
+      }
+      updateInspector();
+      refreshTimeline();
+      requestRender();
+    });
+
+    // Viral Reel Progress Bar Toggle
+    document.getElementById('checkbox-progress-bar')?.addEventListener('change', (e) => {
+      pushHistory();
+      if (!currentProject.progressBar) currentProject.progressBar = {};
+      currentProject.progressBar.enabled = e.target.checked;
+      currentProject.progressBar.color = '#38BDF8';
+      requestRender();
+    });
+
+    // 1-Click Magic Auto-HDR
+    document.getElementById('btn-auto-hdr')?.addEventListener('click', () => {
+      if (!selectedClip) return;
+      pushHistory();
+      engine.applyAutoHdr(selectedClip);
+      updateInspector();
+      requestRender();
+    });
   }
 
   function bindSlider(sliderId, valId, onChange, unit = '') {
@@ -2094,6 +2233,18 @@
     const particleSelect = document.getElementById('select-particle-fx');
     if (particleSelect) particleSelect.value = currentProject.particleEffect || 'none';
 
+    const kfLabel = document.getElementById('keyframe-status-label');
+    if (kfLabel) {
+      const kfCount = selectedClip?.keyframes?.length || 0;
+      kfLabel.textContent = kfCount > 0 ? `◆ ${kfCount} keyframe(s) active` : 'No custom keyframes';
+      kfLabel.style.color = kfCount > 0 ? '#38BDF8' : '#64748B';
+    }
+
+    const pbCheckbox = document.getElementById('checkbox-progress-bar');
+    if (pbCheckbox) {
+      pbCheckbox.checked = !!currentProject.progressBar?.enabled;
+    }
+
     if (!selectedClip) {
       titleLabel.textContent = 'NO CLIP SELECTED';
       textSec.style.display = 'none';
@@ -2101,7 +2252,7 @@
     }
 
     if (selectedClip.source) {
-      titleLabel.textContent = (selectedClip.name || 'PHOTO CLIP').toUpperCase();
+      titleLabel.textContent = (selectedClip.name || (selectedClip.mediaType === 'video' ? 'VIDEO CLIP' : 'PHOTO CLIP')).toUpperCase();
       textSec.style.display = 'none';
 
       const motionSelect = document.getElementById('select-clip-motion');
@@ -2125,11 +2276,11 @@
       document.getElementById('val-contrast').textContent = `${cg.contrast || 50}`;
       document.getElementById('input-saturation').value = cg.saturation || 100;
       document.getElementById('val-saturation').textContent = `${cg.saturation || 100}`;
-    } else if (selectedClip.overlay) {
-      titleLabel.textContent = 'TITLES OVERLAY';
+    } else if (selectedClip.overlay || selectedClip.socialBadge) {
+      titleLabel.textContent = selectedClip.socialBadge ? 'SOCIAL BADGE' : 'TITLES OVERLAY';
       textSec.style.display = 'block';
-      const ov = selectedClip.overlay;
-      document.getElementById('input-text-content').value = ov.text || '';
+      const ov = selectedClip.overlay || selectedClip.socialBadge || {};
+      document.getElementById('input-text-content').value = ov.handle || ov.text || '';
       document.getElementById('select-text-font').value = ov.fontFamily || 'Inter';
     }
   }
@@ -2198,6 +2349,7 @@
       }
 
       updatePlayheadPosition();
+      audio.updateDucking(currentProject, currentTime);
       engine.render(currentProject, currentTime);
       animFrameId = requestAnimationFrame(loop);
     }
@@ -2317,8 +2469,10 @@
   }
 
   function createClipBlock(clip, className, label) {
+    const isVid = clip.mediaType === 'video' || (clip.source && (clip.source.includes('.mp4') || clip.source.includes('.webm')));
+    const extraClass = isVid ? 'is-video-footage' : '';
     const div = document.createElement('div');
-    div.className = `clip-block ${className} ${selectedClip === clip ? 'selected' : ''}`;
+    div.className = `clip-block ${className} ${extraClass} ${selectedClip === clip ? 'selected' : ''}`;
     div.style.left = `${clip.startTime * timelineZoom}px`;
     div.style.width = `${clip.duration * timelineZoom}px`;
     div.innerHTML = `
@@ -2326,6 +2480,18 @@
       <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; margin:0 12px;">${label} (${clip.duration.toFixed(1)}s)</span>
       <div class="clip-resize-handle" title="Drag to adjust duration"></div>
     `;
+
+    // Render Diamond Keyframe Markers if present
+    if (clip.keyframes && clip.keyframes.length > 0) {
+      clip.keyframes.forEach(kf => {
+        const marker = document.createElement('div');
+        marker.className = 'keyframe-marker';
+        const pct = Math.max(0, Math.min(100, (kf.time / clip.duration) * 100));
+        marker.style.left = `${pct}%`;
+        marker.title = `Keyframe at ${kf.time}s`;
+        div.appendChild(marker);
+      });
+    }
 
     // Long press detection for mobile
     let longPressTimer = null;
@@ -2722,9 +2888,8 @@
       if (directDownloadBtn) directDownloadBtn.style.display = 'none';
     });
 
-    let lastExportResult = null;
-
     exportBtn.addEventListener('click', async () => {
+      const format = document.getElementById('export-format-select')?.value || 'mp4';
       const res = document.getElementById('export-resolution-select')?.value || '1080';
       const fps = parseInt(document.getElementById('export-fps-select')?.value) || 30;
 
@@ -2736,46 +2901,82 @@
       progressLabel.textContent = 'Preparing render engine...';
 
       try {
-        const result = await exporter.exportVideo(currentProject, { resolution: res, fps: fps }, (p) => {
-          progressFill.style.width = `${p.percentage}%`;
-          progressLabel.textContent = `Encoding MP4: ${p.percentage}% (${p.currentTime}s / ${p.totalDuration}s)`;
-        });
+        if (format === 'gif') {
+          const result = await exporter.exportAsGif(currentProject, {}, (p) => {
+            progressFill.style.width = `${p.percentage}%`;
+            progressLabel.textContent = `Generating GIF: ${p.percentage}%`;
+          });
+          lastExportResult = result;
+          progressLabel.textContent = '✓ Animated GIF Created Successfully!';
+          const fileName = `${(currentProject.metadata?.name || 'meme').replace(/[^a-zA-Z0-9_-]/g, '_')}.gif`;
+          if (directDownloadBtn) {
+            directDownloadBtn.href = result.url;
+            directDownloadBtn.download = fileName;
+            directDownloadBtn.style.display = 'block';
+          }
+          const a = document.createElement('a');
+          a.href = result.url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else if (format === 'batch') {
+          const results = await exporter.exportBatch(currentProject, ['16:9', '9:16'], { resolution: res, fps: fps }, (p) => {
+            progressFill.style.width = `${p.percentage}%`;
+            progressLabel.textContent = p.stage;
+          });
+          progressLabel.textContent = '✓ Multi-Format Batch Export Completed!';
+          results.forEach(item => {
+            const a = document.createElement('a');
+            a.href = item.result.url;
+            const baseName = (currentProject.metadata?.name || 'video').replace(/[^a-zA-Z0-9_-]/g, '_');
+            a.download = `${baseName}_${item.format.replace(':', 'x')}.${item.result.ext}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          });
+        } else {
+          const result = await exporter.exportVideo(currentProject, { resolution: res, fps: fps }, (p) => {
+            progressFill.style.width = `${p.percentage}%`;
+            progressLabel.textContent = `Encoding MP4: ${p.percentage}% (${p.currentTime}s / ${p.totalDuration}s)`;
+          });
 
-        lastExportResult = result;
-        progressLabel.textContent = '✓ Video Rendered Successfully!';
+          lastExportResult = result;
+          progressLabel.textContent = '✓ Video Rendered Successfully!';
 
-        const fileName = `${(currentProject.metadata?.name || 'video').replace(/[^a-zA-Z0-9_-]/g, '_')}.${result.ext}`;
+          const fileName = `${(currentProject.metadata?.name || 'video').replace(/[^a-zA-Z0-9_-]/g, '_')}.${result.ext}`;
 
-        // Set direct download button
-        if (directDownloadBtn) {
-          directDownloadBtn.href = result.url;
-          directDownloadBtn.download = fileName;
-          directDownloadBtn.style.display = 'block';
-        }
+          // Set direct download button
+          if (directDownloadBtn) {
+            directDownloadBtn.href = result.url;
+            directDownloadBtn.download = fileName;
+            directDownloadBtn.style.display = 'block';
+          }
 
-        // Trigger automatic download
-        const a = document.createElement('a');
-        a.href = result.url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+          // Trigger automatic download
+          const a = document.createElement('a');
+          a.href = result.url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
 
-        // Show native Share button if available on device (Mobile WhatsApp / Social Media)
-        const fileObj = new File([result.blob], fileName, { type: result.blob.type });
-        if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
-          shareBtn.style.display = 'block';
-          shareBtn.onclick = async () => {
-            try {
-              await navigator.share({
-                files: [fileObj],
-                title: currentProject.metadata?.name || 'VideoCreator Story',
-                text: 'Created with VideoCreator Pro Studio'
-              });
-            } catch (err) {
-              if (err.name !== 'AbortError') console.warn('Share error:', err);
-            }
-          };
+          // Show native Share button if available on device (Mobile WhatsApp / Social Media)
+          const fileObj = new File([result.blob], fileName, { type: result.blob.type });
+          if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
+            shareBtn.style.display = 'block';
+            shareBtn.onclick = async () => {
+              try {
+                await navigator.share({
+                  files: [fileObj],
+                  title: currentProject.metadata?.name || 'VideoCreator Story',
+                  text: 'Created with VideoCreator Pro Studio'
+                });
+              } catch (err) {
+                if (err.name !== 'AbortError') console.warn('Share error:', err);
+              }
+            };
+          }
         }
 
         exportBtn.disabled = false;
@@ -2783,7 +2984,7 @@
       } catch (err) {
         alert('Export failed: ' + err.message);
         exportBtn.disabled = false;
-        exportBtn.textContent = 'Render & Download MP4';
+        exportBtn.textContent = 'Render & Download';
       }
     });
   }
@@ -3033,6 +3234,41 @@
   function applyTemplate(template) {
     wizardState.template = template;
     wizardState.aspectRatio = template.aspectRatio;
+  }
+
+  // --- Progressive Web App (PWA) Offline & Desktop Install Service ---
+  function setupPWAInstall() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        console.log('[PWA] Service Worker active, offline studio ready:', reg.scope);
+      }).catch(err => {
+        console.warn('[PWA] Service Worker registration failed:', err);
+      });
+    }
+
+    let deferredInstallPrompt = null;
+    const installBtn = document.getElementById('btn-install-pwa');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      if (installBtn) {
+        installBtn.style.display = 'inline-flex';
+        installBtn.onclick = async () => {
+          if (!deferredInstallPrompt) return;
+          deferredInstallPrompt.prompt();
+          const { outcome } = await deferredInstallPrompt.userChoice;
+          console.log('[PWA] User response to install:', outcome);
+          deferredInstallPrompt = null;
+          installBtn.style.display = 'none';
+        };
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      console.log('[PWA] VideoCreator successfully installed!');
+      if (installBtn) installBtn.style.display = 'none';
+    });
   }
 
   window.addEventListener('DOMContentLoaded', init);

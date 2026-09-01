@@ -17,6 +17,11 @@ class VideoWebExporter {
   }
 
   async exportVideo(project, options = {}, onProgress) {
+    // Check if GIF export is requested
+    if (options.format === 'gif') {
+      return await this.exportAsGif(project, options, onProgress);
+    }
+
     // Try WebCodecs + Mp4Muxer first for 100% native universal MP4 export
     const canUseWebCodecs = typeof window.VideoEncoder !== 'undefined' && 
                            typeof window.VideoFrame !== 'undefined' && 
@@ -695,6 +700,189 @@ class VideoWebExporter {
     patched.set(bytes.subarray(insertPos), insertPos + durationTag.length);
 
     return new Blob([patched.buffer], { type: blob.type });
+  }
+
+  // --- 1-Click Native Animated GIF Exporter (100% Free & In-Browser) ---
+  async exportAsGif(project, options = {}, onProgress) {
+    const isPortrait = (project.canvas.height / project.canvas.width) > 1.1;
+    const targetWidth = isPortrait ? 360 : 480;
+    const targetHeight = isPortrait ? 640 : 270;
+    const fps = 12;
+    const totalDuration = Math.min(8.0, project.timeline.totalDuration || 4.0);
+    const totalFrames = Math.max(1, Math.round(totalDuration * fps));
+
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = targetWidth;
+    exportCanvas.height = targetHeight;
+    const exportEngine = new VideoCanvasEngine(exportCanvas);
+
+    if (this.engine && this.engine.imageCache) {
+      this.engine.imageCache.forEach((img, src) => {
+        if (img && img.naturalWidth > 0 && img.complete) {
+          exportEngine.imageCache.set(src, img);
+          exportEngine.createPreBlurredBackground(src, img);
+        }
+      });
+    }
+
+    const ctx = exportCanvas.getContext('2d', { willReadFrequently: true });
+    const framesData = [];
+
+    for (let frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
+      const curTime = (frameIdx / fps);
+      exportEngine.render(project, curTime);
+      const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+      framesData.push(imgData);
+
+      if (onProgress) {
+        onProgress({
+          percentage: Math.round((frameIdx / totalFrames) * 60),
+          currentTime: curTime.toFixed(1),
+          totalDuration: totalDuration.toFixed(1)
+        });
+      }
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    const gifBlob = this._encodeGif89a(framesData, targetWidth, targetHeight, Math.round(100 / fps), (encProg) => {
+      if (onProgress) {
+        onProgress({
+          percentage: 60 + Math.round(encProg * 40),
+          currentTime: totalDuration.toFixed(1),
+          totalDuration: totalDuration.toFixed(1)
+        });
+      }
+    });
+
+    const url = URL.createObjectURL(gifBlob);
+    return {
+      blob: gifBlob,
+      url: url,
+      ext: 'gif',
+      mimeType: 'image/gif'
+    };
+  }
+
+  // --- Fast In-Browser GIF89a Byte Stream Generator ---
+  _encodeGif89a(frames, width, height, delayCentisec, onProg) {
+    const bytes = [];
+    function writeStr(s) { for (let i = 0; i < s.length; i++) bytes.push(s.charCodeAt(i)); }
+    function writeShort(val) { bytes.push(val & 0xFF, (val >> 8) & 0xFF); }
+
+    // 1. Header
+    writeStr('GIF89a');
+
+    // 2. Logical Screen Descriptor
+    writeShort(width);
+    writeShort(height);
+    bytes.push(0xF5); // 64-color global color table flag (2^(5+1) = 64 colors)
+    bytes.push(0x00); // background color index
+    bytes.push(0x00); // pixel aspect ratio
+
+    // 3. Global Color Table (64 Uniform RGB Palette)
+    const palette = [];
+    for (let r = 0; r < 4; r++) {
+      for (let g = 0; g < 4; g++) {
+        for (let b = 0; b < 4; b++) {
+          const pr = Math.round((r / 3) * 255);
+          const pg = Math.round((g / 3) * 255);
+          const pb = Math.round((b / 3) * 255);
+          palette.push([pr, pg, pb]);
+          bytes.push(pr, pg, pb);
+        }
+      }
+    }
+
+    // 4. Netscape 2.0 Loop Extension
+    bytes.push(0x21, 0xFF, 0x0B);
+    writeStr('NETSCAPE2.0');
+    bytes.push(0x03, 0x01, 0x00, 0x00, 0x00); // Infinite loop
+
+    // 5. Render Each Frame
+    frames.forEach((imgData, frameIdx) => {
+      // Graphic Control Extension
+      bytes.push(0x21, 0xF9, 0x04, 0x04); // Disposal method 1 (do not dispose)
+      writeShort(delayCentisec || 8);
+      bytes.push(0x00, 0x00);
+
+      // Image Descriptor
+      bytes.push(0x2C);
+      writeShort(0); // left
+      writeShort(0); // top
+      writeShort(width);
+      writeShort(height);
+      bytes.push(0x00); // no local color table
+
+      // Frame Pixel Indexing to 64-color Palette
+      const data = imgData.data;
+      const numPixels = width * height;
+      const indexedPixels = new Uint8Array(numPixels);
+
+      for (let i = 0; i < numPixels; i++) {
+        const off = i * 4;
+        const r = Math.min(3, Math.floor(data[off] / 64));
+        const g = Math.min(3, Math.floor(data[off + 1] / 64));
+        const b = Math.min(3, Math.floor(data[off + 2] / 64));
+        indexedPixels[i] = (r * 16) + (g * 4) + b;
+      }
+
+      // Uncompressed/Literal LZW Sub-blocks
+      const minCodeSize = 6;
+      bytes.push(minCodeSize);
+
+      const clearCode = 1 << minCodeSize; // 64
+      const eoiCode = clearCode + 1;       // 65
+
+      let subBlock = [clearCode];
+      for (let i = 0; i < numPixels; i++) {
+        subBlock.push(indexedPixels[i]);
+        if (subBlock.length >= 254) {
+          bytes.push(subBlock.length);
+          for (let b = 0; b < subBlock.length; b++) bytes.push(subBlock[b]);
+          subBlock = [];
+        }
+      }
+
+      subBlock.push(eoiCode);
+      if (subBlock.length > 0) {
+        bytes.push(subBlock.length);
+        for (let b = 0; b < subBlock.length; b++) bytes.push(subBlock[b]);
+      }
+      bytes.push(0x00); // Block Terminator
+
+      if (onProg) onProg((frameIdx + 1) / frames.length);
+    });
+
+    // 6. Trailer
+    bytes.push(0x3B);
+
+    return new Blob([new Uint8Array(bytes)], { type: 'image/gif' });
+  }
+
+  // --- Multi-Resolution Batch Exporter (1-Click Multi-Format Export) ---
+  async exportBatch(project, formats = ['16:9', '9:16'], options = {}, onProgress) {
+    const results = [];
+    for (let i = 0; i < formats.length; i++) {
+      const fmt = formats[i];
+      const clonedProject = JSON.parse(JSON.stringify(project));
+      if (fmt === '9:16') {
+        clonedProject.canvas.width = 1080;
+        clonedProject.canvas.height = 1920;
+      } else {
+        clonedProject.canvas.width = 1920;
+        clonedProject.canvas.height = 1080;
+      }
+
+      const res = await this.exportVideo(clonedProject, options, (p) => {
+        if (onProgress) {
+          const overall = Math.round(((i + p.percentage / 100) / formats.length) * 100);
+          onProgress({ percentage: overall, stage: `Rendering ${fmt} (${i + 1}/${formats.length})` });
+        }
+      });
+
+      results.push({ format: fmt, result: res });
+    }
+    return results;
   }
 }
 

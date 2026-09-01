@@ -385,6 +385,136 @@ class WebAudioPlayer {
     if (!('speechSynthesis' in window)) return [];
     return window.speechSynthesis.getVoices();
   }
+
+  // --- Smart Audio Ducking (100% Free & Native) ---
+  updateDucking(project, currentTime) {
+    if (!this.audioElement || !this.currentTrackSrc) return;
+    const voiceTrack = project?.timeline?.tracks?.find(t => (t.type === 'voiceover' || t.name?.toLowerCase().includes('voice')) && !t.isMuted);
+    const isVoiceActive = voiceTrack?.clips?.some(c => currentTime >= c.startTime && currentTime <= (c.startTime + c.duration));
+
+    const targetVolume = isVoiceActive ? (project.musicVolume !== undefined ? project.musicVolume * 0.22 : 0.22) : (project.musicVolume !== undefined ? project.musicVolume : 1.0);
+
+    const currentVol = this.audioElement.volume;
+    const delta = (targetVolume - currentVol) * 0.25;
+    if (Math.abs(delta) > 0.01) {
+      this.audioElement.volume = Math.max(0, Math.min(1, currentVol + delta));
+    } else {
+      this.audioElement.volume = targetVolume;
+    }
+  }
+
+  // --- Pure Procedural Sound Effects Synthesizer (Zero Audio Files Needed) ---
+  playSFX(type = 'whoosh') {
+    this.ensureAudioContext();
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
+
+    switch (type) {
+      case 'whoosh': {
+        const bufferSize = Math.floor(ctx.sampleRate * 0.38);
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+
+        const whiteNoise = ctx.createBufferSource();
+        whiteNoise.buffer = buffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.Q.setValueAtTime(3.0, now);
+        filter.frequency.setValueAtTime(250, now);
+        filter.frequency.exponentialRampToValueAtTime(2200, now + 0.18);
+        filter.frequency.exponentialRampToValueAtTime(150, now + 0.36);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.65, now + 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+        whiteNoise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        whiteNoise.start(now);
+        whiteNoise.stop(now + 0.4);
+        break;
+      }
+      case 'shutter': {
+        [0, 0.09].forEach(offset => {
+          const clickTime = now + offset;
+          const osc = ctx.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(320, clickTime);
+          osc.frequency.exponentialRampToValueAtTime(80, clickTime + 0.04);
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.8, clickTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, clickTime + 0.05);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(clickTime);
+          osc.stop(clickTime + 0.055);
+        });
+        break;
+      }
+      case 'pop': {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(950, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.07);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.9, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.085);
+        break;
+      }
+      case 'glitch': {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1400, now);
+        osc.frequency.setValueAtTime(450, now + 0.04);
+        osc.frequency.setValueAtTime(1800, now + 0.08);
+        osc.frequency.setValueAtTime(280, now + 0.12);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.17);
+        break;
+      }
+      case 'bell':
+      case 'chime': {
+        [1760, 2640, 3520].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.4 / (idx + 1), now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 1.25);
+        });
+        break;
+      }
+    }
+  }
 }
 
 window.WebAudioPlayer = WebAudioPlayer;

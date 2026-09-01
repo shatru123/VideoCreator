@@ -3,7 +3,33 @@ class VideoCanvasEngine {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
     this.imageCache = new Map(); // url -> Image
+    this.videoCache = new Map(); // url -> HTMLVideoElement
     this.blurCache = new Map();  // url -> offscreen Canvas (fast blurred bg)
+  }
+
+  loadVideo(src) {
+    if (!src) return Promise.resolve(null);
+    if (this.videoCache.has(src)) {
+      return Promise.resolve(this.videoCache.get(src));
+    }
+    return new Promise((resolve) => {
+      const vid = document.createElement('video');
+      vid.muted = true;
+      vid.playsInline = true;
+      vid.preload = 'auto';
+      if (src.startsWith('http://') || src.startsWith('https://')) {
+        vid.crossOrigin = 'anonymous';
+      }
+      vid.onloadeddata = () => {
+        this.videoCache.set(src, vid);
+        resolve(vid);
+      };
+      vid.onerror = () => {
+        console.warn('[VideoCanvasEngine] Video load failed for:', src);
+        resolve(null);
+      };
+      vid.src = src;
+    });
   }
 
   loadImage(src) {
@@ -101,6 +127,11 @@ class VideoCanvasEngine {
     if (project.safeZone && project.safeZone !== 'none') {
       this.renderSafeZones(ctx, width, height, project.safeZone);
     }
+
+    // 6. Render Viral Reel Animated Progress Bar if enabled
+    if (project.progressBar && project.progressBar.enabled) {
+      this.renderProgressBar(ctx, width, height, project, timestamp);
+    }
   }
 
   renderVideoTrack(ctx, track, timestamp, width, height) {
@@ -146,11 +177,67 @@ class VideoCanvasEngine {
     this.renderSingleClip(ctx, clip, localTime, width, height);
   }
 
+  evaluateKeyframes(clip, localTime) {
+    if (!clip.keyframes || clip.keyframes.length === 0) {
+      return {
+        x: clip.transform?.x || 0,
+        y: clip.transform?.y || 0,
+        scaleX: clip.transform?.scaleX !== undefined ? clip.transform.scaleX : 1.0,
+        rotationDegrees: clip.transform?.rotationDegrees || 0,
+        opacity: clip.transform?.opacity !== undefined ? clip.transform.opacity : 1.0
+      };
+    }
+
+    const kfs = [...clip.keyframes].sort((a, b) => a.time - b.time);
+    if (localTime <= kfs[0].time) return kfs[0];
+    if (localTime >= kfs[kfs.length - 1].time) return kfs[kfs.length - 1];
+
+    let prev = kfs[0], next = kfs[kfs.length - 1];
+    for (let i = 0; i < kfs.length - 1; i++) {
+      if (localTime >= kfs[i].time && localTime <= kfs[i + 1].time) {
+        prev = kfs[i];
+        next = kfs[i + 1];
+        break;
+      }
+    }
+
+    const span = Math.max(0.001, next.time - prev.time);
+    const progress = Math.min(1.0, Math.max(0.0, (localTime - prev.time) / span));
+    const ease = this.easeInOut(progress);
+
+    return {
+      x: (prev.x || 0) + ((next.x || 0) - (prev.x || 0)) * ease,
+      y: (prev.y || 0) + ((next.y || 0) - (prev.y || 0)) * ease,
+      scaleX: (prev.scaleX !== undefined ? prev.scaleX : 1.0) + ((next.scaleX !== undefined ? next.scaleX : 1.0) - (prev.scaleX !== undefined ? prev.scaleX : 1.0)) * ease,
+      rotationDegrees: (prev.rotationDegrees || 0) + ((next.rotationDegrees || 0) - (prev.rotationDegrees || 0)) * ease,
+      opacity: (prev.opacity !== undefined ? prev.opacity : 1.0) + ((next.opacity !== undefined ? next.opacity : 1.0) - (prev.opacity !== undefined ? prev.opacity : 1.0)) * ease
+    };
+  }
+
   renderSingleClip(ctx, clip, localTime, width, height) {
-    const img = this.imageCache.get(clip.source);
-    if (!img) {
-      if (clip.source) this.loadImage(clip.source);
-      return;
+    const isVideoClip = clip.mediaType === 'video' || (clip.source && (clip.source.includes('.mp4') || clip.source.includes('.webm') || clip.source.includes('video/')));
+    let media = null;
+    let mediaW = width, mediaH = height;
+
+    if (isVideoClip) {
+      media = this.videoCache.get(clip.source);
+      if (!media) {
+        if (clip.source) this.loadVideo(clip.source);
+        return;
+      }
+      mediaW = media.videoWidth || width;
+      mediaH = media.videoHeight || height;
+      if (Math.abs(media.currentTime - localTime) > 0.08) {
+        media.currentTime = Math.min(media.duration || 9999, localTime);
+      }
+    } else {
+      media = this.imageCache.get(clip.source);
+      if (!media) {
+        if (clip.source) this.loadImage(clip.source);
+        return;
+      }
+      mediaW = media.width;
+      mediaH = media.height;
     }
 
     const progress = Math.min(1.0, Math.max(0.0, localTime / clip.duration));
@@ -170,10 +257,10 @@ class VideoCanvasEngine {
     }
 
     // 2. Compute Ken Burns Camera Trajectory
-    let scale = Math.max(width / img.width, height / img.height);
+    let scale = Math.max(width / mediaW, height / mediaH);
     let transX = 0, transY = 0;
-    const maxPanX = Math.max(20, (img.width * scale - width) * 0.5);
-    const maxPanY = Math.max(20, (img.height * scale - height) * 0.5);
+    const maxPanX = Math.max(20, (mediaW * scale - width) * 0.5);
+    const maxPanY = Math.max(20, (mediaH * scale - height) * 0.5);
 
     switch (clip.motion) {
       case 'ZoomIn':
@@ -241,7 +328,7 @@ class VideoCanvasEngine {
         break;
       case 'RandomMotion':
       case 'Random': {
-        const isWide = (img.width / img.height) > (width / height);
+        const isWide = (mediaW / mediaH) > (width / height);
         if (isWide) {
           scale *= (1.02 + 0.10 * easeT);
           transX = -maxPanX * 0.5 * (1 - 2 * easeT);
@@ -255,16 +342,17 @@ class VideoCanvasEngine {
         break;
     }
 
-    // 3. User Custom Transform (Rotation, Flip, Scale, Opacity)
+    // 3. Evaluate Keyframes (Interpolated Position, Scale, Rotation, Opacity)
+    const kf = this.evaluateKeyframes(clip, localTime);
     const tf = clip.transform || {};
-    const customScale = tf.scaleX || 1.0;
-    scale *= customScale;
-    transX += (tf.positionX || 0);
-    transY += (tf.positionY || 0);
 
-    if (tf.opacity !== undefined) {
-      ctx.globalAlpha = Math.max(0, Math.min(1, tf.opacity));
-    }
+    const customScale = kf.scaleX !== undefined ? kf.scaleX : (tf.scaleX || 1.0);
+    scale *= customScale;
+    transX += (kf.x !== undefined ? kf.x : (tf.positionX || 0));
+    transY += (kf.y !== undefined ? kf.y : (tf.positionY || 0));
+
+    const finalOpacity = kf.opacity !== undefined ? kf.opacity : (tf.opacity !== undefined ? tf.opacity : 1.0);
+    ctx.globalAlpha = Math.max(0, Math.min(1, finalOpacity));
 
     // 4. Color Grading Filters & Cinematic LUTs
     let filterString = '';
@@ -286,41 +374,42 @@ class VideoCanvasEngine {
       filterString = 'contrast(1.3) saturate(1.4) hue-rotate(290deg)';
     } else if (preset === 'pastel') {
       filterString = 'brightness(1.1) saturate(0.8) contrast(0.95)';
+    } else if (preset === 'hdr' || preset === 'auto-hdr') {
+      filterString = 'contrast(1.3) saturate(1.35) brightness(1.08)';
     }
 
-    const cg = clip.colorGrading;
-    if (cg) {
-      const exp = 1 + (cg.exposure || 0) * 0.3;
-      const cnt = (cg.contrast !== undefined ? cg.contrast : 50) / 50;
-      const sat = (cg.saturation !== undefined ? cg.saturation : 100) / 100;
-      filterString += ` brightness(${exp}) contrast(${cnt}) saturate(${sat})`;
+    const cg = clip.colorGrading || {};
+    const exp = 1 + (cg.exposure || 0) * 0.35;
+    const cnt = (cg.contrast !== undefined ? cg.contrast : 50) / 50;
+    const sat = (cg.saturation !== undefined ? cg.saturation : 100) / 100;
+    filterString += ` brightness(${exp}) contrast(${cnt}) saturate(${sat})`;
 
-      if (cg.temperature) {
-        const warm = cg.temperature > 0 ? `sepia(${cg.temperature * 0.3})` : `hue-rotate(${cg.temperature * 0.2}deg)`;
-        filterString += ` ${warm}`;
-      }
-    }
+    if (cg.lut === 'Noir') filterString += ' grayscale(100%)';
+    else if (cg.lut === 'Sepia' || cg.lut === 'Vintage') filterString += ' sepia(60%)';
+    else if (cg.lut === 'Cool' || cg.lut === 'Teal') filterString += ' hue-rotate(180deg)';
+    else if (cg.lut === 'Warm' || cg.lut === 'Sunset') filterString += ' sepia(30%) hue-rotate(-20deg)';
 
     if (filterString.trim()) {
       ctx.filter = filterString.trim();
     }
 
-    // Center pivot & Render image
-    const drawW = img.width * scale;
-    const drawH = img.height * scale;
+    // Center pivot & Render media frame
+    const drawW = mediaW * scale;
+    const drawH = mediaH * scale;
     const centerX = width * 0.5 + transX;
     const centerY = height * 0.5 + transY;
 
     ctx.translate(centerX, centerY);
 
-    if (tf.rotationDegrees) {
-      ctx.rotate((tf.rotationDegrees * Math.PI) / 180);
+    const rotDeg = kf.rotationDegrees !== undefined ? kf.rotationDegrees : (tf.rotationDegrees || 0);
+    if (rotDeg !== 0) {
+      ctx.rotate((rotDeg * Math.PI) / 180);
     }
     if (tf.flipX || tf.flipY) {
       ctx.scale(tf.flipX ? -1 : 1, tf.flipY ? -1 : 1);
     }
 
-    ctx.drawImage(img, -drawW * 0.5, -drawH * 0.5, drawW, drawH);
+    ctx.drawImage(media, -drawW * 0.5, -drawH * 0.5, drawW, drawH);
 
     ctx.restore();
   }
@@ -477,7 +566,9 @@ class VideoCanvasEngine {
     track.clips.forEach(clip => {
       if (timestamp >= clip.startTime && timestamp < clip.startTime + clip.duration) {
         const localTime = timestamp - clip.startTime;
-        if (clip.overlay || clip.words) {
+        if (clip.overlay?.type === 'social_badge' || clip.socialBadge) {
+          this.renderSocialBadge(ctx, clip, localTime, width, height);
+        } else if (clip.overlay || clip.words) {
           this.renderTextClip(ctx, clip, localTime, width, height);
         } else if (clip.sticker) {
           this.renderStickerClip(ctx, clip, localTime, width, height);
@@ -794,7 +885,107 @@ class VideoCanvasEngine {
     ctx.restore();
   }
 
+  // --- Viral Reel Animated Progress Bar (100% Free & Native) ---
+  renderProgressBar(ctx, width, height, project, timestamp) {
+    const totalDur = project.timeline?.totalDuration || 14.0;
+    if (totalDur <= 0) return;
+    const progress = Math.min(1.0, Math.max(0.0, timestamp / totalDur));
+    const barHeight = Math.max(4, Math.round(height * 0.007));
+    const barColor = project.progressBar?.color || '#38BDF8';
+    const isTop = project.progressBar?.position === 'top';
+    const y = isTop ? 0 : height - barHeight;
+
+    ctx.save();
+    // Backdrop track
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(0, y, width, barHeight);
+
+    // Active glowing progress fill
+    const grad = ctx.createLinearGradient(0, y, Math.max(1, width * progress), y);
+    grad.addColorStop(0, '#60A5FA');
+    grad.addColorStop(1, barColor);
+    ctx.fillStyle = grad;
+    ctx.shadowColor = barColor;
+    ctx.shadowBlur = 8;
+    ctx.fillRect(0, y, width * progress, barHeight);
+    ctx.restore();
+  }
+
+  // --- Animated Social Lower-Third Badges (Instagram, YouTube, TikTok) ---
+  renderSocialBadge(ctx, clip, localTime, width, height) {
+    const ov = clip.overlay || clip.socialBadge || {};
+    const platform = ov.platform || 'instagram';
+    const handle = ov.handle || ov.text || '@videocreator';
+    const animDur = ov.animationDuration || 0.45;
+    const progress = Math.min(1.0, localTime / animDur);
+    const ease = this.easeOutBack(progress);
+
+    ctx.save();
+    const anchorX = width * (clip.transform?.anchorX !== undefined ? clip.transform.anchorX : 0.5);
+    const anchorY = height * (clip.transform?.anchorY !== undefined ? clip.transform.anchorY : 0.88);
+
+    ctx.translate(anchorX, anchorY);
+    ctx.scale(ease, ease);
+
+    // Font and pill dimensions
+    const fontSize = Math.max(14, Math.round(height * 0.024));
+    ctx.font = `800 ${fontSize}px Inter, -apple-system, sans-serif`;
+    const textWidth = ctx.measureText(handle).width;
+    const pillW = textWidth + Math.round(height * 0.08);
+    const pillH = Math.round(height * 0.048);
+    const pillR = pillH / 2;
+
+    // Outer Glow / Shadow
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    ctx.strokeStyle = platform === 'instagram' ? 'rgba(236, 72, 153, 0.6)' : (platform === 'youtube' ? 'rgba(239, 68, 68, 0.6)' : 'rgba(56, 189, 248, 0.6)');
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    ctx.shadowBlur = 14;
+
+    ctx.beginPath();
+    ctx.roundRect(-pillW / 2, -pillH / 2, pillW, pillH, pillR);
+    ctx.fill();
+    ctx.stroke();
+
+    // Platform Icon Emoji / Badge
+    const iconEmoji = platform === 'youtube' ? '▶' : (platform === 'tiktok' ? '🎵' : '📸');
+    ctx.fillStyle = platform === 'youtube' ? '#EF4444' : (platform === 'tiktok' ? '#06B6D4' : '#EC4899');
+    ctx.beginPath();
+    ctx.arc(-pillW / 2 + pillH / 2, 0, pillH * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `bold ${Math.round(pillH * 0.42)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(iconEmoji, -pillW / 2 + pillH / 2, 0);
+
+    // Handle Text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `800 ${fontSize}px Inter, -apple-system, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(handle, -pillW / 2 + pillH + 6, 0);
+
+    ctx.restore();
+  }
+
+  // --- 1-Click Magic Auto-HDR / Histogram Auto-Enhance ---
+  applyAutoHdr(clip) {
+    if (!clip) return;
+    clip.filterPreset = 'auto-hdr';
+    if (!clip.colorGrading) clip.colorGrading = {};
+    clip.colorGrading.exposure = 0.15;
+    clip.colorGrading.contrast = 65;
+    clip.colorGrading.saturation = 125;
+  }
+
   easeInOut(t) {
     return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  }
+
+  easeOutBack(t) {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
   }
 }

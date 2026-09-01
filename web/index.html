@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Playfair+Display:wght@700&amp;family=Cinzel:wght@700&amp;family=Montserrat:wght@700;900&amp;display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4F46E5">
   <link rel="stylesheet" href="styles/app.css">
 </head>
 <body>
@@ -29,6 +31,7 @@
             <button class="menu-item" id="menu-file-save-as"><span>💾 Save As...</span><kbd>Ctrl+Shift+S</kbd></button>
             <div class="menu-divider"></div>
             <button class="menu-item" id="menu-file-import-photo"><span>📷 Import Photos...</span><kbd>Ctrl+I</kbd></button>
+            <button class="menu-item" id="menu-file-import-video"><span>🎞 Import Video...</span></button>
             <button class="menu-item" id="menu-file-import-audio"><span>🎵 Import Audio...</span></button>
             <button class="menu-item" id="menu-file-export"><span>🚀 Export MP4 Video...</span><kbd>Ctrl+E</kbd></button>
             <div class="menu-divider"></div>
@@ -41,30 +44,14 @@
         <div class="menu-dropdown">
           <button class="menu-dropdown-trigger" type="button">Edit</button>
           <div class="menu-dropdown-content">
-            <button class="menu-item" id="menu-edit-undo"><span>↩ Undo</span><kbd>Ctrl+Z</kbd></button>
-            <button class="menu-item" id="menu-edit-redo"><span>↪ Redo</span><kbd>Ctrl+Y</kbd></button>
+            <button class="menu-item" id="menu-edit-undo"><span>↶ Undo</span><kbd>Ctrl+Z</kbd></button>
+            <button class="menu-item" id="menu-edit-redo"><span>↷ Redo</span><kbd>Ctrl+Y</kbd></button>
             <div class="menu-divider"></div>
-            <button class="menu-item" id="menu-edit-split"><span>✂ Split Clip at Playhead</span><kbd>S</kbd></button>
-            <button class="menu-item" id="menu-edit-duplicate"><span>📋 Duplicate Clip</span><kbd>Ctrl+D</kbd></button>
+            <button class="menu-item" id="menu-edit-split"><span>✂️ Split Selected Clip</span><kbd>S</kbd></button>
             <button class="menu-item" id="menu-edit-delete"><span>🗑 Delete Selected Clip</span><kbd>Del</kbd></button>
             <div class="menu-divider"></div>
-            <button class="menu-item" id="menu-edit-reset-transform"><span>🔄 Reset Transform</span></button>
-            <button class="menu-item" id="menu-edit-clear-all"><span>⚠️ Clear Entire Timeline</span></button>
-          </div>
-        </div>
-
-        <!-- Media Dropdown -->
-        <div class="menu-dropdown">
-          <button class="menu-dropdown-trigger" type="button">Media</button>
-          <div class="menu-dropdown-content">
-            <button class="menu-item" id="menu-media-add-photos"><span>📷 Add Photos to Project...</span></button>
-            <button class="menu-item" id="menu-media-add-audio"><span>🎵 Add Background Audio...</span></button>
-            <div class="menu-divider"></div>
-            <button class="menu-item" id="menu-media-beat-sync"><span>⚡ Magic Beat Sync &amp; Auto-Cut</span></button>
-            <button class="menu-item" id="menu-media-apply-motion-all"><span>✨ Apply Camera Motion to All</span></button>
-            <button class="menu-item" id="menu-media-apply-filter-all"><span>🎨 Apply Color Filter to All</span></button>
-            <div class="menu-divider"></div>
-            <button class="menu-item" id="menu-media-add-title"><span>🔤 Add Animated Title Overlay</span></button>
+            <button class="menu-item" id="menu-edit-rotate-cw"><span>↻ Rotate 90° Clockwise</span></button>
+            <button class="menu-item" id="menu-edit-rotate-ccw"><span>↺ Rotate 90° Counter-CW</span></button>
           </div>
         </div>
 
@@ -72,15 +59,28 @@
         <div class="menu-dropdown">
           <button class="menu-dropdown-trigger" type="button">View</button>
           <div class="menu-dropdown-content">
-            <button class="menu-item" id="menu-view-aspect-16-9"><span>🖥 Aspect Ratio: 16:9 (Landscape)</span></button>
-            <button class="menu-item" id="menu-view-aspect-9-16"><span>📱 Aspect Ratio: 9:16 (Vertical Reel)</span></button>
-            <button class="menu-item" id="menu-view-aspect-1-1"><span>⏹ Aspect Ratio: 1:1 (Square Post)</span></button>
-            <div class="menu-divider"></div>
-            <button class="menu-item" id="menu-view-zoom-in"><span>🔍 Zoom In Timeline</span><kbd>Ctrl +</kbd></button>
-            <button class="menu-item" id="menu-view-zoom-out"><span>🔍 Zoom Out Timeline</span><kbd>Ctrl -</kbd></button>
-            <button class="menu-item" id="menu-view-zoom-fit"><span>↔ Fit Timeline to View</span></button>
-            <div class="menu-divider"></div>
             <button class="menu-item" id="menu-view-fullscreen"><span>⛶ Fullscreen Preview</span><kbd>F</kbd></button>
+            <button class="menu-item" id="menu-view-aspect-16-9"><span>📐 Aspect 16:9 Landscape</span></button>
+            <button class="menu-item" id="menu-view-aspect-9-16"><span>📱 Aspect 9:16 Vertical Reel</span></button>
+            <button class="menu-item" id="menu-view-aspect-1-1"><span>⏹ Aspect 1:1 Square</span></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-view-zoom-in"><span>🔍 Zoom Timeline In</span><kbd>+</kbd></button>
+            <button class="menu-item" id="menu-view-zoom-out"><span>🔎 Zoom Timeline Out</span><kbd>-</kbd></button>
+          </div>
+        </div>
+
+        <!-- Insert Dropdown -->
+        <div class="menu-dropdown">
+          <button class="menu-dropdown-trigger" type="button">Insert</button>
+          <div class="menu-dropdown-content">
+            <button class="menu-item" id="menu-insert-title"><span>🔤 Animated Text Title</span></button>
+            <button class="menu-item" id="menu-insert-social"><span>🏷️ Social Lower-Third Badge</span></button>
+            <button class="menu-item" id="menu-insert-music"><span>🎵 Stock Lo-Fi Music</span></button>
+            <button class="menu-item" id="menu-insert-sfx-whoosh"><span>💨 SFX: Cinematic Whoosh</span></button>
+            <button class="menu-item" id="menu-insert-sfx-shutter"><span>📸 SFX: Camera Shutter</span></button>
+            <button class="menu-item" id="menu-insert-sfx-pop"><span>🎈 SFX: Bubble Pop</span></button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-insert-sample-photos"><span>🖼️ 5 HD Sample Photos Pack</span></button>
           </div>
         </div>
 
@@ -88,10 +88,6 @@
         <div class="menu-dropdown">
           <button class="menu-dropdown-trigger" type="button">Window</button>
           <div class="menu-dropdown-content">
-            <button class="menu-item" id="menu-window-home"><span>🏠 Home Screen</span></button>
-            <button class="menu-item" id="menu-window-wizard"><span>⚡ Quick Create Wizard</span></button>
-            <button class="menu-item" id="menu-window-editor"><span>🎬 Studio Timeline Editor</span></button>
-            <div class="menu-divider"></div>
             <button class="menu-item" id="menu-window-media"><span>📁 Media Library</span></button>
             <button class="menu-item" id="menu-window-inspector"><span>🎛 Clip Inspector</span></button>
             <button class="menu-item" id="menu-window-filters"><span>🎨 Filters &amp; LUTs</span></button>
@@ -130,13 +126,14 @@
 
     <!-- Screen Navigation & Actions -->
     <div class="header-actions">
+      <button id="btn-install-pwa" class="btn btn-secondary btn-sm" title="Install VideoCreator Desktop/Mobile App" style="display:none; color:#38BDF8; font-weight:700;">📥 Install App</button>
       <div class="nav-tabs desktop-nav-tabs">
         <button id="nav-home" class="nav-btn active">🏠 Home</button>
         <button id="nav-wizard" class="nav-btn">⚡ Quick Create</button>
         <button id="nav-editor" class="nav-btn">🎞 Studio</button>
       </div>
       <button id="btn-save-project" class="btn btn-secondary btn-sm" title="Save .vcproj">💾 Save</button>
-      <button id="btn-open-export" class="btn btn-primary btn-sm">🚀 Export MP4</button>
+      <button id="btn-open-export" class="btn btn-primary btn-sm">🚀 Export Video</button>
     </div>
   </header>
 
@@ -321,6 +318,7 @@
 
         <!-- Hidden file inputs (outside left-panel so they work on mobile where left-panel is display:none) -->
         <input type="file" id="editor-photo-input" multiple accept="image/*" style="display:none; position:absolute;">
+        <input type="file" id="editor-video-input" multiple accept="video/mp4,video/webm,video/quicktime" style="display:none; position:absolute;">
         <input type="file" id="editor-music-input" accept="audio/*" style="display:none; position:absolute;">
 
         <!-- Left Panel: MEDIA LIBRARY -->
@@ -329,8 +327,10 @@
             <span>MEDIA LIBRARY</span>
             <div style="display:flex; gap:4px; flex-wrap:wrap;">
               <button id="editor-add-photo-btn" class="btn btn-primary btn-sm" title="Add Photos">+ Photo</button>
+              <button id="editor-add-video-btn" class="btn btn-secondary btn-sm" title="Add Video Clip (+ MP4/WebM)">+ Video</button>
               <button id="editor-add-music-btn" class="btn btn-secondary btn-sm" title="Add Music">+ Audio</button>
               <button id="editor-add-voiceover-btn" class="btn btn-secondary btn-sm" title="Generate AI Voiceover &amp; Karaoke Subtitles" style="color:#FDE047;">🎙️ Voiceover</button>
+              <button id="editor-add-social-btn" class="btn btn-secondary btn-sm" title="Add Animated Social Badge" style="color:#EC4899;">🏷️ Badge</button>
               <button id="editor-add-text-btn" class="btn btn-secondary btn-sm" title="Add Text Title">+ Text</button>
             </div>
           </div>
@@ -477,6 +477,19 @@
                 <option value="hearts">❤️ Floating Romantic Hearts</option>
                 <option value="grain">🎞️ Cinematic Film Grain</option>
               </select>
+
+              <!-- Keyframe Animation Controls -->
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+                <label style="font-size:11px; font-weight:700; color:#94A3B8;">Transform Keyframes</label>
+                <button id="btn-add-keyframe" class="btn btn-secondary btn-sm" title="Add Transform Keyframe at Playhead" style="font-size:10px; color:#60A5FA; padding:2px 8px;">◆ Add Keyframe</button>
+              </div>
+              <div id="keyframe-status-label" style="font-size:10px; color:#64748B;">No custom keyframes</div>
+
+              <!-- Viral Reel Progress Bar Overlay -->
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+                <label style="font-size:11px; color:#94A3B8;" title="Draws glowing progress bar at bottom of reel">📱 Reel Progress Bar</label>
+                <input type="checkbox" id="checkbox-progress-bar" style="cursor:pointer; width:16px; height:16px;">
+              </div>
             </div>
           </div>
 
@@ -484,6 +497,8 @@
           <div>
             <div class="inspector-section-title">COLOR GRADING</div>
             <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+              <button id="btn-auto-hdr" class="btn btn-primary" style="width:100%; padding:8px; background:linear-gradient(135deg, #EC4899, #8B5CF6); font-weight:800; font-size:11px; letter-spacing:0.4px;">🪄 1-Click Magic Auto-HDR</button>
+
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <label style="font-size:11px; color:#94A3B8;">Exposure</label>
                 <span id="val-exposure" style="font-size:11px; color:#FFF;">+0.4</span>
@@ -736,6 +751,15 @@
       <p style="font-size:12px; color:var(--text-secondary); line-height:1.4;">
         Renders your video directly in browser with universal player compatibility (playable on QuickTime, Windows Media Player, iPhone, Android, and Web).
       </p>
+
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; font-weight:700; color:#94A3B8;">Export Output Format</label>
+        <select id="export-format-select" class="btn btn-secondary" style="width:100%; min-height:38px; font-size:12px;">
+          <option value="mp4" selected>🚀 Universal MP4 Video (H.264 / AAC)</option>
+          <option value="gif">👾 Animated GIF Meme / Sticker Loop</option>
+          <option value="batch">📦 1-Click Multi-Format Batch (16:9 + 9:16)</option>
+        </select>
+      </div>
 
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
         <div style="display:flex; flex-direction:column; gap:4px;">

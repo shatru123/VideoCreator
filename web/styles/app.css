@@ -1178,6 +1178,36 @@ canvas#videoCanvas {
   font-weight: bold;
 }
 
+/* Keyframe Diamond Markers on Timeline */
+.keyframe-marker {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: #38BDF8;
+  border: 1px solid #FFF;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.9);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Video Footage Clip on Timeline */
+.clip-video.is-video-footage {
+  background: linear-gradient(135deg, #1E3A8A, #1D4ED8) !important;
+  border-left: 3px solid #60A5FA !important;
+}
+
+/* PWA Install Button Pulse */
+#btn-install-pwa {
+  animation: pulse-glow 2.5s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(56, 189, 248, 0); }
+}
+
 .clip-video {
   background: linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%);
   color: #DBEAFE;
