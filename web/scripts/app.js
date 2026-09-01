@@ -1033,82 +1033,132 @@
     const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
     const audioClip = audioTrack?.clips[0];
 
+    const curS = audioClip?.sourceOffset || 0;
+    const curD = audioClip?.duration || 17.5;
+    const curEnd = curS + curD;
+
     container.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:16px;">
-        <!-- Magic Beat Sync Button -->
-        <button id="m-btn-beat-sync" class="btn btn-beat-sync" style="width:100%;">
-          ⚡ Magic Beat Sync &amp; Auto-Cut Photos
-        </button>
-
-        <!-- Audio Track Info -->
-        <div class="audio-trimmer-container">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-size:12px; font-weight:700; color:#FEF3C7;">🎵 ${audioClip?.name || 'Background Music'}</span>
-            <span style="font-size:11px; color:#94A3B8;">Duration: ${(audioClip?.duration || 14).toFixed(1)}s</span>
-          </div>
-
-          <div style="height:36px; background:#1E2433; border-radius:6px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;">
-            <div class="waveform-preview-line" style="width:90%;"></div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        
+        <!-- Active Soundtrack Banner -->
+        <div style="background:#0F172A; padding:12px; border-radius:10px; border:1px solid #334155;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+              <span style="font-size:18px;">🎵</span>
+              <div style="overflow:hidden;">
+                <div style="font-size:13px; font-weight:800; color:#FEF3C7; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">
+                  ${audioClip?.name || 'Sunset Chill Lo-Fi.wav'}
+                </div>
+                <div style="font-size:11px; color:#94A3B8;">
+                  Selected Length: ${(audioClip?.duration || 17.5).toFixed(1)}s
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Song Start & End Time Box -->
-        <div style="background:#0D111A; padding:12px; border-radius:8px; border:1px solid #1E293B; display:flex; flex-direction:column; gap:10px;">
+        <!-- 🔗 Direct YouTube & Audio Import Hub -->
+        <div style="background:#131826; border:1px solid #3B82F6; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; font-weight:800; color:#60A5FA;">🎬 Change Song / Add YouTube Music</span>
+          </div>
+
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="m-input-yt-url" placeholder="Paste YouTube / Shorts link..." class="btn btn-secondary" style="flex:1; text-align:left; font-size:12px; padding:10px; background:#0B0E14; border:1px solid #334155; min-height:42px;">
+            <button id="m-btn-fetch-yt" class="btn btn-primary" style="padding:0 14px; font-size:12px; font-weight:800; background:linear-gradient(135deg, #EF4444, #F59E0B); min-height:42px; white-space:nowrap;">
+              ⚡ Add Song
+            </button>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:2px;">
+            <button id="m-btn-trigger-upload" class="btn btn-secondary btn-sm" style="flex:1; font-size:11px; padding:8px; font-weight:700; color:#38BDF8;">
+              📁 Upload Audio File
+            </button>
+            <input type="file" id="m-file-audio-upload" accept="audio/*" style="display:none;">
+            <button id="m-btn-trigger-voice" class="btn btn-secondary btn-sm" style="flex:1; font-size:11px; padding:8px; font-weight:700; color:#FDE047;">
+              🎙️ Record Voice
+            </button>
+          </div>
+
+          <!-- Live Progress Indicator -->
+          <div id="m-yt-progress-container" style="display:none; margin-top:4px; background:#0B0F17; border:1px solid #1E293B; border-radius:6px; padding:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+              <span id="m-yt-progress-status" style="color:#38BDF8; font-weight:700;">⚡ Downloading YouTube audio...</span>
+              <span id="m-yt-progress-percent" style="color:#FFF; font-weight:800;">35%</span>
+            </div>
+            <div style="height:6px; background:#1E293B; border-radius:4px; overflow:hidden;">
+              <div id="m-yt-progress-fill" style="width:35%; height:100%; background:linear-gradient(90deg, #EF4444, #F59E0B); transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ✂️ Song Section Trimmer (Start & End Time) -->
+        <div style="background:#0D111A; padding:12px; border-radius:10px; border:1px solid #1E293B; display:flex; flex-direction:column; gap:12px;">
+          <div style="font-size:12px; font-weight:800; color:#FEF3C7;">✂️ SONG SECTION TRIMMER</div>
+
+          <!-- Start Time Control -->
           <div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <label style="font-size:12px; font-weight:700; color:#FEF3C7;">▶ Song Start Time:</label>
-              <span id="m-val-audio-start" style="font-size:12px; font-weight:800; color:#38BDF8;">00:00.0</span>
+              <label style="font-size:12px; font-weight:700; color:#94A3B8;">▶ Start Song From:</label>
+              <span id="m-val-audio-start" style="font-size:13px; font-weight:900; color:#38BDF8;">00:00.0</span>
             </div>
-            <input type="range" id="m-input-audio-start" min="0" max="300" step="0.5" value="${audioClip?.sourceOffset || 0}" style="width:100%; height:32px;">
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button id="m-btn-start-minus" class="btn btn-secondary btn-sm" style="padding:6px 10px; font-size:11px; font-weight:700;">-5s</button>
+              <input type="range" id="m-input-audio-start" min="0" max="300" step="0.5" value="${curS}" style="flex:1; height:34px;">
+              <button id="m-btn-start-plus" class="btn btn-secondary btn-sm" style="padding:6px 10px; font-size:11px; font-weight:700;">+5s</button>
+            </div>
           </div>
 
+          <!-- End Time Control -->
           <div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <label style="font-size:12px; font-weight:700; color:#FEF3C7;">⏹ Song End Time:</label>
-              <span id="m-val-audio-end" style="font-size:12px; font-weight:800; color:#EC4899;">00:17.5</span>
+              <label style="font-size:12px; font-weight:700; color:#94A3B8;">⏹ End Song At:</label>
+              <span id="m-val-audio-end" style="font-size:13px; font-weight:900; color:#EC4899;">00:17.5</span>
             </div>
-            <input type="range" id="m-input-audio-end" min="0" max="300" step="0.5" value="${(audioClip?.sourceOffset || 0) + (audioClip?.duration || 17.5)}" style="width:100%; height:32px;">
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button id="m-btn-end-minus" class="btn btn-secondary btn-sm" style="padding:6px 10px; font-size:11px; font-weight:700;">-5s</button>
+              <input type="range" id="m-input-audio-end" min="0" max="300" step="0.5" value="${curEnd}" style="flex:1; height:34px;">
+              <button id="m-btn-end-plus" class="btn btn-secondary btn-sm" style="padding:6px 10px; font-size:11px; font-weight:700;">+5s</button>
+            </div>
           </div>
 
-          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px; border-top:1px solid rgba(255,255,255,0.06);">
-            <span id="m-val-audio-dur" style="font-size:11px; color:#94A3B8;">Duration: ${(audioClip?.duration || 17.5).toFixed(1)}s</span>
-            <button id="m-btn-match-photos" class="btn btn-secondary btn-sm" style="font-size:10px; color:#38BDF8; padding:3px 8px;">⚡ Match Photos</button>
+          <!-- Match Photos & Duration Display -->
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+            <span id="m-val-audio-dur" style="font-size:11px; color:#CBD5E1; font-weight:600;">Duration: ${curD.toFixed(1)}s (Matches Photos)</span>
+            <button id="m-btn-match-photos" class="btn btn-secondary btn-sm" style="font-size:11px; color:#38BDF8; font-weight:700; padding:4px 10px; background:#1E293B;">⚡ Match Photos</button>
           </div>
 
-          <div style="font-size:10px; color:#64748B;">Quick Section Jumps:</div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="0" style="font-size:10px; padding:4px 8px;">0:00 Intro</button>
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="30" style="font-size:10px; padding:4px 8px;">0:30 Verse</button>
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="60" style="font-size:10px; padding:4px 8px;">1:00 Chorus 🔥</button>
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="90" style="font-size:10px; padding:4px 8px;">1:30 Drop ⚡</button>
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="120" style="font-size:10px; padding:4px 8px;">2:00 Bridge</button>
+          <!-- Quick Jumps -->
+          <div style="font-size:11px; color:#94A3B8; margin-top:2px;">Quick Section Jumps:</div>
+          <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:4px;">
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="0" style="font-size:10px; padding:6px 2px; text-align:center;">0:00<br>Intro</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="30" style="font-size:10px; padding:6px 2px; text-align:center;">0:30<br>Verse</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="60" style="font-size:10px; padding:6px 2px; text-align:center;">1:00<br>Chorus 🔥</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="90" style="font-size:10px; padding:6px 2px; text-align:center;">1:30<br>Drop ⚡</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="120" style="font-size:10px; padding:6px 2px; text-align:center;">2:00<br>Bridge</button>
           </div>
 
-          <button id="m-btn-preview-audio-slice" class="btn btn-primary" style="width:100%; font-size:12px; padding:8px; background:linear-gradient(135deg, #3B82F6, #10B981);">
-            🔊 Preview Selected Song Section
+          <!-- Preview Slice Button -->
+          <button id="m-btn-preview-audio-slice" class="btn btn-primary" style="width:100%; font-size:13px; font-weight:800; padding:10px; background:linear-gradient(135deg, #3B82F6, #10B981);">
+            🔊 Listen to Selected Slice
           </button>
         </div>
 
-        <!-- Audio Volume -->
-        <div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <label style="font-size:12px; color:#94A3B8;">Music Volume</label>
-            <span id="m-val-vol" style="font-size:12px; font-weight:700; color:#FFF;">${Math.round((audioClip?.volume || 1.0) * 100)}%</span>
+        <!-- Music Volume & Beat Sync -->
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="font-size:12px; color:#94A3B8;">Music Volume</label>
+              <span id="m-val-vol" style="font-size:12px; font-weight:700; color:#FFF;">${Math.round((audioClip?.volume !== undefined ? audioClip.volume : 1.0) * 100)}%</span>
+            </div>
+            <input type="range" id="m-input-vol" min="0" max="1.5" step="0.05" value="${audioClip?.volume !== undefined ? audioClip.volume : 1.0}" style="width:100%; height:34px;">
           </div>
-          <input type="range" id="m-input-vol" min="0" max="1.5" step="0.05" value="${audioClip?.volume || 1.0}" style="width:100%; height:34px;">
+
+          <button id="m-btn-beat-sync" class="btn btn-beat-sync" style="width:100%; padding:12px; font-size:13px; font-weight:800;">
+            ⚡ Magic Beat Sync &amp; Auto-Cut Photos
+          </button>
         </div>
 
-        <!-- Audio Fades -->
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-          <div>
-            <label style="font-size:11px; color:#94A3B8;">Fade In (sec)</label>
-            <input type="number" id="m-input-fade-in" class="btn btn-secondary" style="width:100%; min-height:40px; margin-top:4px;" value="${audioClip?.fadeIn || 1.0}" min="0" max="5" step="0.5">
-          </div>
-          <div>
-            <label style="font-size:11px; color:#94A3B8;">Fade Out (sec)</label>
-            <input type="number" id="m-input-fade-out" class="btn btn-secondary" style="width:100%; min-height:40px; margin-top:4px;" value="${audioClip?.fadeOut || 1.5}" min="0" max="5" step="0.5">
-          </div>
-        </div>
       </div>
     `;
 
@@ -1116,6 +1166,112 @@
     container.querySelector('#m-btn-beat-sync')?.addEventListener('click', () => {
       pushHistory();
       autoBeatSyncPhotos();
+    });
+
+    // YouTube Import in Mobile Sheet
+    const ytInput = container.querySelector('#m-input-yt-url');
+    const ytBtn = container.querySelector('#m-btn-fetch-yt');
+    const progCont = container.querySelector('#m-yt-progress-container');
+    const progStatus = container.querySelector('#m-yt-progress-status');
+    const progPercent = container.querySelector('#m-yt-progress-percent');
+    const progFill = container.querySelector('#m-yt-progress-fill');
+
+    ytBtn?.addEventListener('click', async () => {
+      const url = (ytInput?.value || '').trim();
+      if (!url) {
+        alert('Please paste a YouTube video or Shorts link.');
+        return;
+      }
+      ytBtn.disabled = true;
+      ytBtn.textContent = '⏳ Loading...';
+      if (progCont) progCont.style.display = 'block';
+
+      try {
+        const audioInfo = await audio.loadWebOrYouTubeAudio(url, (percent, status) => {
+          if (progPercent) progPercent.textContent = `${percent}%`;
+          if (progFill) progFill.style.width = `${percent}%`;
+          if (progStatus) progStatus.textContent = status;
+        });
+        pushHistory();
+
+        let track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+        if (!track) {
+          track = { id: `track-audio-${Date.now()}`, type: 'audio', name: 'Audio Track', isMuted: false, clips: [] };
+          currentProject.timeline.tracks.push(track);
+        }
+
+        const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+        let visualDuration = 0;
+        if (videoTrack && videoTrack.clips.length > 0) {
+          visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
+        }
+        if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
+
+        track.clips = [{
+          id: `clip-audio-${Date.now()}`,
+          name: audioInfo.title || 'YouTube Audio Stream',
+          startTime: 0,
+          duration: visualDuration,
+          source: audioInfo.src,
+          sourceOffset: 0,
+          trimStart: 0,
+          volume: 1.0
+        }];
+
+        audio.loadAudio(audioInfo.src);
+        recalculateDuration();
+        refreshTimeline();
+        requestRender();
+        populateMobileAudioSheet();
+        alert(`🎵 "${audioInfo.title || 'YouTube Song'}" added successfully!`);
+      } catch (err) {
+        alert('Could not load YouTube audio: ' + err.message);
+      } finally {
+        ytBtn.disabled = false;
+        ytBtn.textContent = '⚡ Add Song';
+        if (progCont) progCont.style.display = 'none';
+      }
+    });
+
+    // File Upload Handler
+    const fileUploadBtn = container.querySelector('#m-btn-trigger-upload');
+    const fileInput = container.querySelector('#m-file-audio-upload');
+    fileUploadBtn?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      pushHistory();
+      let track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      if (!track) {
+        track = { id: `track-audio-${Date.now()}`, type: 'audio', name: 'Audio Track', isMuted: false, clips: [] };
+        currentProject.timeline.tracks.push(track);
+      }
+      const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+      let visualDuration = 0;
+      if (videoTrack && videoTrack.clips.length > 0) {
+        visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
+      }
+      if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
+
+      track.clips = [{
+        id: `clip-audio-${Date.now()}`,
+        name: file.name,
+        startTime: 0,
+        duration: visualDuration,
+        source: url,
+        sourceOffset: 0,
+        volume: 1.0
+      }];
+      audio.loadAudio(url);
+      recalculateDuration();
+      refreshTimeline();
+      requestRender();
+      populateMobileAudioSheet();
+    });
+
+    container.querySelector('#m-btn-trigger-voice')?.addEventListener('click', () => {
+      openModal('mic-recorder-modal');
     });
 
     const mStartSlider = container.querySelector('#m-input-audio-start');
@@ -1131,6 +1287,8 @@
     }
 
     function syncMobileAudioSlice(newStart, newEnd) {
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
       const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
       let visualDuration = 0;
       if (videoTrack && videoTrack.clips.length > 0) {
@@ -1138,39 +1296,73 @@
       }
       if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
 
-      let start = Math.max(0, newStart !== undefined ? newStart : (audioClip?.sourceOffset || 0));
-      let end = newEnd !== undefined ? newEnd : (start + (audioClip?.duration || visualDuration));
+      let start = Math.max(0, newStart !== undefined ? newStart : (clip?.sourceOffset || 0));
+      let end = newEnd !== undefined ? newEnd : (start + (clip?.duration || visualDuration));
       if (end <= start) end = start + visualDuration;
 
-      if (audioClip) {
-        audioClip.sourceOffset = start;
-        audioClip.trimStart = start;
-        audioClip.duration = end - start;
+      if (clip) {
+        clip.sourceOffset = start;
+        clip.trimStart = start;
+        clip.duration = end - start;
       }
 
       if (mStartSlider) mStartSlider.value = start;
       if (mStartValEl) mStartValEl.textContent = formatTimeSecM(start);
       if (mEndSlider) mEndSlider.value = end;
       if (mEndValEl) mEndValEl.textContent = formatTimeSecM(end);
-      if (mDurLabel) mDurLabel.textContent = `Duration: ${(end - start).toFixed(1)}s`;
+      if (mDurLabel) mDurLabel.textContent = `Duration: ${(end - start).toFixed(1)}s (Matches Photos)`;
 
       audio.seek(currentTime, start);
     }
 
-    const curS = audioClip?.sourceOffset || 0;
-    const curD = audioClip?.duration || 17.5;
-    syncMobileAudioSlice(curS, curS + curD);
+    syncMobileAudioSlice(curS, curEnd);
 
     mStartSlider?.addEventListener('input', (e) => {
       const s = parseFloat(e.target.value);
-      const curDur = audioClip?.duration || 17.5;
-      syncMobileAudioSlice(s, s + curDur);
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      const d = clip?.duration || 17.5;
+      syncMobileAudioSlice(s, s + d);
     });
 
     mEndSlider?.addEventListener('input', (e) => {
       const end = parseFloat(e.target.value);
-      const start = audioClip?.sourceOffset || 0;
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      const start = clip?.sourceOffset || 0;
       syncMobileAudioSlice(start, Math.max(start + 1.0, end));
+    });
+
+    container.querySelector('#m-btn-start-minus')?.addEventListener('click', () => {
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      const cur = clip?.sourceOffset || 0;
+      const d = clip?.duration || 17.5;
+      syncMobileAudioSlice(Math.max(0, cur - 5), Math.max(0, cur - 5) + d);
+    });
+
+    container.querySelector('#m-btn-start-plus')?.addEventListener('click', () => {
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      const cur = clip?.sourceOffset || 0;
+      const d = clip?.duration || 17.5;
+      syncMobileAudioSlice(cur + 5, cur + 5 + d);
+    });
+
+    container.querySelector('#m-btn-end-minus')?.addEventListener('click', () => {
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      const cur = (clip?.sourceOffset || 0) + (clip?.duration || 17.5);
+      const start = clip?.sourceOffset || 0;
+      syncMobileAudioSlice(start, Math.max(start + 1.0, cur - 5));
+    });
+
+    container.querySelector('#m-btn-end-plus')?.addEventListener('click', () => {
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      const cur = (clip?.sourceOffset || 0) + (clip?.duration || 17.5);
+      const start = clip?.sourceOffset || 0;
+      syncMobileAudioSlice(start, cur + 5);
     });
 
     container.querySelector('#m-btn-match-photos')?.addEventListener('click', () => {
@@ -1180,7 +1372,9 @@
         visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
       }
       if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
-      const start = audioClip?.sourceOffset || 0;
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      const start = clip?.sourceOffset || 0;
       syncMobileAudioSlice(start, start + visualDuration);
       alert(`⚡ Song matched to photos (${visualDuration.toFixed(1)}s)!`);
     });
@@ -1199,29 +1393,37 @@
     });
 
     container.querySelector('#m-btn-preview-audio-slice')?.addEventListener('click', () => {
-      if (!audioClip || !audioClip.source) {
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      if (!clip || !clip.source) {
         alert('Please import or select a song first!');
         return;
       }
-      const start = audioClip.sourceOffset || 0;
-      const dur = audioClip.duration || 17.5;
-      audio.playSection(start, start + dur, audioClip.volume || 1.0);
+      const start = clip.sourceOffset || 0;
+      const dur = clip.duration || 17.5;
+      audio.playSection(start, start + dur, clip.volume || 1.0);
     });
 
     const volInput = container.querySelector('#m-input-vol');
     volInput?.addEventListener('input', (e) => {
       const v = parseFloat(e.target.value);
-      if (audioClip) audioClip.volume = v;
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      if (clip) clip.volume = v;
       container.querySelector('#m-val-vol').textContent = `${Math.round(v * 100)}%`;
       audio.setVolume(v);
     });
 
     container.querySelector('#m-input-fade-in')?.addEventListener('change', (e) => {
-      if (audioClip) audioClip.fadeIn = parseFloat(e.target.value || '1.0');
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      if (clip) clip.fadeIn = parseFloat(e.target.value || '1.0');
     });
 
     container.querySelector('#m-input-fade-out')?.addEventListener('change', (e) => {
-      if (audioClip) audioClip.fadeOut = parseFloat(e.target.value || '1.5');
+      const track = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const clip = track?.clips[0];
+      if (clip) clip.fadeOut = parseFloat(e.target.value || '1.5');
     });
 
     // Stock Music Tracks Library

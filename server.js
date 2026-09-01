@@ -49,7 +49,7 @@ const server = http.createServer((req, res) => {
       const existingFile = path.join(assetsDir, existingFiles[0]);
       if (fs.statSync(existingFile).size > 1000) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, audioUrl: `assets/${existingFiles[0]}` }));
+        res.end(JSON.stringify({ ok: true, audioUrl: `/assets/${existingFiles[0]}` }));
         return;
       }
     }
@@ -74,7 +74,7 @@ const server = http.createServer((req, res) => {
         const file = path.join(assetsDir, downloadedFiles[0]);
         if (fs.statSync(file).size > 1000) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: true, audioUrl: `assets/${downloadedFiles[0]}` }));
+          res.end(JSON.stringify({ ok: true, audioUrl: `/assets/${downloadedFiles[0]}` }));
           return;
         }
       }
