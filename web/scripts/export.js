@@ -88,33 +88,16 @@ class VideoWebExporter {
       }
     }
 
-    // Discover supported AVC / H.264 codec
+    // Discover and configure supported AVC / H.264 video codec
     const candidateCodecs = [
-      'avc1.42001f', // Baseline Profile Level 3.1 (most compatible on mobile)
+      'avc1.42001e', // Baseline Level 3.0
+      'avc1.42001f', // Baseline Level 3.1 (most compatible on iOS & Android)
       'avc1.42E01E', // Constrained Baseline Level 3.0
       'avc1.4D401F', // Main Profile Level 3.1
       'avc1.4d002a', // Main Profile Level 4.2
       'avc1.64001F', // High Profile Level 3.1
       'avc1.640028'  // High Profile Level 4.0
     ];
-
-    let selectedCodec = null;
-    for (const c of candidateCodecs) {
-      try {
-        const support = await VideoEncoder.isConfigSupported({
-          codec: c,
-          width: targetWidth,
-          height: targetHeight,
-          bitrate: bitrate,
-          framerate: fps
-        });
-        if (support && support.supported) {
-          selectedCodec = c;
-          break;
-        }
-      } catch (e) {}
-    }
-    if (!selectedCodec) selectedCodec = 'avc1.42001f';
 
     // Check Audio availability and AudioEncoder support
     const audioTrack = project.timeline.tracks.find(t => t.type === 'audio');
@@ -138,7 +121,7 @@ class VideoWebExporter {
           canEncodeAudio = !!audioBuffer;
         }
       } catch (e) {
-        console.warn('AudioEncoder check warning:', e);
+        console.warn('[VideoWebExporter] AudioEncoder probe warning:', e);
       }
     }
 
@@ -159,38 +142,57 @@ class VideoWebExporter {
       firstTimestampBehavior: 'offset'
     });
 
-    // Configure VideoEncoder
+    // Configure VideoEncoder with candidate codecs
     let videoEncoderError = null;
     const videoEncoder = new VideoEncoder({
       output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-      error: (e) => { videoEncoderError = e; console.error('VideoEncoder error:', e); }
+      error: (e) => { videoEncoderError = e; console.error('[VideoWebExporter] VideoEncoder error:', e); }
     });
 
-    videoEncoder.configure({
-      codec: selectedCodec,
-      width: targetWidth,
-      height: targetHeight,
-      bitrate: bitrate,
-      framerate: fps,
-      hardwareAcceleration: 'prefer-hardware'
-    });
+    let configured = false;
+    for (const c of candidateCodecs) {
+      try {
+        videoEncoder.configure({
+          codec: c,
+          width: targetWidth,
+          height: targetHeight,
+          bitrate: bitrate,
+          framerate: fps,
+          hardwareAcceleration: 'no-preference'
+        });
+        configured = true;
+        console.log('[VideoWebExporter] VideoEncoder configured with codec:', c);
+        break;
+      } catch (e) {
+        console.warn('[VideoWebExporter] Codec configuration attempt failed for:', c, e);
+      }
+    }
+
+    if (!configured) {
+      throw new Error('No supported AVC / H.264 video codec configuration available on this device');
+    }
 
     // Encode Audio if available
     let audioEncoder = null;
     if (canEncodeAudio) {
-      audioEncoder = new AudioEncoder({
-        output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-        error: (e) => console.error('AudioEncoder error:', e)
-      });
+      try {
+        audioEncoder = new AudioEncoder({
+          output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+          error: (e) => console.error('[VideoWebExporter] AudioEncoder runtime error:', e)
+        });
 
-      audioEncoder.configure({
-        codec: 'mp4a.40.2',
-        numberOfChannels: 2,
-        sampleRate: 44100,
-        bitrate: 192000
-      });
+        audioEncoder.configure({
+          codec: 'mp4a.40.2',
+          numberOfChannels: 2,
+          sampleRate: 44100,
+          bitrate: 192000
+        });
 
-      await this._encodeAudioBuffer(audioBuffer, audioEncoder);
+        await this._encodeAudioBuffer(audioBuffer, audioEncoder);
+      } catch (err) {
+        console.warn('[VideoWebExporter] AudioEncoder encoding skipped due to:', err);
+        audioEncoder = null;
+      }
     }
 
     // Render Video Frames Step-by-Step (Deterministic Timeline Clock)
@@ -213,15 +215,17 @@ class VideoWebExporter {
 
       const isKeyFrame = (frameIdx % (fps * 2) === 0) || (frameIdx === 0);
       const videoFrame = new VideoFrame(exportCanvas, {
-        timestamp: timestampUs,
-        duration: frameDurationUs
+        timestamp: timestampUs
       });
 
-      videoEncoder.encode(videoFrame, { keyFrame: isKeyFrame });
-      videoFrame.close();
+      try {
+        videoEncoder.encode(videoFrame, { keyFrame: isKeyFrame });
+      } finally {
+        videoFrame.close();
+      }
 
-      // Progress reporting & yielding to UI thread
-      if (frameIdx % 4 === 0 || frameIdx === totalFrames - 1) {
+      // Progress reporting & yielding to UI thread for smooth mobile execution
+      if (frameIdx % 3 === 0 || frameIdx === totalFrames - 1) {
         const pct = Math.min(99, Math.round(((frameIdx + 1) / totalFrames) * 100));
         if (onProgress) {
           onProgress({
@@ -237,7 +241,11 @@ class VideoWebExporter {
     // Flush encoders
     await videoEncoder.flush();
     if (audioEncoder) {
-      await audioEncoder.flush();
+      try {
+        await audioEncoder.flush();
+      } catch (e) {
+        console.warn('[VideoWebExporter] AudioEncoder flush warning:', e);
+      }
     }
 
     // Finalize MP4 File
@@ -373,35 +381,28 @@ class VideoWebExporter {
 
       mediaRecorder.onerror = (err) => reject(err);
 
-      mediaRecorder.start(200);
+      mediaRecorder.start(100);
       if (audioElem) {
         audioElem.currentTime = 0;
         audioElem.play().catch(() => {});
       }
 
-      const totalFrames = Math.max(1, Math.ceil(totalDuration * fps));
-      const frameIntervalMs = 1000 / fps;
-      let frameIdx = 0;
+      const startWallClock = performance.now();
+      let isStopping = false;
 
       const renderProject = {
         ...project,
         canvas: { ...project.canvas, width: targetWidth, height: targetHeight }
       };
 
-      // Deterministic frame delivery for MediaRecorder
-      const renderInterval = setInterval(() => {
-        if (frameIdx >= totalFrames) {
-          clearInterval(renderInterval);
-          setTimeout(() => {
-            if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-          }, 300);
-          return;
-        }
+      function renderFrame() {
+        if (isStopping) return;
+        const elapsedSec = (performance.now() - startWallClock) / 1000;
+        const currentTimestamp = Math.min(totalDuration, elapsedSec);
 
-        const currentTimestamp = (frameIdx / fps);
-        exportEngine.render(renderProject, Math.min(totalDuration, currentTimestamp));
+        exportEngine.render(renderProject, currentTimestamp);
 
-        const pct = Math.min(100, Math.round(((frameIdx + 1) / totalFrames) * 100));
+        const pct = Math.min(99, Math.round((currentTimestamp / totalDuration) * 100));
         if (onProgress) {
           onProgress({
             percentage: pct,
@@ -410,8 +411,20 @@ class VideoWebExporter {
           });
         }
 
-        frameIdx++;
-      }, frameIntervalMs);
+        if (elapsedSec >= totalDuration) {
+          isStopping = true;
+          setTimeout(() => {
+            if (mediaRecorder.state !== 'inactive') {
+              mediaRecorder.stop();
+            }
+          }, 300);
+          return;
+        }
+
+        requestAnimationFrame(renderFrame);
+      }
+
+      requestAnimationFrame(renderFrame);
     });
   }
 

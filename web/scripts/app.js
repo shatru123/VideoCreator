@@ -2526,6 +2526,7 @@
     const modal = document.getElementById('export-modal');
     const exportBtn = document.getElementById('btn-start-export');
     const shareBtn = document.getElementById('btn-share-export');
+    const directDownloadBtn = document.getElementById('btn-direct-download');
     const progressContainer = document.getElementById('export-progress-group');
     const progressFill = document.getElementById('export-progress-fill');
     const progressLabel = document.getElementById('export-progress-label');
@@ -2533,6 +2534,7 @@
     document.getElementById('btn-close-export').addEventListener('click', () => {
       modal.classList.remove('active');
       shareBtn.style.display = 'none';
+      if (directDownloadBtn) directDownloadBtn.style.display = 'none';
     });
 
     let lastExportResult = null;
@@ -2543,6 +2545,7 @@
 
       exportBtn.disabled = true;
       shareBtn.style.display = 'none';
+      if (directDownloadBtn) directDownloadBtn.style.display = 'none';
       progressContainer.style.display = 'block';
       progressFill.style.width = '0%';
       progressLabel.textContent = 'Preparing render engine...';
@@ -2554,9 +2557,18 @@
         });
 
         lastExportResult = result;
-        progressLabel.textContent = '✓ Video Rendered Successfully! Downloading...';
+        progressLabel.textContent = '✓ Video Rendered Successfully!';
 
         const fileName = `${(currentProject.metadata?.name || 'video').replace(/[^a-zA-Z0-9_-]/g, '_')}.${result.ext}`;
+
+        // Set direct download button
+        if (directDownloadBtn) {
+          directDownloadBtn.href = result.url;
+          directDownloadBtn.download = fileName;
+          directDownloadBtn.style.display = 'block';
+        }
+
+        // Trigger automatic download
         const a = document.createElement('a');
         a.href = result.url;
         a.download = fileName;
