@@ -35,6 +35,22 @@ class WebAudioPlayer {
     return match ? match[1] : null;
   }
 
+  async fetchYouTubeMetadata(videoId) {
+    try {
+      const resp = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+      if (resp.ok) {
+        const data = await resp.json();
+        return {
+          title: data.title || 'YouTube Audio Track',
+          author: data.author_name || 'YouTube'
+        };
+      }
+    } catch (e) {
+      console.warn('oEmbed fetch notice:', e);
+    }
+    return { title: 'YouTube Audio Stream', author: 'YouTube' };
+  }
+
   initYouTubeIFrameAPI() {
     if (window.YT && window.YT.Player) {
       return Promise.resolve();
@@ -44,8 +60,13 @@ class WebAudioPlayer {
     }
 
     this.ytApiReadyPromise = new Promise((resolve) => {
+      const safetyTimeout = setTimeout(() => {
+        resolve(); // Never hang if adblocker blocks telemetry
+      }, 2500);
+
       const prevCallback = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => {
+        clearTimeout(safetyTimeout);
         if (prevCallback) prevCallback();
         resolve();
       };
@@ -63,14 +84,47 @@ class WebAudioPlayer {
   }
 
   async loadYouTubeAudio(videoId, originalUrl, onProgress) {
-    if (onProgress) onProgress(15, '⚡ Initializing YouTube API...');
+    if (onProgress) onProgress(20, '🔍 Resolving video stream & title...');
+    const meta = await this.fetchYouTubeMetadata(videoId);
+    if (onProgress) onProgress(50, `🎵 Found: ${meta.title}`);
+
     await this.initYouTubeIFrameAPI();
-    if (onProgress) onProgress(35, '🔍 Resolving video stream & title...');
 
     const dock = document.getElementById('yt-player-dock');
     if (dock) dock.style.display = 'block';
 
     return new Promise((resolve) => {
+      let isResolved = false;
+      const finishResolve = (dur, trackTitle) => {
+        if (isResolved) return;
+        isResolved = true;
+        this.isYouTubeActive = true;
+        this.currentTrackSrc = originalUrl;
+
+        // Stop standard HTML audio element so default sample audio stops immediately
+        if (this.audioElement) {
+          this.audioElement.pause();
+          this.audioElement.src = '';
+        }
+
+        if (onProgress) onProgress(90, '📊 Building timeline waveform...');
+        setTimeout(() => {
+          if (onProgress) onProgress(100, '✅ Audio track ready!');
+          resolve({
+            src: originalUrl,
+            videoId: videoId,
+            duration: dur > 0 ? dur : 30.0,
+            title: trackTitle || meta.title || 'YouTube Audio Stream',
+            isYouTube: true
+          });
+        }, 500);
+      };
+
+      // Safety timeout: if adblocker delays or blocks YouTube iframe onReady, auto-advance!
+      const adblockSafetyTimeout = setTimeout(() => {
+        finishResolve(30.0, meta.title);
+      }, 2500);
+
       let container = document.getElementById('hidden-yt-audio-player');
       if (!container) {
         let parent = document.getElementById('yt-player-dock') || document.getElementById('yt-player-container');
@@ -87,39 +141,20 @@ class WebAudioPlayer {
       }
 
       const onPlayerReady = (playerInstance) => {
+        clearTimeout(adblockSafetyTimeout);
         try {
           if (typeof playerInstance.unMute === 'function') playerInstance.unMute();
           if (typeof playerInstance.setVolume === 'function') playerInstance.setVolume(100);
         } catch (e) {}
 
-        this.isYouTubeActive = true;
-        this.currentTrackSrc = originalUrl;
+        let dur = 30.0;
+        let title = meta.title;
+        try {
+          title = playerInstance.getVideoData?.()?.title || meta.title;
+          dur = playerInstance.getDuration?.() || 30.0;
+        } catch (e) {}
 
-        // Stop standard HTML audio element so default sample audio stops immediately
-        if (this.audioElement) {
-          this.audioElement.pause();
-          this.audioElement.src = '';
-        }
-
-        if (onProgress) onProgress(70, '🎵 Extracting audio stream metadata...');
-        setTimeout(() => {
-          if (onProgress) onProgress(90, '📊 Building timeline waveform...');
-          let title = 'YouTube Audio Stream';
-          let dur = 30.0;
-          try {
-            title = playerInstance.getVideoData?.()?.title || 'YouTube Audio Stream';
-            dur = playerInstance.getDuration?.() || 30.0;
-          } catch (e) {}
-
-          if (onProgress) onProgress(100, '✅ Audio track ready!');
-          resolve({
-            src: originalUrl,
-            videoId: videoId,
-            duration: dur > 0 ? dur : 30.0,
-            title: title,
-            isYouTube: true
-          });
-        }, 800);
+        finishResolve(dur, title);
       };
 
       if (this.ytPlayer && typeof this.ytPlayer.loadVideoById === 'function') {
@@ -129,38 +164,38 @@ class WebAudioPlayer {
           onPlayerReady(this.ytPlayer);
         } catch (err) {
           console.warn('Error loading video in existing player:', err);
+          finishResolve(30.0, meta.title);
+        }
+      } else if (window.YT && window.YT.Player) {
+        try {
+          this.ytPlayer = new window.YT.Player('hidden-yt-audio-player', {
+            height: '105',
+            width: '200',
+            videoId: videoId,
+            playerVars: {
+              autoplay: 0,
+              controls: 0,
+              disablekb: 1,
+              enablejsapi: 1,
+              playsinline: 1,
+              origin: window.location.origin
+            },
+            events: {
+              onReady: (event) => {
+                onPlayerReady(event.target);
+              },
+              onError: (err) => {
+                console.warn('YouTube Player Event Error, fallback to audio stream:', err);
+                finishResolve(30.0, meta.title);
+              }
+            }
+          });
+        } catch (e) {
+          console.warn('YT.Player init notice:', e);
+          finishResolve(30.0, meta.title);
         }
       } else {
-        this.ytPlayer = new window.YT.Player('hidden-yt-audio-player', {
-          height: '105',
-          width: '200',
-          videoId: videoId,
-          playerVars: {
-            autoplay: 0,
-            controls: 0,
-            disablekb: 1,
-            enablejsapi: 1,
-            playsinline: 1,
-            origin: window.location.origin
-          },
-          events: {
-            onReady: (event) => {
-              onPlayerReady(event.target);
-            },
-            onError: (err) => {
-              console.warn('YouTube Player Event Error, using audio backup:', err);
-              this.isYouTubeActive = true;
-              if (onProgress) onProgress(100, '✅ YouTube Stream Initialized');
-              resolve({
-                src: originalUrl,
-                videoId: videoId,
-                duration: 30.0,
-                title: 'YouTube Audio Stream',
-                isYouTube: true
-              });
-            }
-          }
-        });
+        finishResolve(30.0, meta.title);
       }
     });
   }
