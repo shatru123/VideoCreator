@@ -1659,38 +1659,11 @@
   }
 
   function setupAutosaveAndRecovery() {
+    // Disabled recovery banner per user preference
     const banner = document.getElementById('recovery-banner');
-    const restoreBtn = document.getElementById('btn-restore-recovery');
-    const discardBtn = document.getElementById('btn-discard-recovery');
-
     if (banner) banner.style.display = 'none';
 
-    try {
-      const snapshot = localStorage.getItem('vc_autosave_snapshot');
-      if (snapshot) {
-        const parsed = JSON.parse(snapshot);
-        // Only show recovery banner if the saved project has customized clips
-        const hasContent = parsed && parsed.timeline && parsed.timeline.tracks && parsed.timeline.tracks.some(t => t.clips && t.clips.length > 0);
-        if (hasContent && banner) {
-          banner.style.display = 'flex';
-
-          restoreBtn?.addEventListener('click', () => {
-            pushHistory();
-            currentProject = parsed;
-            banner.style.display = 'none';
-            switchScreen('editor');
-            refreshTimeline();
-            refreshMediaLibrary();
-            updateInspector();
-            requestRender();
-          });
-        }
-      }
-    } catch (e) {
-      try { localStorage.removeItem('vc_autosave_snapshot'); } catch {}
-    }
-
-    discardBtn?.addEventListener('click', () => {
+    document.getElementById('btn-discard-recovery')?.addEventListener('click', () => {
       discardCurrentSession();
       alert('✓ Unsaved project session discarded.');
     });
@@ -3247,7 +3220,7 @@
     });
 
     previewBtn?.addEventListener('click', async () => {
-      const text = textInput?.value?.trim() || 'Welcome to our sunset adventure!';
+      const text = textInput?.value?.trim() || 'Hey, I Shatrughna, have designed and built this beautiful video editor software. If you like it, please give a star to the GitHub repository!';
       const voiceName = voiceSelect?.value;
       const rate = parseFloat(rateSelect?.value || '1.0');
       try {
@@ -3259,11 +3232,7 @@
     });
 
     createBtn?.addEventListener('click', async () => {
-      const text = textInput?.value?.trim();
-      if (!text) {
-        alert('Please enter some narration text first!');
-        return;
-      }
+      const text = textInput?.value?.trim() || 'Hey, I Shatrughna, have designed and built this beautiful video editor software. If you like it, please give a star to the GitHub repository!';
       const voiceName = voiceSelect?.value;
       const rate = parseFloat(rateSelect?.value || '1.0');
 
