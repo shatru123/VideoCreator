@@ -1177,9 +1177,6 @@ canvas#videoCanvas {
   touch-action: none;
 }
 
-/* Mobile Bottom Tab Bar */
-.mobile-editor-tabs {
-  display: none;
 /* Mobile Bottom Dock (Floating Frosted Glass Navigation) */
 .mobile-editor-tabs {
   display: none;
@@ -1484,7 +1481,7 @@ canvas#videoCanvas {
   background: rgba(0, 0, 0, 0.78);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  display: none;
+  display: none !important;
   align-items: center;
   justify-content: center;
   z-index: 100;
@@ -1492,7 +1489,7 @@ canvas#videoCanvas {
 }
 
 .modal-overlay.active {
-  display: flex;
+  display: flex !important;
 }
 
 .modal-card {
