@@ -30,8 +30,12 @@ class WebAudioPlayer {
   // --- YouTube Video ID Extractor & IFrame API Loader ---
   extractYouTubeVideoId(url) {
     if (!url) return null;
-    const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
-    const match = url.match(regExp);
+    const trimmed = url.trim();
+    if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+      return trimmed;
+    }
+    const regExp = /(?:(?:youtube\.com|youtube-nocookie\.com|youtu\.be|music\.youtube\.com|m\.youtube\.com)\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|live|shorts|watch)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const match = trimmed.match(regExp);
     return match ? match[1] : null;
   }
 
