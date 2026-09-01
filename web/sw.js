@@ -1,4 +1,4 @@
-const CACHE_NAME = 'videocreator-v3.0';
+const CACHE_NAME = 'videocreator-v3.1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
