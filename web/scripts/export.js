@@ -470,14 +470,28 @@ class VideoWebExporter {
             const clipStartSample = Math.max(0, Math.floor((clip.startTime || 0) * sampleRate));
             const clipDurSamples = Math.floor((clip.duration || durationSec) * sampleRate);
             const clipVol = clip.volume !== undefined ? clip.volume : 1.0;
+            const offsetSamples = Math.floor((clip.sourceOffset || clip.trimStart || 0) * sampleRate);
 
             const cLeft = clipBuf.getChannelData(0);
             const cRight = clipBuf.numberOfChannels > 1 ? clipBuf.getChannelData(1) : cLeft;
 
+            const fadeInSec = clip.fadeIn || 0;
+            const fadeOutSec = clip.fadeOut || 0;
+
             for (let i = 0; i < clipDurSamples && (clipStartSample + i) < totalSamples; i++) {
-              const srcIdx = i % clipBuf.length;
-              leftChannel[clipStartSample + i] += (cLeft[srcIdx] || 0) * clipVol;
-              rightChannel[clipStartSample + i] += (cRight[srcIdx] || 0) * clipVol;
+              const srcIdx = (offsetSamples + i) % clipBuf.length;
+              let gain = clipVol;
+
+              if (fadeInSec > 0 && i < fadeInSec * sampleRate) {
+                gain *= (i / (fadeInSec * sampleRate));
+              }
+              const remaining = clipDurSamples - i;
+              if (fadeOutSec > 0 && remaining < fadeOutSec * sampleRate) {
+                gain *= Math.max(0, remaining / (fadeOutSec * sampleRate));
+              }
+
+              leftChannel[clipStartSample + i] += (cLeft[srcIdx] || 0) * gain;
+              rightChannel[clipStartSample + i] += (cRight[srcIdx] || 0) * gain;
             }
           }
         } catch (e) {

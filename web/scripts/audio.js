@@ -153,9 +153,11 @@ class WebAudioPlayer {
     }
   }
 
-  playAt(timeSec, volume = 1.0) {
+  playAt(timeSec, volume = 1.0, offset = 0) {
     this.ensureAudioContext();
     if (!this.currentTrackSrc) return;
+
+    const actualTime = (offset || 0) + timeSec;
 
     if (this.isYouTubeActive && this.ytPlayer) {
       try {
@@ -169,7 +171,7 @@ class WebAudioPlayer {
           this.ytPlayer.setVolume(Math.round(Math.max(0, Math.min(1, volume)) * 100));
         }
         if (typeof this.ytPlayer.seekTo === 'function') {
-          this.ytPlayer.seekTo(timeSec, true);
+          this.ytPlayer.seekTo(actualTime, true);
         }
         if (typeof this.ytPlayer.playVideo === 'function') {
           this.ytPlayer.playVideo();
@@ -181,8 +183,8 @@ class WebAudioPlayer {
 
     if (this.audioElement && !this.isYouTubeActive) {
       this.audioElement.volume = Math.max(0, Math.min(1, volume));
-      if (timeSec >= 0 && timeSec < (this.audioElement.duration || 9999)) {
-        this.audioElement.currentTime = timeSec;
+      if (actualTime >= 0 && actualTime < (this.audioElement.duration || 99999)) {
+        this.audioElement.currentTime = actualTime;
         this.audioElement.play().catch(() => {});
       }
     }
@@ -201,18 +203,19 @@ class WebAudioPlayer {
     this.isPlaying = false;
   }
 
-  seek(timeSec) {
+  seek(timeSec, offset = 0) {
     if (!this.currentTrackSrc) return;
+    const actualTime = (offset || 0) + timeSec;
 
     if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.seekTo === 'function') {
       try {
-        this.ytPlayer.seekTo(timeSec, true);
+        this.ytPlayer.seekTo(actualTime, true);
       } catch (err) {}
     }
 
     if (this.audioElement && !this.isYouTubeActive) {
-      if (timeSec >= 0 && timeSec < (this.audioElement.duration || 9999)) {
-        this.audioElement.currentTime = timeSec;
+      if (actualTime >= 0 && actualTime < (this.audioElement.duration || 99999)) {
+        this.audioElement.currentTime = actualTime;
       }
     }
   }

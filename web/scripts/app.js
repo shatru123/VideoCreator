@@ -1052,6 +1052,23 @@
           </div>
         </div>
 
+        <!-- Song Start Offset / Section Selector -->
+        <div style="background:#0D111A; padding:10px; border-radius:8px; border:1px solid #1E293B;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="font-size:12px; font-weight:700; color:#FEF3C7;">🎵 Start Song From:</label>
+            <span id="m-val-audio-offset" style="font-size:12px; font-weight:800; color:#38BDF8;">00:00.0</span>
+          </div>
+          <div style="font-size:11px; color:#94A3B8; margin-bottom:6px;">Choose which section/chorus plays over your photos:</div>
+          <input type="range" id="m-input-audio-offset" min="0" max="300" step="0.5" value="${audioClip?.sourceOffset || 0}" style="width:100%; height:34px;">
+          <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="0" style="font-size:10px; padding:4px 8px;">0:00 Intro</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="30" style="font-size:10px; padding:4px 8px;">0:30 Verse</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="60" style="font-size:10px; padding:4px 8px;">1:00 Chorus 🔥</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="90" style="font-size:10px; padding:4px 8px;">1:30 Drop ⚡</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="120" style="font-size:10px; padding:4px 8px;">2:00 Bridge</button>
+          </div>
+        </div>
+
         <!-- Audio Volume -->
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -1065,11 +1082,11 @@
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
           <div>
             <label style="font-size:11px; color:#94A3B8;">Fade In (sec)</label>
-            <input type="number" id="m-input-fade-in" class="btn btn-secondary" style="width:100%; min-height:40px; margin-top:4px;" value="1.0" min="0" max="5" step="0.5">
+            <input type="number" id="m-input-fade-in" class="btn btn-secondary" style="width:100%; min-height:40px; margin-top:4px;" value="${audioClip?.fadeIn || 1.0}" min="0" max="5" step="0.5">
           </div>
           <div>
             <label style="font-size:11px; color:#94A3B8;">Fade Out (sec)</label>
-            <input type="number" id="m-input-fade-out" class="btn btn-secondary" style="width:100%; min-height:40px; margin-top:4px;" value="1.5" min="0" max="5" step="0.5">
+            <input type="number" id="m-input-fade-out" class="btn btn-secondary" style="width:100%; min-height:40px; margin-top:4px;" value="${audioClip?.fadeOut || 1.5}" min="0" max="5" step="0.5">
           </div>
         </div>
       </div>
@@ -1081,12 +1098,52 @@
       autoBeatSyncPhotos();
     });
 
+    const offsetSlider = container.querySelector('#m-input-audio-offset');
+    const offsetValEl = container.querySelector('#m-val-audio-offset');
+    function updateOffsetDisplay(val) {
+      const mins = Math.floor(val / 60);
+      const secs = (val % 60).toFixed(1);
+      if (offsetValEl) offsetValEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
+    }
+    updateOffsetDisplay(audioClip?.sourceOffset || 0);
+
+    offsetSlider?.addEventListener('input', (e) => {
+      const off = parseFloat(e.target.value);
+      if (audioClip) {
+        audioClip.sourceOffset = off;
+        audioClip.trimStart = off;
+      }
+      updateOffsetDisplay(off);
+      audio.seek(currentTime, off);
+    });
+
+    container.querySelectorAll('.m-btn-audio-jump').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const off = parseFloat(btn.dataset.offset || '0');
+        if (offsetSlider) offsetSlider.value = off;
+        if (audioClip) {
+          audioClip.sourceOffset = off;
+          audioClip.trimStart = off;
+        }
+        updateOffsetDisplay(off);
+        audio.seek(currentTime, off);
+      });
+    });
+
     const volInput = container.querySelector('#m-input-vol');
     volInput?.addEventListener('input', (e) => {
       const v = parseFloat(e.target.value);
       if (audioClip) audioClip.volume = v;
       container.querySelector('#m-val-vol').textContent = `${Math.round(v * 100)}%`;
       audio.setVolume(v);
+    });
+
+    container.querySelector('#m-input-fade-in')?.addEventListener('change', (e) => {
+      if (audioClip) audioClip.fadeIn = parseFloat(e.target.value || '1.0');
+    });
+
+    container.querySelector('#m-input-fade-out')?.addEventListener('change', (e) => {
+      if (audioClip) audioClip.fadeOut = parseFloat(e.target.value || '1.5');
     });
 
     // Stock Music Tracks Library
@@ -2285,6 +2342,66 @@
       updateInspector();
       requestRender();
     });
+
+    // Audio & Song Section Trimmer Inspector Listeners
+    const audioOffsetSlider = document.getElementById('input-audio-offset');
+    const audioOffsetVal = document.getElementById('val-audio-offset');
+
+    function updateInspectorOffsetDisplay(val) {
+      const mins = Math.floor(val / 60);
+      const secs = (val % 60).toFixed(1);
+      if (audioOffsetVal) audioOffsetVal.textContent = `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
+    }
+
+    audioOffsetSlider?.addEventListener('input', (e) => {
+      const off = parseFloat(e.target.value);
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const audioClip = audioTrack?.clips[0];
+      if (audioClip) {
+        audioClip.sourceOffset = off;
+        audioClip.trimStart = off;
+      }
+      updateInspectorOffsetDisplay(off);
+      audio.seek(currentTime, off);
+    });
+
+    document.querySelectorAll('.btn-audio-jump').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const off = parseFloat(btn.dataset.offset || '0');
+        if (audioOffsetSlider) audioOffsetSlider.value = off;
+        const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+        const audioClip = audioTrack?.clips[0];
+        if (audioClip) {
+          audioClip.sourceOffset = off;
+          audioClip.trimStart = off;
+        }
+        updateInspectorOffsetDisplay(off);
+        audio.seek(currentTime, off);
+      });
+    });
+
+    const inspAudioVol = document.getElementById('input-inspector-audio-vol');
+    inspAudioVol?.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const audioClip = audioTrack?.clips[0];
+      if (audioClip) audioClip.volume = v;
+      const volLbl = document.getElementById('val-inspector-audio-vol');
+      if (volLbl) volLbl.textContent = `${Math.round(v * 100)}%`;
+      audio.setVolume(v);
+    });
+
+    document.getElementById('input-inspector-fade-in')?.addEventListener('change', (e) => {
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const audioClip = audioTrack?.clips[0];
+      if (audioClip) audioClip.fadeIn = parseFloat(e.target.value || '1.0');
+    });
+
+    document.getElementById('input-inspector-fade-out')?.addEventListener('change', (e) => {
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const audioClip = audioTrack?.clips[0];
+      if (audioClip) audioClip.fadeOut = parseFloat(e.target.value || '1.5');
+    });
   }
 
   function bindSlider(sliderId, valId, onChange, unit = '') {
@@ -2314,6 +2431,7 @@
 
   function updateInspector() {
     const textSec = document.getElementById('inspector-text-section');
+    const audioSec = document.getElementById('inspector-audio-section');
     const titleLabel = document.getElementById('inspector-clip-title');
 
     const particleSelect = document.getElementById('select-particle-fx');
@@ -2331,8 +2449,34 @@
       pbCheckbox.checked = !!currentProject.progressBar?.enabled;
     }
 
+    // Always keep audio trimmer controls updated
+    const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+    const audioClip = audioTrack?.clips[0];
+    if (audioSec) {
+      audioSec.style.display = 'block';
+      const offsetInput = document.getElementById('input-audio-offset');
+      const offsetVal = document.getElementById('val-audio-offset');
+      const curOffset = audioClip?.sourceOffset || audioClip?.trimStart || 0;
+      if (offsetInput) offsetInput.value = curOffset;
+      if (offsetVal) {
+        const mins = Math.floor(curOffset / 60);
+        const secs = (curOffset % 60).toFixed(1);
+        offsetVal.textContent = `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
+      }
+      const volInput = document.getElementById('input-inspector-audio-vol');
+      const volVal = document.getElementById('val-inspector-audio-vol');
+      const curVol = audioClip?.volume !== undefined ? audioClip.volume : 1.0;
+      if (volInput) volInput.value = curVol;
+      if (volVal) volVal.textContent = `${Math.round(curVol * 100)}%`;
+
+      const fadeInInput = document.getElementById('input-inspector-fade-in');
+      if (fadeInInput) fadeInInput.value = audioClip?.fadeIn || 1.0;
+      const fadeOutInput = document.getElementById('input-inspector-fade-out');
+      if (fadeOutInput) fadeOutInput.value = audioClip?.fadeOut || 1.5;
+    }
+
     if (!selectedClip) {
-      titleLabel.textContent = 'NO CLIP SELECTED';
+      titleLabel.textContent = 'PROJECT OVERVIEW';
       textSec.style.display = 'none';
       return;
     }
@@ -2467,7 +2611,9 @@
           audio.loadAudio(activeClip.source);
         }
       }
-      audio.playAt(currentTime);
+      const offset = activeClip?.sourceOffset || activeClip?.trimStart || 0;
+      const vol = activeClip?.volume !== undefined ? activeClip.volume : 1.0;
+      audio.playAt(currentTime, vol, offset);
       lastPlayTimestamp = performance.now();
       startRenderLoop();
     } else {
@@ -2490,7 +2636,8 @@
         audio.loadAudio(activeClip.source);
       }
     }
-    audio.seek(currentTime);
+    const offset = activeClip?.sourceOffset || activeClip?.trimStart || 0;
+    audio.seek(currentTime, offset);
     updatePlayheadPosition();
     requestRender();
   }
