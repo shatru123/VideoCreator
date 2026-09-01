@@ -2474,6 +2474,13 @@
     if (btn) btn.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
 
     if (isPlaying) {
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const activeClip = audioTrack?.clips?.[0];
+      if (activeClip && activeClip.source) {
+        if (audio.currentTrackSrc !== activeClip.source) {
+          audio.loadAudio(activeClip.source);
+        }
+      }
       audio.playAt(currentTime);
       lastPlayTimestamp = performance.now();
       startRenderLoop();
@@ -2490,6 +2497,13 @@
   function seek(timeSec) {
     const totalDur = currentProject.timeline.totalDuration || 14.0;
     currentTime = Math.max(0, Math.min(totalDur, timeSec));
+    const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+    const activeClip = audioTrack?.clips?.[0];
+    if (activeClip && activeClip.source) {
+      if (audio.currentTrackSrc !== activeClip.source) {
+        audio.loadAudio(activeClip.source);
+      }
+    }
     audio.seek(currentTime);
     updatePlayheadPosition();
     requestRender();
@@ -3715,6 +3729,12 @@
         currentProject.timeline.tracks.push(track);
       }
 
+      if (trackType === 'audio') {
+        // Clear previous sample or background audio
+        track.clips = [];
+        audio.loadAudio(src);
+      }
+
       const newClip = {
         id: `clip-${trackType}-${Date.now()}`,
         name: name,
@@ -3784,9 +3804,13 @@
           currentProject.timeline.tracks.push(audioTrack);
         }
 
+        // Replace any old sample background music
+        audioTrack.clips = [];
+        audio.loadAudio(audioInfo.src);
+
         const newClip = {
           id: `clip-audio-${Date.now()}`,
-          name: audioInfo.title || 'Web / YouTube Stream',
+          name: audioInfo.title || 'YouTube Audio Stream',
           startTime: currentTime,
           duration: audioInfo.duration || 14.0,
           source: audioInfo.src,

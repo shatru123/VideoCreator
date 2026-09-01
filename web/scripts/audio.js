@@ -74,7 +74,7 @@ class WebAudioPlayer {
         if (!parent) {
           parent = document.createElement('div');
           parent.id = 'yt-player-container';
-          parent.style.cssText = 'position:fixed; bottom:0px; right:0px; width:2px; height:2px; opacity:0.01; pointer-events:none; z-index:9999;';
+          parent.style.cssText = 'position:fixed; bottom:0px; left:0px; width:200px; height:120px; opacity:0.001; pointer-events:none; z-index:-1; overflow:hidden;';
           document.body.appendChild(parent);
         }
         container = document.createElement('div');
@@ -90,6 +90,12 @@ class WebAudioPlayer {
 
         this.isYouTubeActive = true;
         this.currentTrackSrc = originalUrl;
+
+        // Stop standard HTML audio element so default sample audio stops immediately
+        if (this.audioElement) {
+          this.audioElement.pause();
+          this.audioElement.currentTime = 0;
+        }
 
         if (onProgress) onProgress(70, '🎵 Extracting audio stream metadata...');
         setTimeout(() => {
@@ -122,14 +128,15 @@ class WebAudioPlayer {
         }
       } else {
         this.ytPlayer = new window.YT.Player('hidden-yt-audio-player', {
-          height: '2',
-          width: '2',
+          height: '120',
+          width: '200',
           videoId: videoId,
           playerVars: {
             autoplay: 0,
             controls: 0,
             disablekb: 1,
             enablejsapi: 1,
+            playsinline: 1,
             origin: window.location.origin
           },
           events: {
@@ -171,6 +178,9 @@ class WebAudioPlayer {
 
     if (this.isYouTubeActive && this.ytPlayer) {
       try {
+        if (this.audioElement) {
+          this.audioElement.pause();
+        }
         if (typeof this.ytPlayer.unMute === 'function') {
           this.ytPlayer.unMute();
         }
