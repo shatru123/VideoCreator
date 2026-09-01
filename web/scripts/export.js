@@ -46,23 +46,44 @@ class VideoWebExporter {
     exportCanvas.height = targetHeight;
     const exportEngine = new VideoCanvasEngine(exportCanvas);
 
-    // Preload images into exportEngine and transfer from main engine cache
+    // Transfer ALL loaded images from the main studio engine into the export engine
+    // This is critical because on mobile, blob: URLs might not re-load successfully
     if (this.engine && this.engine.imageCache) {
       this.engine.imageCache.forEach((img, src) => {
-        exportEngine.imageCache.set(src, img);
-        exportEngine.createPreBlurredBackground(src, img);
+        if (img && img.naturalWidth > 0 && img.complete) {
+          exportEngine.imageCache.set(src, img);
+          exportEngine.createPreBlurredBackground(src, img);
+        }
       });
+      // Also transfer blur cache
+      if (this.engine.blurCache) {
+        this.engine.blurCache.forEach((blurCanvas, src) => {
+          exportEngine.blurCache.set(src, blurCanvas);
+        });
+      }
     }
 
+    // Ensure EVERY clip image is loaded — await each one individually
     const videoTrack = project.timeline.tracks.find(t => t.type === 'video');
     if (videoTrack) {
-      for (const clip of videoTrack.clips) {
-        if (clip.source) {
-          const img = await exportEngine.loadImage(clip.source);
-          if (img) {
-            exportEngine.imageCache.set(clip.source, img);
-            exportEngine.createPreBlurredBackground(clip.source, img);
-          }
+      console.log(`[Export] Preloading ${videoTrack.clips.length} clip images...`);
+      for (let i = 0; i < videoTrack.clips.length; i++) {
+        const clip = videoTrack.clips[i];
+        if (!clip.source) continue;
+
+        // Check if already in cache from the transfer above
+        const existing = exportEngine.imageCache.get(clip.source);
+        if (existing && existing.naturalWidth > 0 && existing.complete) {
+          console.log(`[Export] Clip ${i} ("${clip.name}") image ready from cache.`);
+          continue;
+        }
+
+        // Not in cache or broken — try to load
+        const img = await exportEngine.loadImage(clip.source);
+        if (img && img.naturalWidth > 0) {
+          console.log(`[Export] Clip ${i} ("${clip.name}") image loaded successfully.`);
+        } else {
+          console.error(`[Export] Clip ${i} ("${clip.name}") image FAILED to load! Source: ${clip.source.substring(0, 80)}`);
         }
       }
     }
@@ -241,24 +262,30 @@ class VideoWebExporter {
     exportCanvas.height = targetHeight;
     const exportEngine = new VideoCanvasEngine(exportCanvas);
 
-    // Preload images into exportEngine and transfer from main engine cache
+    // Transfer ALL loaded images from the main studio engine
     if (this.engine && this.engine.imageCache) {
       this.engine.imageCache.forEach((img, src) => {
-        exportEngine.imageCache.set(src, img);
-        exportEngine.createPreBlurredBackground(src, img);
+        if (img && img.naturalWidth > 0 && img.complete) {
+          exportEngine.imageCache.set(src, img);
+          exportEngine.createPreBlurredBackground(src, img);
+        }
       });
+      if (this.engine.blurCache) {
+        this.engine.blurCache.forEach((blurCanvas, src) => {
+          exportEngine.blurCache.set(src, blurCanvas);
+        });
+      }
     }
 
+    // Ensure EVERY clip image is loaded
     const videoTrack = project.timeline.tracks.find(t => t.type === 'video');
     if (videoTrack) {
-      for (const clip of videoTrack.clips) {
-        if (clip.source) {
-          const img = await exportEngine.loadImage(clip.source);
-          if (img) {
-            exportEngine.imageCache.set(clip.source, img);
-            exportEngine.createPreBlurredBackground(clip.source, img);
-          }
-        }
+      for (let i = 0; i < videoTrack.clips.length; i++) {
+        const clip = videoTrack.clips[i];
+        if (!clip.source) continue;
+        const existing = exportEngine.imageCache.get(clip.source);
+        if (existing && existing.naturalWidth > 0 && existing.complete) continue;
+        await exportEngine.loadImage(clip.source);
       }
     }
 

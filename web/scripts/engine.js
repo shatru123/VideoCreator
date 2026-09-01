@@ -10,21 +10,32 @@ class VideoCanvasEngine {
     if (!src) return Promise.resolve(null);
     if (this.imageCache.has(src)) {
       const cached = this.imageCache.get(src);
-      if (cached && (cached.complete || cached instanceof ImageBitmap)) return Promise.resolve(cached);
+      // Verify cached image is truly usable (fully loaded, not broken)
+      if (cached && cached.naturalWidth > 0 && cached.complete) {
+        return Promise.resolve(cached);
+      }
+      // Cached but broken/incomplete — remove and reload
+      this.imageCache.delete(src);
     }
     return new Promise((resolve) => {
       const img = new Image();
-      // Only set crossOrigin for remote HTTP URLs. Setting crossOrigin on blob: or data: URLs fails in WebKit/iOS Safari!
+      // Only set crossOrigin for remote HTTP URLs.
+      // Setting crossOrigin on blob: or data: URLs causes CORS errors on iOS Safari & mobile WebKit.
       if (src.startsWith('http://') || src.startsWith('https://')) {
         img.crossOrigin = 'anonymous';
       }
       img.onload = () => {
-        this.imageCache.set(src, img);
-        this.createPreBlurredBackground(src, img);
-        resolve(img);
+        if (img.naturalWidth > 0) {
+          this.imageCache.set(src, img);
+          this.createPreBlurredBackground(src, img);
+          resolve(img);
+        } else {
+          console.warn('[VideoCanvasEngine] Image loaded with 0 dimensions:', src);
+          resolve(null);
+        }
       };
       img.onerror = (err) => {
-        console.warn('[VideoCanvasEngine] Image load failed for:', src, err);
+        console.warn('[VideoCanvasEngine] Image load failed for:', src);
         resolve(null);
       };
       img.src = src;

@@ -319,6 +319,10 @@
     <section id="screen-editor" class="screen editor-screen">
       <div class="editor-body">
 
+        <!-- Hidden file inputs (outside left-panel so they work on mobile where left-panel is display:none) -->
+        <input type="file" id="editor-photo-input" multiple accept="image/*" style="display:none; position:absolute;">
+        <input type="file" id="editor-music-input" accept="audio/*" style="display:none; position:absolute;">
+
         <!-- Left Panel: MEDIA LIBRARY -->
         <aside class="left-panel">
           <div class="panel-header-title">
@@ -329,9 +333,6 @@
               <button id="editor-add-text-btn" class="btn btn-secondary btn-sm" title="Add Text Title">+ Text</button>
             </div>
           </div>
-
-          <input type="file" id="editor-photo-input" multiple accept="image/*" style="display:none;">
-          <input type="file" id="editor-music-input" accept="audio/*" style="display:none;">
 
           <div class="left-panel-content">
             <!-- Photos Section -->

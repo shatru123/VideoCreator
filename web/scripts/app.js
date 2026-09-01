@@ -1608,7 +1608,10 @@
     const loadSamplesBtn = document.getElementById('btn-wizard-load-samples');
 
     photoDropzone.addEventListener('click', () => photoInput.click());
-    photoInput.addEventListener('change', (e) => handlePhotoFiles(e.target.files));
+    photoInput.addEventListener('change', (e) => {
+      handlePhotoFiles(e.target.files);
+      photoInput.value = ''; // Reset so the same files can be re-selected on mobile
+    });
 
     // 1-Click Load HD Sample Photos Pack
     loadSamplesBtn?.addEventListener('click', (e) => {
@@ -1633,7 +1636,10 @@
         if (file.type.startsWith('image/')) {
           const url = URL.createObjectURL(file);
           wizardState.photos.push({ name: file.name, url, file });
-          engine.loadImage(url);
+          // Load into main engine cache immediately (awaited during export)
+          engine.loadImage(url).then(img => {
+            if (!img) console.warn('[Wizard] Failed to load photo:', file.name);
+          });
         }
       });
       renderPhotoChips();
@@ -1776,10 +1782,16 @@
     editorPhotoInput.addEventListener('change', (e) => {
       pushHistory();
       Array.from(e.target.files).forEach(file => {
-        const url = URL.createObjectURL(file);
-        currentProject.assets.push({ id: `asset-${Date.now()}-${Math.random()}`, name: file.name, type: 'image', source: url });
-        engine.loadImage(url);
+        if (file.type.startsWith('image/')) {
+          const url = URL.createObjectURL(file);
+          currentProject.assets.push({ id: `asset-${Date.now()}-${Math.random()}`, name: file.name, type: 'image', source: url });
+          engine.loadImage(url).then(img => {
+            if (!img) console.warn('[Editor] Failed to load photo:', file.name);
+          });
+        }
       });
+      // Reset the input so the same file can be re-selected (critical on mobile)
+      editorPhotoInput.value = '';
       refreshMediaLibrary();
     });
 
@@ -1794,6 +1806,8 @@
         setProjectMusic(url, file.name);
         refreshMediaLibrary();
       }
+      // Reset the input so the same file can be re-selected (critical on mobile)
+      editorMusicInput.value = '';
     });
 
     document.getElementById('editor-add-text-btn').addEventListener('click', () => {
