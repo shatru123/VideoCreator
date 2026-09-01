@@ -673,9 +673,9 @@ class VideoWebExporter {
 
     if (durationPos !== -1) {
       const len = bytes[durationPos + 2];
-      if (len === 4) {
+      if (len === 0x84 || len === 4) {
         dataView.setFloat32(durationPos + 3, durationMs, false);
-      } else if (len === 8) {
+      } else if (len === 0x88 || len === 8) {
         dataView.setFloat64(durationPos + 3, durationMs, false);
       }
       return new Blob([arrayBuffer], { type: blob.type });
