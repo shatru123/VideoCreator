@@ -137,10 +137,10 @@ class WebAudioPlayer {
     };
   }
 
-  loadAudio(src) {
+  async loadAudio(src) {
     const ytId = this.extractYouTubeVideoId(src);
     if (ytId) {
-      this.loadYouTubeAudio(ytId, src);
+      return this.loadYouTubeAudio(ytId, src);
     } else {
       this.isYouTubeActive = false;
       const dock = document.getElementById('yt-player-dock');
@@ -150,68 +150,80 @@ class WebAudioPlayer {
       }
       this.currentTrackSrc = src;
       this.audioElement.src = src;
+
+      // Decode into Web Audio buffer for sample-accurate slice playback & instant seeking
+      this.ensureAudioContext();
+      if (this.audioCtx && src) {
+        try {
+          const resp = await fetch(src);
+          const ab = await resp.arrayBuffer();
+          this.activeAudioBuffer = await this.audioCtx.decodeAudioData(ab);
+        } catch (e) {
+          console.warn('Audio buffer decode notice:', e);
+        }
+      }
     }
   }
 
-  playAt(timeSec, volume = 1.0, offset = 0) {
+  playAt(timeSec, volume = 1.0, offset = 0, maxDuration = 0) {
     this.ensureAudioContext();
     if (!this.currentTrackSrc) return;
 
     const actualTime = Math.max(0, (offset || 0) + timeSec);
 
-    if (this.isYouTubeActive && this.ytPlayer) {
+    // Stop previous buffer source node if active
+    if (this._sourceNode) {
+      try { this._sourceNode.stop(); } catch (e) {}
+      this._sourceNode = null;
+    }
+
+    // 1. If Web Audio Buffer is available, play via AudioBufferSourceNode for exact sample accuracy
+    if (this.activeAudioBuffer && this.audioCtx && this.audioCtx.state === 'running') {
       try {
-        if (this.audioElement) {
-          this.audioElement.pause();
-        }
-        if (typeof this.ytPlayer.unMute === 'function') {
-          this.ytPlayer.unMute();
-        }
-        if (typeof this.ytPlayer.setVolume === 'function') {
-          this.ytPlayer.setVolume(Math.round(Math.max(0, Math.min(1, volume)) * 100));
-        }
-        if (typeof this.ytPlayer.seekTo === 'function') {
-          this.ytPlayer.seekTo(actualTime, true);
-        }
-        if (typeof this.ytPlayer.playVideo === 'function') {
-          this.ytPlayer.playVideo();
-        }
+        const srcNode = this.audioCtx.createBufferSource();
+        srcNode.buffer = this.activeAudioBuffer;
+        const gainNode = this.audioCtx.createGain();
+        gainNode.gain.value = Math.max(0, Math.min(1.5, volume));
+        srcNode.connect(gainNode);
+        gainNode.connect(this.audioCtx.destination);
+
+        const bufDur = this.activeAudioBuffer.duration;
+        const startOffset = Math.min(actualTime, Math.max(0, bufDur - 0.05));
+        const playDur = maxDuration > 0 ? maxDuration : (bufDur - startOffset);
+
+        srcNode.start(0, startOffset, playDur > 0 ? playDur : undefined);
+        this._sourceNode = srcNode;
+        this._gainNode = gainNode;
+        this.isPlaying = true;
+        return;
       } catch (err) {
-        console.warn('YouTube play sync notice:', err);
+        console.warn('WebAudio buffer source fallback notice:', err);
       }
     }
 
+    // 2. Fallback to HTML5 audio tag with Range seeking support
     if (this.audioElement && !this.isYouTubeActive) {
       this.audioElement.volume = Math.max(0, Math.min(1, volume));
 
-      const doSeekAndPlay = () => {
-        try {
-          if (isFinite(actualTime) && actualTime >= 0) {
-            this.audioElement.currentTime = actualTime;
-          }
-        } catch (e) {}
-        this.audioElement.play().then(() => {
-          if (isFinite(actualTime) && Math.abs(this.audioElement.currentTime - actualTime) > 0.4) {
-            try { this.audioElement.currentTime = actualTime; } catch (e) {}
-          }
-        }).catch(() => {});
-      };
+      try {
+        if (isFinite(actualTime) && actualTime >= 0) {
+          this.audioElement.currentTime = actualTime;
+        }
+      } catch (e) {}
 
-      if (this.audioElement.readyState >= 1) {
-        doSeekAndPlay();
-      } else {
-        this.audioElement.addEventListener('loadedmetadata', doSeekAndPlay, { once: true });
-        this.audioElement.load();
-      }
+      this.audioElement.play().then(() => {
+        if (isFinite(actualTime) && Math.abs(this.audioElement.currentTime - actualTime) > 0.4) {
+          try { this.audioElement.currentTime = actualTime; } catch (e) {}
+        }
+      }).catch(() => {});
     }
     this.isPlaying = true;
   }
 
   playSection(startSec, endSec, volume = 1.0) {
-    if (!this.audioElement) return;
     this.pause();
     const dur = Math.max(0.5, endSec - startSec);
-    this.playAt(0, volume, startSec);
+    this.playAt(0, volume, startSec, dur);
     if (this._sectionTimeout) clearTimeout(this._sectionTimeout);
     this._sectionTimeout = setTimeout(() => {
       this.pause();
@@ -222,6 +234,10 @@ class WebAudioPlayer {
     if (this._sectionTimeout) {
       clearTimeout(this._sectionTimeout);
       this._sectionTimeout = null;
+    }
+    if (this._sourceNode) {
+      try { this._sourceNode.stop(); } catch (e) {}
+      this._sourceNode = null;
     }
     if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
       try {
@@ -238,18 +254,16 @@ class WebAudioPlayer {
     if (!this.currentTrackSrc) return;
     const actualTime = Math.max(0, (offset || 0) + timeSec);
 
-    if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.seekTo === 'function') {
-      try {
-        this.ytPlayer.seekTo(actualTime, true);
-      } catch (err) {}
-    }
-
-    if (this.audioElement && !this.isYouTubeActive) {
-      try {
-        if (isFinite(actualTime) && actualTime >= 0) {
-          this.audioElement.currentTime = actualTime;
-        }
-      } catch (e) {}
+    if (this.isPlaying) {
+      this.playAt(timeSec, this.audioElement?.volume || 1.0, offset);
+    } else {
+      if (this.audioElement && !this.isYouTubeActive) {
+        try {
+          if (isFinite(actualTime) && actualTime >= 0) {
+            this.audioElement.currentTime = actualTime;
+          }
+        } catch (e) {}
+      }
     }
   }
 
