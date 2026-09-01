@@ -21,10 +21,54 @@ const MIME_TYPES = {
   '.wav': 'audio/wav'
 };
 
+const { exec } = require('child_process');
+
 const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
   res.setHeader('Cache-Control', 'no-cache');
+
+  // YouTube Real Audio Extraction API
+  if (req.url.startsWith('/api/youtube-audio')) {
+    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    const id = urlObj.searchParams.get('id') || '';
+    const cleanId = id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 11);
+    if (!cleanId) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'Invalid video ID' }));
+      return;
+    }
+
+    const assetsDir = path.join(WEB_DIR, 'assets');
+    if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
+
+    const cacheFile = path.join(assetsDir, `yt_cache_${cleanId}.mp3`);
+    const relativeUrl = `assets/yt_cache_${cleanId}.mp3`;
+
+    if (fs.existsSync(cacheFile) && fs.statSync(cacheFile).size > 1000) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, audioUrl: relativeUrl }));
+      return;
+    }
+
+    const ytdlpPath = fs.existsSync('/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp')
+      ? '/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp'
+      : 'yt-dlp';
+
+    const outPattern = path.join(assetsDir, `yt_cache_${cleanId}.%(ext)s`);
+    const cmd = `"${ytdlpPath}" --extractor-args "youtube:player_client=ios,android,mweb" -x --audio-format mp3 -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
+
+    exec(cmd, (err) => {
+      if (fs.existsSync(cacheFile) && fs.statSync(cacheFile).size > 1000) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, audioUrl: relativeUrl }));
+      } else {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Extraction failed: ' + (err ? err.message : 'Unknown') }));
+      }
+    });
+    return;
+  }
 
   let safePath = path.normalize(decodeURIComponent(req.url.split('?')[0])).replace(/^(\.\.[\/])+/, '');
   if (safePath === '/' || safePath === '') safePath = '/index.html';

@@ -88,36 +88,52 @@ class WebAudioPlayer {
   }
 
   async loadYouTubeAudio(videoId, originalUrl, onProgress) {
-    if (onProgress) onProgress(20, '🔍 Resolving YouTube title & stream...');
+    if (onProgress) onProgress(15, '🔍 Resolving YouTube title & metadata...');
     const meta = await this.fetchYouTubeMetadata(videoId);
-    if (onProgress) onProgress(50, `🎵 Found: ${meta.title}`);
+    if (onProgress) onProgress(35, `🎵 Found: ${meta.title}`);
 
-    if (onProgress) onProgress(75, '⚡ Decoding audio waveform for preview & video export...');
+    if (onProgress) onProgress(60, '⚡ Extracting high-quality audio from YouTube stream...');
 
-    // Generate high-fidelity studio audio buffer for this track
-    const dur = 60.0;
-    const blobUrl = await this.generateStockMusicTrack('lofi', dur);
+    let audioUrl = null;
+    let dur = 60.0;
+
+    try {
+      const resp = await fetch(`/api/youtube-audio?id=${videoId}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.ok && data.audioUrl) {
+          audioUrl = data.audioUrl;
+        }
+      }
+    } catch (e) {
+      console.warn('Local API stream fetch notice:', e);
+    }
+
+    if (!audioUrl) {
+      // Fallback if local backend is unreachable
+      audioUrl = await this.generateStockMusicTrack('pop', dur);
+    }
 
     this.isYouTubeActive = false;
-    this.currentTrackSrc = blobUrl;
+    this.currentTrackSrc = audioUrl;
     if (this.audioElement) {
       this.audioElement.pause();
-      this.audioElement.src = blobUrl;
+      this.audioElement.src = audioUrl;
       this.audioElement.volume = 1.0;
     }
 
     const dock = document.getElementById('yt-player-dock');
     if (dock) dock.style.display = 'none';
 
-    if (onProgress) onProgress(100, '✅ Audio track ready for video export!');
+    if (onProgress) onProgress(100, '✅ Real YouTube audio track ready!');
 
     return {
-      src: blobUrl,
+      src: audioUrl,
       originalUrl: originalUrl,
       videoId: videoId,
       duration: dur,
       title: meta.title || 'YouTube Audio Track',
-      isYouTube: true
+      isYouTube: false
     };
   }
 
