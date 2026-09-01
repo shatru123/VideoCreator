@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="VideoCreator">
-  <link rel="stylesheet" href="styles/app.css?v=2.9">
+  <link rel="stylesheet" href="styles/app.css?v=3.0">
 </head>
 <body>
 
@@ -398,15 +398,6 @@
 
         <!-- Center Viewport: VIDEO PREVIEW -->
         <main class="center-viewport">
-          <!-- Mobile Quick Action Bar (Visible on Mobile/Tablets) -->
-          <div class="mobile-quick-toolbar">
-            <button id="mobile-add-photo-btn" class="btn btn-primary btn-sm">📷 + Photo</button>
-            <button id="mobile-add-video-btn" class="btn btn-secondary btn-sm" style="color:#38BDF8; font-weight:700;">🎞 + Video</button>
-            <button id="mobile-add-audio-btn" class="btn btn-secondary btn-sm" style="color:#EC4899; font-weight:800; background:rgba(236,72,153,0.15); border-color:#EC4899;">🎵 + Audio</button>
-            <button id="mobile-add-voiceover-btn" class="btn btn-secondary btn-sm" style="color:#FDE047; font-weight:700;">🎙️ Voiceover</button>
-            <button id="mobile-add-text-btn" class="btn btn-secondary btn-sm">🔤 + Text</button>
-          </div>
-
           <div class="viewport-header">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:11px; font-weight:800; color:#94A3B8; letter-spacing:0.8px;">VIDEO PREVIEW</span>
@@ -763,11 +754,16 @@
       <div class="bottom-sheet-handle"></div>
       <div class="bottom-sheet-header">
         <span class="bottom-sheet-title">📁 Media Library</span>
-        <div style="display:flex; gap:6px;">
-          <button id="mobile-add-photo-btn" class="btn btn-primary btn-sm">+ Photo</button>
-          <button id="mobile-add-music-btn" class="btn btn-secondary btn-sm">+ Audio</button>
-          <button class="btn-close-sheet" data-close="media">✕</button>
-        </div>
+        <button class="btn-close-sheet" data-close="media">✕</button>
+      </div>
+      <!-- Consolidated Mobile Media Action Grid -->
+      <div class="mobile-media-action-grid">
+        <button id="mobile-media-add-photo" class="btn btn-primary btn-sm">📷 + Photo</button>
+        <button id="mobile-media-add-video" class="btn btn-secondary btn-sm" style="color:#38BDF8; font-weight:700;">🎞 + Video</button>
+        <button id="mobile-media-add-audio" class="btn btn-secondary btn-sm" style="color:#EC4899; font-weight:700;">🎵 + Audio</button>
+        <button id="mobile-media-add-voice" class="btn btn-secondary btn-sm" style="color:#FDE047; font-weight:700;">🎙️ Voiceover</button>
+        <button id="mobile-media-add-text" class="btn btn-secondary btn-sm">🔤 + Text</button>
+        <button id="mobile-media-add-badge" class="btn btn-secondary btn-sm" style="color:#A855F7;">🏷️ Badge</button>
       </div>
       <div id="mobile-media-content" class="bottom-sheet-body"></div>
     </div>
@@ -1018,9 +1014,13 @@
     </div>
   </div>
 
-  <!-- Hidden YouTube Audio Player Bridge Container -->
-  <div id="yt-player-container" style="position:fixed; bottom:-9999px; right:-9999px; width:200px; height:200px; opacity:0.01; pointer-events:none; z-index:-1;">
-    <div id="hidden-yt-audio-player"></div>
+  <!-- Floating YouTube Live Stream Audio Dock -->
+  <div id="yt-player-dock" style="display:none; position:fixed; bottom:16px; right:16px; width:200px; height:135px; border-radius:10px; overflow:hidden; z-index:1000; background:#0B0E14; border:1px solid #3B82F6; box-shadow:0 12px 32px rgba(0,0,0,0.85);">
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#141824; padding:4px 8px; font-size:10px; color:#94A3B8;">
+      <span style="display:flex; align-items:center; gap:4px; color:#F87171; font-weight:800;">🔴 YouTube Stream</span>
+      <button id="btn-toggle-yt-dock" style="background:none; border:none; color:#94A3B8; cursor:pointer; font-size:12px; font-weight:800;" title="Minimize/Expand">_</button>
+    </div>
+    <div id="hidden-yt-audio-player" style="width:100%; height:105px;"></div>
   </div>
 
   <!-- Unified All-in-One Audio Hub Modal (Upload / YouTube / Record / Stock) -->
@@ -1369,11 +1369,11 @@
   </div>
 
   <!-- Scripts -->
-  <script src="scripts/templates.js?v=2.9"></script>
-  <script src="scripts/mp4-muxer.min.js?v=2.9"></script>
-  <script src="scripts/engine.js?v=2.9"></script>
-  <script src="scripts/audio.js?v=2.9"></script>
-  <script src="scripts/export.js?v=2.9"></script>
-  <script src="scripts/app.js?v=2.9"></script>
+  <script src="scripts/templates.js?v=3.0"></script>
+  <script src="scripts/mp4-muxer.min.js?v=3.0"></script>
+  <script src="scripts/engine.js?v=3.0"></script>
+  <script src="scripts/audio.js?v=3.0"></script>
+  <script src="scripts/export.js?v=3.0"></script>
+  <script src="scripts/app.js?v=3.0"></script>
 </body>
 </html>

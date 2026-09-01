@@ -67,18 +67,22 @@ class WebAudioPlayer {
     await this.initYouTubeIFrameAPI();
     if (onProgress) onProgress(35, '🔍 Resolving video stream & title...');
 
+    const dock = document.getElementById('yt-player-dock');
+    if (dock) dock.style.display = 'block';
+
     return new Promise((resolve) => {
       let container = document.getElementById('hidden-yt-audio-player');
       if (!container) {
-        let parent = document.getElementById('yt-player-container');
+        let parent = document.getElementById('yt-player-dock') || document.getElementById('yt-player-container');
         if (!parent) {
           parent = document.createElement('div');
-          parent.id = 'yt-player-container';
-          parent.style.cssText = 'position:fixed; bottom:0px; left:0px; width:200px; height:120px; opacity:0.001; pointer-events:none; z-index:-1; overflow:hidden;';
+          parent.id = 'yt-player-dock';
+          parent.style.cssText = 'position:fixed; bottom:16px; right:16px; width:200px; height:135px; border-radius:10px; overflow:hidden; z-index:1000; background:#0B0E14; border:1px solid #3B82F6;';
           document.body.appendChild(parent);
         }
         container = document.createElement('div');
         container.id = 'hidden-yt-audio-player';
+        container.style.cssText = 'width:100%; height:105px;';
         parent.appendChild(container);
       }
 
@@ -94,7 +98,7 @@ class WebAudioPlayer {
         // Stop standard HTML audio element so default sample audio stops immediately
         if (this.audioElement) {
           this.audioElement.pause();
-          this.audioElement.currentTime = 0;
+          this.audioElement.src = '';
         }
 
         if (onProgress) onProgress(70, '🎵 Extracting audio stream metadata...');
@@ -128,7 +132,7 @@ class WebAudioPlayer {
         }
       } else {
         this.ytPlayer = new window.YT.Player('hidden-yt-audio-player', {
-          height: '120',
+          height: '105',
           width: '200',
           videoId: videoId,
           playerVars: {
@@ -167,6 +171,11 @@ class WebAudioPlayer {
       this.loadYouTubeAudio(ytId, src);
     } else {
       this.isYouTubeActive = false;
+      const dock = document.getElementById('yt-player-dock');
+      if (dock) dock.style.display = 'none';
+      if (this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
+        try { this.ytPlayer.pauseVideo(); } catch (e) {}
+      }
       this.currentTrackSrc = src;
       this.audioElement.src = src;
     }

@@ -622,21 +622,34 @@
     // Fullscreen Toggle Button
     document.getElementById('btn-toggle-fullscreen')?.addEventListener('click', toggleFullscreenPreview);
 
-    // Mobile Quick Action Toolbar Buttons (Always visible on mobile/tablets)
-    document.getElementById('mobile-add-photo-btn')?.addEventListener('click', () => {
+    // Mobile Media Bottom Sheet Action Grid Buttons
+    document.getElementById('mobile-media-add-photo')?.addEventListener('click', () => {
       document.getElementById('editor-photo-input')?.click();
     });
-    document.getElementById('mobile-add-video-btn')?.addEventListener('click', () => {
+    document.getElementById('mobile-media-add-video')?.addEventListener('click', () => {
       document.getElementById('editor-video-input')?.click();
     });
-    document.getElementById('mobile-add-audio-btn')?.addEventListener('click', () => {
+    document.getElementById('mobile-media-add-audio')?.addEventListener('click', () => {
+      closeBottomSheets();
       document.getElementById('unified-audio-modal')?.classList.add('active');
     });
-    document.getElementById('mobile-add-voiceover-btn')?.addEventListener('click', () => {
+    document.getElementById('mobile-media-add-voice')?.addEventListener('click', () => {
+      closeBottomSheets();
       document.getElementById('voiceover-modal')?.classList.add('active');
     });
-    document.getElementById('mobile-add-text-btn')?.addEventListener('click', () => {
+    document.getElementById('mobile-media-add-text')?.addEventListener('click', () => {
+      closeBottomSheets();
       document.getElementById('editor-add-text-btn')?.click();
+    });
+    document.getElementById('mobile-media-add-badge')?.addEventListener('click', () => {
+      closeBottomSheets();
+      document.getElementById('editor-add-social-btn')?.click();
+    });
+
+    // YouTube Stream Floating Dock Toggle
+    document.getElementById('btn-toggle-yt-dock')?.addEventListener('click', () => {
+      const dock = document.getElementById('yt-player-dock');
+      if (dock) dock.classList.toggle('dock-minimized');
     });
 
     // Mobile Drawer Media Buttons

@@ -1744,24 +1744,9 @@ canvas#videoCanvas {
     display: none !important;
   }
 
-  .mobile-quick-toolbar {
-    display: flex !important;
-    padding: 6px 10px;
-    background: #0B0E14;
-    border-bottom: 1px solid #1E293B;
-    gap: 6px;
-    overflow-x: auto;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-    width: 100%;
-    box-sizing: border-box;
-    align-items: center;
-    flex-shrink: 0;
-  }
-
   .center-viewport {
     height: 100%;
-    padding: 6px 10px 58px 10px;
+    padding: 10px 10px 58px 10px;
   }
 
   .canvas-wrapper {
@@ -1994,11 +1979,6 @@ canvas#videoCanvas {
     display: none !important;
   }
 
-  .mobile-quick-toolbar {
-    display: flex !important;
-    align-items: center;
-  }
-
   .editor-screen {
     grid-template-rows: 1fr 110px;
   }
@@ -2085,4 +2065,33 @@ canvas#videoCanvas {
 #audio-upload-dropzone:hover {
   background: rgba(59, 130, 246, 0.12);
   border-color: #60A5FA;
+}
+
+/* Mobile Media Action Grid */
+.mobile-media-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 10px 12px;
+  background: #0F131C;
+  border-bottom: 1px solid #1E293B;
+}
+
+.mobile-media-action-grid .btn {
+  justify-content: center;
+  font-size: 11px;
+  padding: 8px 4px;
+}
+
+/* Floating YouTube Live Stream Dock */
+#yt-player-dock {
+  transition: all 0.25s ease;
+}
+
+#yt-player-dock.dock-minimized {
+  height: 28px !important;
+}
+
+#yt-player-dock.dock-minimized #hidden-yt-audio-player {
+  display: none !important;
 }
