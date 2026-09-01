@@ -2583,8 +2583,8 @@
 
   function resizeCanvasWrapper() {
     const wrapper = document.getElementById('canvas-wrapper');
-    const container = document.querySelector('.center-viewport');
-    if (!wrapper || !container) return;
+    const stage = document.querySelector('.viewport-canvas-stage') || document.querySelector('.center-viewport');
+    if (!wrapper || !stage) return;
 
     const { width, height } = currentProject.canvas;
     const aspect = width / height;
@@ -2592,13 +2592,16 @@
     const isMobile = window.innerWidth < 768;
     const isLandscapeMobile = window.innerHeight < 520 && window.innerWidth > window.innerHeight;
 
-    const maxH = isLandscapeMobile
-      ? Math.max(160, window.innerHeight - 150)
-      : isMobile
-        ? Math.max(180, window.innerHeight - 340)
-        : Math.max(220, container.clientHeight - 80);
+    const stageHeight = stage.clientHeight || (window.innerHeight - 340);
+    const stageWidth = stage.clientWidth || (window.innerWidth - 40);
 
-    const maxW = Math.max(240, container.clientWidth - 28);
+    const maxH = isLandscapeMobile
+      ? Math.max(150, window.innerHeight - 130)
+      : isMobile
+        ? Math.max(170, stageHeight - 40)
+        : Math.max(200, stageHeight - 50);
+
+    const maxW = Math.max(220, stageWidth - 24);
 
     let targetH = maxH;
     let targetW = targetH * aspect;
