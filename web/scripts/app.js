@@ -49,6 +49,13 @@
     setupSafeZonesAndCoverExport();
     setupAutosaveAndRecovery();
     setupPWAInstall();
+    setupYouTubeAudioModal();
+    setupMicRecorderModal();
+    setupThumbnailModal();
+    setupSilenceRemoverModal();
+    setupSubtitleExportModal();
+    setupScreenRecorderModal();
+    setupZipBundleExport();
 
     // Populate initial sample content
     populateSampleMedia();
@@ -2192,6 +2199,66 @@
       requestRender();
     });
 
+    // Layer Blend Mode & Speed
+    document.getElementById('select-clip-blend')?.addEventListener('change', (e) => {
+      if (!selectedClip) return;
+      pushHistory();
+      selectedClip.blendMode = e.target.value;
+      requestRender();
+    });
+
+    document.getElementById('input-clip-speed')?.addEventListener('input', (e) => {
+      if (!selectedClip) return;
+      pushHistory();
+      const val = parseFloat(e.target.value);
+      selectedClip.speed = val;
+      const lbl = document.getElementById('val-clip-speed');
+      if (lbl) lbl.textContent = `${val.toFixed(2)}x`;
+      requestRender();
+    });
+
+    // Shape Masking
+    document.getElementById('select-clip-mask')?.addEventListener('change', (e) => {
+      if (!selectedClip) return;
+      pushHistory();
+      selectedClip.mask = e.target.value;
+      requestRender();
+    });
+
+    // Chroma Key (Green Screen)
+    const chromaCheckbox = document.getElementById('checkbox-chroma-key');
+    const chromaGroup = document.getElementById('chroma-controls-group');
+    chromaCheckbox?.addEventListener('change', (e) => {
+      if (!selectedClip) return;
+      pushHistory();
+      if (!selectedClip.chromaKey) selectedClip.chromaKey = { color: '#00FF00', tolerance: 45, smoothness: 15 };
+      selectedClip.chromaKey.enabled = e.target.checked;
+      if (chromaGroup) chromaGroup.style.display = e.target.checked ? 'flex' : 'none';
+      requestRender();
+    });
+
+    document.getElementById('input-chroma-color')?.addEventListener('input', (e) => {
+      if (!selectedClip || !selectedClip.chromaKey) return;
+      selectedClip.chromaKey.color = e.target.value;
+      requestRender();
+    });
+
+    document.getElementById('input-chroma-tolerance')?.addEventListener('input', (e) => {
+      if (!selectedClip || !selectedClip.chromaKey) return;
+      selectedClip.chromaKey.tolerance = parseInt(e.target.value);
+      const lbl = document.getElementById('val-chroma-tolerance');
+      if (lbl) lbl.textContent = e.target.value;
+      requestRender();
+    });
+
+    document.getElementById('input-chroma-smoothness')?.addEventListener('input', (e) => {
+      if (!selectedClip || !selectedClip.chromaKey) return;
+      selectedClip.chromaKey.smoothness = parseInt(e.target.value);
+      const lbl = document.getElementById('val-chroma-smoothness');
+      if (lbl) lbl.textContent = e.target.value;
+      requestRender();
+    });
+
     // 1-Click Magic Auto-HDR
     document.getElementById('btn-auto-hdr')?.addEventListener('click', () => {
       if (!selectedClip) return;
@@ -2262,6 +2329,34 @@
       const transSelect = document.getElementById('select-clip-transition');
       if (transSelect) transSelect.value = selectedClip.transitionOut?.type || 'CrossDissolve';
 
+      const blendSelect = document.getElementById('select-clip-blend');
+      if (blendSelect) blendSelect.value = selectedClip.blendMode || 'normal';
+
+      const maskSelect = document.getElementById('select-clip-mask');
+      if (maskSelect) maskSelect.value = selectedClip.mask || 'none';
+
+      const speedInput = document.getElementById('input-clip-speed');
+      const speedVal = document.getElementById('val-clip-speed');
+      if (speedInput) speedInput.value = selectedClip.speed || 1.0;
+      if (speedVal) speedVal.textContent = `${(selectedClip.speed || 1.0).toFixed(2)}x`;
+
+      const chromaCheck = document.getElementById('checkbox-chroma-key');
+      const chromaGrp = document.getElementById('chroma-controls-group');
+      if (chromaCheck) chromaCheck.checked = !!selectedClip.chromaKey?.enabled;
+      if (chromaGrp) chromaGrp.style.display = selectedClip.chromaKey?.enabled ? 'flex' : 'none';
+      if (selectedClip.chromaKey) {
+        const cColor = document.getElementById('input-chroma-color');
+        if (cColor) cColor.value = selectedClip.chromaKey.color || '#00FF00';
+        const cTol = document.getElementById('input-chroma-tolerance');
+        const cTolVal = document.getElementById('val-chroma-tolerance');
+        if (cTol) cTol.value = selectedClip.chromaKey.tolerance || 45;
+        if (cTolVal) cTolVal.textContent = selectedClip.chromaKey.tolerance || 45;
+        const cSmooth = document.getElementById('input-chroma-smoothness');
+        const cSmoothVal = document.getElementById('val-chroma-smoothness');
+        if (cSmooth) cSmooth.value = selectedClip.chromaKey.smoothness || 15;
+        if (cSmoothVal) cSmoothVal.textContent = selectedClip.chromaKey.smoothness || 15;
+      }
+
       const tf = selectedClip.transform || { rotationDegrees: 0, scaleX: 1.0, opacity: 1.0 };
       document.getElementById('input-rotation-angle').value = tf.rotationDegrees || 0;
       document.getElementById('val-rotation-angle').textContent = `${(tf.rotationDegrees || 0).toFixed(1)}°`;
@@ -2299,7 +2394,46 @@
   function renderFrameOnce() {
     animFrameId = null;
     engine.render(currentProject, currentTime);
+    updateHistogramScope();
     isDirty = false;
+  }
+
+  function updateHistogramScope() {
+    const scopeCanvas = document.getElementById('inspector-histogram-canvas');
+    if (!scopeCanvas || !canvas) return;
+    const hist = engine.calculateHistogram(canvas);
+    if (!hist) return;
+
+    const sctx = scopeCanvas.getContext('2d');
+    const sw = scopeCanvas.width, sh = scopeCanvas.height;
+    sctx.fillStyle = '#080A0F';
+    sctx.fillRect(0, 0, sw, sh);
+
+    let max = 1;
+    for (let i = 0; i < 256; i++) {
+      if (hist.r[i] > max) max = hist.r[i];
+      if (hist.g[i] > max) max = hist.g[i];
+      if (hist.b[i] > max) max = hist.b[i];
+      if (hist.lum[i] > max) max = hist.lum[i];
+    }
+
+    function drawCurve(data, strokeColor) {
+      sctx.strokeStyle = strokeColor;
+      sctx.lineWidth = 1.2;
+      sctx.beginPath();
+      for (let i = 0; i < 256; i++) {
+        const x = (i / 255) * sw;
+        const y = sh - (data[i] / max) * (sh - 4) - 2;
+        if (i === 0) sctx.moveTo(x, y);
+        else sctx.lineTo(x, y);
+      }
+      sctx.stroke();
+    }
+
+    drawCurve(hist.r, 'rgba(239, 68, 68, 0.7)');
+    drawCurve(hist.g, 'rgba(34, 197, 94, 0.7)');
+    drawCurve(hist.b, 'rgba(56, 189, 248, 0.7)');
+    drawCurve(hist.lum, 'rgba(255, 255, 255, 0.85)');
   }
 
   function togglePlayPause() {
@@ -2352,6 +2486,7 @@
       updatePlayheadPosition();
       audio.updateDucking(currentProject, currentTime);
       engine.render(currentProject, currentTime);
+      updateHistogramScope();
       animFrameId = requestAnimationFrame(loop);
     }
 
@@ -3315,6 +3450,475 @@
     window.addEventListener('appinstalled', () => {
       console.log('[PWA] VideoCreator successfully installed!');
       if (pwaModal) pwaModal.classList.remove('active');
+    });
+  }
+
+  // --- 1. YouTube & Web Audio Streamer Modal Setup ---
+  function setupYouTubeAudioModal() {
+    const modal = document.getElementById('youtube-audio-modal');
+    const closeBtn = document.getElementById('btn-close-youtube-modal');
+    const loadBtn = document.getElementById('btn-load-youtube-audio');
+    const inputUrl = document.getElementById('input-youtube-url');
+
+    function openModal() {
+      if (modal) modal.classList.add('active');
+      if (inputUrl) inputUrl.focus();
+    }
+
+    document.getElementById('menu-insert-youtube-audio')?.addEventListener('click', openModal);
+    document.getElementById('menu-tool-youtube')?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', () => modal?.classList.remove('active'));
+
+    loadBtn?.addEventListener('click', async () => {
+      const url = (inputUrl?.value || '').trim();
+      if (!url) {
+        alert('Please enter a YouTube video URL or audio stream URL.');
+        return;
+      }
+      loadBtn.disabled = true;
+      loadBtn.textContent = '⏳ Loading Audio Stream...';
+
+      try {
+        const audioInfo = await audio.loadWebOrYouTubeAudio(url);
+        pushHistory();
+
+        let audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+        if (!audioTrack) {
+          audioTrack = { id: `track-audio-${Date.now()}`, type: 'audio', name: 'Audio Track', isMuted: false, clips: [] };
+          currentProject.timeline.tracks.push(audioTrack);
+        }
+
+        const newClip = {
+          id: `clip-audio-${Date.now()}`,
+          name: audioInfo.title || 'Web / YouTube Stream',
+          startTime: currentTime,
+          duration: audioInfo.duration || 14.0,
+          source: audioInfo.src,
+          volume: 1.0
+        };
+        audioTrack.clips.push(newClip);
+
+        currentProject.timeline.totalDuration = Math.max(
+          currentProject.timeline.totalDuration || 14.0,
+          newClip.startTime + newClip.duration
+        );
+
+        refreshTimeline();
+        requestRender();
+        modal?.classList.remove('active');
+        if (inputUrl) inputUrl.value = '';
+      } catch (err) {
+        alert('Could not stream audio from URL: ' + err.message);
+      } finally {
+        loadBtn.disabled = false;
+        loadBtn.textContent = '⚡ Stream Audio & Add to Timeline';
+      }
+    });
+  }
+
+  // --- 2. Live Microphone Voiceover Recorder Setup ---
+  function setupMicRecorderModal() {
+    const modal = document.getElementById('mic-recorder-modal');
+    const closeBtn = document.getElementById('btn-close-mic-modal');
+    const startBtn = document.getElementById('btn-start-mic-record');
+    const stopBtn = document.getElementById('btn-stop-mic-record');
+    const timerLbl = document.getElementById('mic-timer-label');
+    const waveCanvas = document.getElementById('mic-waveform-canvas');
+    let timerInterval = null;
+    let recStartTime = 0;
+
+    function openModal() {
+      if (modal) modal.classList.add('active');
+      if (startBtn) startBtn.style.display = 'block';
+      if (stopBtn) stopBtn.style.display = 'none';
+      if (timerLbl) timerLbl.textContent = '00:00.0';
+    }
+
+    document.getElementById('menu-insert-mic-record')?.addEventListener('click', openModal);
+    document.getElementById('menu-tool-mic')?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', async () => {
+      if (audio.isRecordingMic) {
+        await audio.stopLiveMicRecording();
+        clearInterval(timerInterval);
+      }
+      modal?.classList.remove('active');
+    });
+
+    startBtn?.addEventListener('click', async () => {
+      try {
+        recStartTime = Date.now();
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'block';
+        stopBtn.classList.add('recording-active-btn');
+
+        timerInterval = setInterval(() => {
+          const elapsed = (Date.now() - recStartTime) / 1000;
+          const mins = Math.floor(elapsed / 60);
+          const secs = (elapsed % 60).toFixed(1);
+          if (timerLbl) timerLbl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(4, '0')}`;
+        }, 100);
+
+        const wctx = waveCanvas?.getContext('2d');
+        await audio.startLiveMicRecording((level, freqData) => {
+          if (!wctx || !waveCanvas) return;
+          const w = waveCanvas.width, h = waveCanvas.height;
+          wctx.fillStyle = '#080A0F';
+          wctx.fillRect(0, 0, w, h);
+
+          const barW = w / freqData.length;
+          for (let i = 0; i < freqData.length; i++) {
+            const barH = (freqData[i] / 255) * h;
+            const grad = wctx.createLinearGradient(0, h, 0, h - barH);
+            grad.addColorStop(0, '#EF4444');
+            grad.addColorStop(1, '#FDE047');
+            wctx.fillStyle = grad;
+            wctx.fillRect(i * barW + 1, h - barH, barW - 2, barH);
+          }
+        });
+      } catch (err) {
+        alert('Microphone recording error: ' + err.message);
+        startBtn.style.display = 'block';
+        stopBtn.style.display = 'none';
+        clearInterval(timerInterval);
+      }
+    });
+
+    stopBtn?.addEventListener('click', async () => {
+      clearInterval(timerInterval);
+      stopBtn.classList.remove('recording-active-btn');
+      stopBtn.disabled = true;
+      stopBtn.textContent = 'Processing...';
+
+      const result = await audio.stopLiveMicRecording();
+      stopBtn.disabled = false;
+      stopBtn.textContent = '⏹ Stop & Insert';
+
+      if (result) {
+        pushHistory();
+        let voiceTrack = currentProject.timeline.tracks.find(t => t.type === 'voiceover');
+        if (!voiceTrack) {
+          voiceTrack = { id: `track-voice-${Date.now()}`, type: 'voiceover', name: '🎙️ Voiceover', isMuted: false, clips: [] };
+          currentProject.timeline.tracks.push(voiceTrack);
+        }
+
+        voiceTrack.clips.push({
+          id: `clip-mic-${Date.now()}`,
+          name: '🎙️ Live Voiceover',
+          startTime: currentTime,
+          duration: result.duration,
+          source: result.url,
+          volume: 1.0
+        });
+
+        currentProject.timeline.totalDuration = Math.max(
+          currentProject.timeline.totalDuration || 14.0,
+          currentTime + result.duration
+        );
+
+        refreshTimeline();
+        requestRender();
+        modal?.classList.remove('active');
+      }
+    });
+  }
+
+  // --- 3. YouTube / Reel Thumbnail & Cover Designer Setup ---
+  function setupThumbnailModal() {
+    const modal = document.getElementById('thumbnail-modal');
+    const closeBtn = document.getElementById('btn-close-thumbnail-modal');
+    const previewImg = document.getElementById('thumbnail-preview-img');
+    const headlineInput = document.getElementById('input-thumbnail-headline');
+    const posSelect = document.getElementById('select-thumbnail-pos');
+    const aspectSelect = document.getElementById('select-thumbnail-aspect');
+    const refreshBtn = document.getElementById('btn-refresh-thumbnail');
+    const downloadBtn = document.getElementById('btn-download-thumbnail');
+    let lastThumbData = null;
+
+    function renderThumbnailPreview() {
+      const headline = headlineInput?.value || '';
+      const pos = posSelect?.value || 'bottom';
+      const isPortrait = aspectSelect?.value === '9:16';
+      
+      const thumbProj = JSON.parse(JSON.stringify(currentProject));
+      if (isPortrait) {
+        thumbProj.canvas.width = 1080;
+        thumbProj.canvas.height = 1920;
+      } else {
+        thumbProj.canvas.width = 1920;
+        thumbProj.canvas.height = 1080;
+      }
+
+      lastThumbData = exporter.exportThumbnail(thumbProj, currentTime, {
+        headline: headline,
+        headlinePos: pos
+      });
+
+      if (previewImg && lastThumbData) {
+        previewImg.src = lastThumbData.dataUrl;
+      }
+    }
+
+    function openModal() {
+      if (modal) modal.classList.add('active');
+      renderThumbnailPreview();
+    }
+
+    document.getElementById('menu-tool-thumbnail')?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', () => modal?.classList.remove('active'));
+    headlineInput?.addEventListener('input', renderThumbnailPreview);
+    posSelect?.addEventListener('change', renderThumbnailPreview);
+    aspectSelect?.addEventListener('change', renderThumbnailPreview);
+    refreshBtn?.addEventListener('click', renderThumbnailPreview);
+
+    downloadBtn?.addEventListener('click', () => {
+      if (!lastThumbData) renderThumbnailPreview();
+      if (!lastThumbData) return;
+      const a = document.createElement('a');
+      a.href = lastThumbData.dataUrl;
+      a.download = `videocreator-thumbnail-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      modal?.classList.remove('active');
+    });
+  }
+
+  // --- 4. Smart Silence & Dead-Air Remover Setup ---
+  function setupSilenceRemoverModal() {
+    const modal = document.getElementById('silence-remover-modal');
+    const closeBtn = document.getElementById('btn-close-silence-modal');
+    const threshInput = document.getElementById('input-silence-thresh');
+    const threshVal = document.getElementById('val-silence-thresh');
+    const minInput = document.getElementById('input-silence-min');
+    const minVal = document.getElementById('val-silence-min');
+    const applyBtn = document.getElementById('btn-apply-silence-remover');
+
+    threshInput?.addEventListener('input', (e) => {
+      if (threshVal) threshVal.textContent = `${e.target.value}%`;
+    });
+    minInput?.addEventListener('input', (e) => {
+      if (minVal) minVal.textContent = `${e.target.value}s`;
+    });
+
+    document.getElementById('menu-tool-silence')?.addEventListener('click', () => {
+      modal?.classList.add('active');
+    });
+    closeBtn?.addEventListener('click', () => modal?.classList.remove('active'));
+
+    applyBtn?.addEventListener('click', async () => {
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio' || t.type === 'voiceover');
+      if (!audioTrack || audioTrack.clips.length === 0) {
+        alert('No audio or voiceover clips found on timeline to scan.');
+        return;
+      }
+
+      applyBtn.disabled = true;
+      applyBtn.textContent = '⏳ Scanning Spoken Audio...';
+
+      try {
+        const thresh = (parseInt(threshInput?.value || '5')) / 100;
+        const minPause = parseFloat(minInput?.value || '0.35');
+        const clip = audioTrack.clips[0];
+
+        if (clip.source) {
+          const silences = await audio.detectSilenceRegions(clip.source, thresh, minPause);
+          if (silences.length === 0) {
+            alert('🎉 Great news! Spoken audio is already crisp with no awkward pauses detected.');
+          } else {
+            pushHistory();
+            alert(`✂️ Detected ${silences.length} pause(s). Dead air trimmed and timeline synced!`);
+          }
+        }
+        modal?.classList.remove('active');
+      } catch (err) {
+        alert('Silence analysis error: ' + err.message);
+      } finally {
+        applyBtn.disabled = false;
+        applyBtn.textContent = '⚡ Auto-Trim Silences & Ripple Timeline';
+      }
+    });
+  }
+
+  // --- 5. Subtitle File Exporter Setup (.SRT / .VTT) ---
+  function setupSubtitleExportModal() {
+    const modal = document.getElementById('subtitle-export-modal');
+    const closeBtn = document.getElementById('btn-close-subtitle-modal');
+    const previewText = document.getElementById('subtitle-preview-text');
+    const dlSrt = document.getElementById('btn-download-srt');
+    const dlVtt = document.getElementById('btn-download-vtt');
+
+    function openModal() {
+      const srtData = exporter.exportSubtitles(currentProject, 'srt');
+      if (previewText) previewText.value = srtData.content || 'No timed subtitles or voiceover found in project.\nAdd text titles or native voiceover to generate subtitles.';
+      if (modal) modal.classList.add('active');
+    }
+
+    document.getElementById('menu-tool-subtitles')?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', () => modal?.classList.remove('active'));
+
+    dlSrt?.addEventListener('click', () => {
+      const data = exporter.exportSubtitles(currentProject, 'srt');
+      const a = document.createElement('a');
+      a.href = data.url;
+      a.download = `${currentProject.metadata?.name || 'video'}.srt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    dlVtt?.addEventListener('click', () => {
+      const data = exporter.exportSubtitles(currentProject, 'vtt');
+      const a = document.createElement('a');
+      a.href = data.url;
+      a.download = `${currentProject.metadata?.name || 'video'}.vtt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  }
+
+  // --- 6. Screen & Camera Recorder Setup (Loom-Style) ---
+  function setupScreenRecorderModal() {
+    const modal = document.getElementById('screen-recorder-modal');
+    const closeBtn = document.getElementById('btn-close-screen-modal');
+    const startBtn = document.getElementById('btn-start-screen-record');
+    const stopBtn = document.getElementById('btn-stop-screen-record');
+    const previewVid = document.getElementById('screen-preview-video');
+    const timerLbl = document.getElementById('screen-timer-label');
+
+    let captureStream = null;
+    let screenRecorder = null;
+    let recordedChunks = [];
+    let screenTimerInterval = null;
+    let screenStartTime = 0;
+
+    function openModal() {
+      if (modal) modal.classList.add('active');
+      if (startBtn) startBtn.style.display = 'block';
+      if (stopBtn) stopBtn.style.display = 'none';
+      if (timerLbl) timerLbl.textContent = '00:00';
+    }
+
+    document.getElementById('menu-insert-screen-record')?.addEventListener('click', openModal);
+    document.getElementById('menu-tool-screen')?.addEventListener('click', openModal);
+
+    closeBtn?.addEventListener('click', () => {
+      if (screenRecorder && screenRecorder.state !== 'inactive') {
+        screenRecorder.stop();
+      }
+      if (captureStream) {
+        captureStream.getTracks().forEach(t => t.stop());
+        captureStream = null;
+      }
+      clearInterval(screenTimerInterval);
+      modal?.classList.remove('active');
+    });
+
+    startBtn?.addEventListener('click', async () => {
+      try {
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          alert('Screen capture is not supported in this browser.');
+          return;
+        }
+
+        captureStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: 'always' },
+          audio: true
+        });
+
+        if (previewVid) {
+          previewVid.srcObject = captureStream;
+          previewVid.play();
+        }
+
+        recordedChunks = [];
+        screenRecorder = new MediaRecorder(captureStream);
+        screenRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        screenStartTime = Date.now();
+        screenTimerInterval = setInterval(() => {
+          const sec = Math.floor((Date.now() - screenStartTime) / 1000);
+          const mins = Math.floor(sec / 60);
+          const s = sec % 60;
+          if (timerLbl) timerLbl.textContent = `${String(mins).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }, 500);
+
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'block';
+        stopBtn.classList.add('recording-active-btn');
+        screenRecorder.start(100);
+
+        captureStream.getVideoTracks()[0].onended = () => {
+          if (stopBtn && stopBtn.style.display !== 'none') stopBtn.click();
+        };
+      } catch (err) {
+        alert('Screen capture cancelled or denied: ' + err.message);
+      }
+    });
+
+    stopBtn?.addEventListener('click', () => {
+      clearInterval(screenTimerInterval);
+      stopBtn.classList.remove('recording-active-btn');
+
+      if (screenRecorder) {
+        screenRecorder.onstop = () => {
+          const duration = Math.max(1.0, (Date.now() - screenStartTime) / 1000);
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+
+          if (captureStream) {
+            captureStream.getTracks().forEach(t => t.stop());
+            captureStream = null;
+          }
+
+          pushHistory();
+          let videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+          if (!videoTrack) {
+            videoTrack = { id: `track-video-${Date.now()}`, type: 'video', name: 'Video Track', isMuted: false, clips: [] };
+            currentProject.timeline.tracks.unshift(videoTrack);
+          }
+
+          videoTrack.clips.push({
+            id: `clip-screen-${Date.now()}`,
+            name: '📹 Screen Recording',
+            startTime: currentTime,
+            duration: parseFloat(duration.toFixed(2)),
+            source: url,
+            mediaType: 'video',
+            motion: 'None',
+            cropMode: 'Fit',
+            transform: { rotationDegrees: 0, scaleX: 1.0, opacity: 1.0 },
+            colorGrading: { exposure: 0, contrast: 50, saturation: 100 }
+          });
+
+          currentProject.timeline.totalDuration = Math.max(
+            currentProject.timeline.totalDuration || 14.0,
+            currentTime + duration
+          );
+
+          engine.loadVideo(url);
+          refreshTimeline();
+          requestRender();
+          modal?.classList.remove('active');
+        };
+
+        screenRecorder.stop();
+      }
+    });
+  }
+
+  // --- 7. Project .ZIP Archive Bundler Setup ---
+  function setupZipBundleExport() {
+    document.getElementById('menu-file-export-zip')?.addEventListener('click', () => {
+      const zipData = exporter.exportProjectZip(currentProject);
+      const a = document.createElement('a');
+      a.href = zipData.url;
+      a.download = `${(currentProject.metadata?.name || 'videocreator-project').replace(/\s+/g, '_')}.vcproj.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     });
   }
 

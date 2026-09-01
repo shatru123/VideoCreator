@@ -939,6 +939,206 @@ class VideoWebExporter {
     }
     return results;
   }
+
+  // --- YouTube & Instagram Reel Thumbnail / Cover Maker ---
+  exportThumbnail(project, currentTime = 0, options = {}) {
+    const isPortrait = (project.canvas.height / project.canvas.width) > 1.1;
+    const targetW = isPortrait ? 1080 : 1920;
+    const targetH = isPortrait ? 1920 : 1080;
+
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = targetW;
+    thumbCanvas.height = targetH;
+    const thumbEngine = new VideoCanvasEngine(thumbCanvas);
+
+    if (this.engine && this.engine.imageCache) {
+      this.engine.imageCache.forEach((img, src) => {
+        if (img && img.naturalWidth > 0 && img.complete) {
+          thumbEngine.imageCache.set(src, img);
+          thumbEngine.createPreBlurredBackground(src, img);
+        }
+      });
+    }
+    if (this.engine && this.engine.videoCache) {
+      this.engine.videoCache.forEach((vid, src) => {
+        thumbEngine.videoCache.set(src, vid);
+      });
+    }
+
+    thumbEngine.render(project, currentTime);
+    const ctx = thumbCanvas.getContext('2d');
+
+    if (options.headline) {
+      ctx.save();
+      const fontSize = Math.round(targetH * 0.055);
+      ctx.font = `900 italic ${fontSize}px Montserrat, Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      const textW = ctx.measureText(options.headline).width;
+      const bannerH = fontSize * 1.6;
+      const bannerY = targetH * (options.headlinePos === 'top' ? 0.18 : (options.headlinePos === 'middle' ? 0.5 : 0.82));
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 4;
+      ctx.shadowColor = '#F59E0B';
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.roundRect(targetW * 0.5 - textW * 0.5 - 30, bannerY - bannerH * 0.5, textW + 60, bannerH, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      const grad = ctx.createLinearGradient(0, bannerY - fontSize * 0.5, 0, bannerY + fontSize * 0.5);
+      grad.addColorStop(0, '#FFFFFF');
+      grad.addColorStop(1, '#FDE047');
+      ctx.fillStyle = grad;
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(options.headline, targetW * 0.5, bannerY + fontSize * 0.35);
+      ctx.restore();
+    }
+
+    return {
+      dataUrl: thumbCanvas.toDataURL('image/png', 0.95),
+      width: targetW,
+      height: targetH
+    };
+  }
+
+  // --- Universal .SRT and .VTT Subtitle Exporter ---
+  exportSubtitles(project, format = 'srt') {
+    const voiceTrack = project.timeline?.tracks?.find(t => (t.type === 'voiceover' || t.name?.toLowerCase().includes('voice') || t.type === 'overlay') && !t.isMuted);
+    const clips = voiceTrack?.clips || [];
+
+    function formatTime(seconds, isVtt = false) {
+      const hrs = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = Math.floor(seconds % 60);
+      const ms = Math.floor((seconds % 1) * 1000);
+      const sep = isVtt ? '.' : ',';
+      return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}${sep}${String(ms).padStart(3, '0')}`;
+    }
+
+    const isVtt = format.toLowerCase() === 'vtt';
+    let output = isVtt ? 'WEBVTT\n\n' : '';
+    let counter = 1;
+
+    clips.forEach(clip => {
+      if (clip.words && clip.words.length > 0) {
+        const groupSize = 4;
+        for (let i = 0; i < clip.words.length; i += groupSize) {
+          const chunk = clip.words.slice(i, i + groupSize);
+          const start = clip.startTime + chunk[0].startTime;
+          const end = clip.startTime + chunk[chunk.length - 1].startTime + chunk[chunk.length - 1].duration;
+          const text = chunk.map(w => w.word).join(' ');
+
+          if (!isVtt) output += `${counter}\n`;
+          output += `${formatTime(start, isVtt)} --> ${formatTime(end, isVtt)}\n${text}\n\n`;
+          counter++;
+        }
+      } else if (clip.overlay?.text || clip.name) {
+        const text = clip.overlay?.text || clip.name;
+        const start = clip.startTime;
+        const end = clip.startTime + clip.duration;
+
+        if (!isVtt) output += `${counter}\n`;
+        output += `${formatTime(start, isVtt)} --> ${formatTime(end, isVtt)}\n${text}\n\n`;
+        counter++;
+      }
+    });
+
+    const mimeType = isVtt ? 'text/vtt' : 'application/x-subrip';
+    const blob = new Blob([output], { type: `${mimeType};charset=utf-8` });
+    return {
+      blob: blob,
+      url: URL.createObjectURL(blob),
+      content: output,
+      ext: isVtt ? 'vtt' : 'srt'
+    };
+  }
+
+  // --- 1-Click Project .ZIP Archive Bundler ---
+  exportProjectZip(project) {
+    const projJson = JSON.stringify(project, null, 2);
+    const projBytes = new TextEncoder().encode(projJson);
+    const fileName = 'project.vcproj';
+
+    const files = [{ name: fileName, data: projBytes }];
+    const zipBytes = [];
+    const cdEntries = [];
+    let offset = 0;
+
+    function writeShort(val) { zipBytes.push(val & 0xFF, (val >> 8) & 0xFF); }
+    function writeLong(val) { zipBytes.push(val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF, (val >> 24) & 0xFF); }
+    function writeStr(s) { for (let i = 0; i < s.length; i++) zipBytes.push(s.charCodeAt(i)); }
+
+    files.forEach(f => {
+      const localHeaderOffset = offset;
+      writeLong(0x04034b50);
+      writeShort(20);
+      writeShort(0);
+      writeShort(0);
+      writeShort(0);
+      writeShort(0);
+
+      let crc = 0 ^ (-1);
+      for (let i = 0; i < f.data.length; i++) {
+        crc = (crc >>> 8) ^ 0xEDB88320;
+      }
+      crc = (crc ^ (-1)) >>> 0;
+
+      writeLong(crc);
+      writeLong(f.data.length);
+      writeLong(f.data.length);
+      writeShort(f.name.length);
+      writeShort(0);
+      writeStr(f.name);
+      for (let i = 0; i < f.data.length; i++) zipBytes.push(f.data[i]);
+      offset = zipBytes.length;
+
+      cdEntries.push({ name: f.name, size: f.data.length, crc: crc, offset: localHeaderOffset });
+    });
+
+    const cdStart = zipBytes.length;
+    cdEntries.forEach(f => {
+      writeLong(0x02014b50);
+      writeShort(20);
+      writeShort(20);
+      writeShort(0);
+      writeShort(0);
+      writeShort(0);
+      writeShort(0);
+      writeLong(f.crc);
+      writeLong(f.size);
+      writeLong(f.size);
+      writeShort(f.name.length);
+      writeShort(0);
+      writeShort(0);
+      writeShort(0);
+      writeShort(0);
+      writeLong(0);
+      writeLong(f.offset);
+      writeStr(f.name);
+    });
+
+    const cdEnd = zipBytes.length;
+    const cdSize = cdEnd - cdStart;
+
+    writeLong(0x06054b50);
+    writeShort(0);
+    writeShort(0);
+    writeShort(cdEntries.length);
+    writeShort(cdEntries.length);
+    writeLong(cdSize);
+    writeLong(cdStart);
+    writeShort(0);
+
+    const zipBlob = new Blob([new Uint8Array(zipBytes)], { type: 'application/zip' });
+    return {
+      blob: zipBlob,
+      url: URL.createObjectURL(zipBlob),
+      ext: 'zip'
+    };
+  }
 }
 
 window.VideoWebExporter = VideoWebExporter;

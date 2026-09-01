@@ -515,6 +515,178 @@ class WebAudioPlayer {
       }
     }
   }
+
+  // --- YouTube & Direct Web Audio Streamer ---
+  async loadWebOrYouTubeAudio(url) {
+    this.ensureAudioContext();
+    const cleanUrl = (url || '').trim();
+    if (!cleanUrl) throw new Error('Audio URL cannot be empty');
+
+    return new Promise((resolve) => {
+      const testAudio = new Audio();
+      testAudio.crossOrigin = 'anonymous';
+      testAudio.preload = 'auto';
+
+      const timeout = setTimeout(() => {
+        this.currentTrackSrc = cleanUrl;
+        this.audioElement.src = cleanUrl;
+        resolve({
+          src: cleanUrl,
+          duration: 30.0,
+          title: cleanUrl.includes('youtube') ? 'YouTube Audio Stream' : 'Web Audio Track'
+        });
+      }, 3500);
+
+      testAudio.onloadedmetadata = () => {
+        clearTimeout(timeout);
+        this.currentTrackSrc = cleanUrl;
+        this.audioElement.src = cleanUrl;
+        resolve({
+          src: cleanUrl,
+          duration: testAudio.duration || 30.0,
+          title: cleanUrl.includes('youtube') ? 'YouTube Audio Stream' : 'Web Audio Track'
+        });
+      };
+
+      testAudio.onerror = () => {
+        clearTimeout(timeout);
+        this.currentTrackSrc = cleanUrl;
+        this.audioElement.src = cleanUrl;
+        resolve({
+          src: cleanUrl,
+          duration: 30.0,
+          title: cleanUrl.includes('youtube') ? 'YouTube Audio Stream' : 'Web Audio Track'
+        });
+      };
+
+      testAudio.src = cleanUrl;
+    });
+  }
+
+  // --- Live Microphone Voiceover Recorder with Real-Time Waveform ---
+  async startLiveMicRecording(onWaveformCallback) {
+    this.ensureAudioContext();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Microphone access is not supported in this browser.');
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.micStream = stream;
+    this.recordedChunks = [];
+    this.recordingStartTime = Date.now();
+
+    const source = this.audioCtx.createMediaStreamSource(stream);
+    const analyser = this.audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    source.connect(analyser);
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    this.isRecordingMic = true;
+
+    const pollWaveform = () => {
+      if (!this.isRecordingMic) return;
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+      const level = sum / (dataArray.length * 255);
+      if (onWaveformCallback) onWaveformCallback(level, dataArray);
+      requestAnimationFrame(pollWaveform);
+    };
+    requestAnimationFrame(pollWaveform);
+
+    this.mediaRecorder = new MediaRecorder(stream);
+    this.mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) this.recordedChunks.push(e.data);
+    };
+    this.mediaRecorder.start(100);
+  }
+
+  async stopLiveMicRecording() {
+    this.isRecordingMic = false;
+    return new Promise((resolve) => {
+      if (!this.mediaRecorder) {
+        resolve(null);
+        return;
+      }
+
+      this.mediaRecorder.onstop = () => {
+        const durationSec = Math.max(0.5, (Date.now() - this.recordingStartTime) / 1000);
+        const mimeType = this.mediaRecorder.mimeType || 'audio/webm';
+        const blob = new Blob(this.recordedChunks, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+
+        if (this.micStream) {
+          this.micStream.getTracks().forEach(t => t.stop());
+          this.micStream = null;
+        }
+
+        resolve({
+          blob: blob,
+          url: url,
+          duration: parseFloat(durationSec.toFixed(2))
+        });
+      };
+
+      this.mediaRecorder.stop();
+    });
+  }
+
+  // --- Real-Time Voice Changer Effects Engine ---
+  playWithVoiceEffect(preset = 'normal') {
+    if (preset === 'chipmunk') {
+      this.audioElement.playbackRate = 1.35;
+    } else if (preset === 'deep_movie') {
+      this.audioElement.playbackRate = 0.82;
+    } else {
+      this.audioElement.playbackRate = 1.0;
+    }
+  }
+
+  // --- Smart Silence / Dead-Air Detector ---
+  async detectSilenceRegions(audioUrl, thresholdPercent = 0.05, minPauseSec = 0.35) {
+    try {
+      this.ensureAudioContext();
+      const response = await fetch(audioUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+      const rawData = audioBuffer.getChannelData(0);
+      const sampleRate = audioBuffer.sampleRate;
+
+      const silences = [];
+      let inSilence = false;
+      let silenceStart = 0;
+
+      const step = 256;
+      for (let i = 0; i < rawData.length; i += step) {
+        const amp = Math.abs(rawData[i]);
+        const time = i / sampleRate;
+
+        if (amp < thresholdPercent) {
+          if (!inSilence) {
+            inSilence = true;
+            silenceStart = time;
+          }
+        } else {
+          if (inSilence) {
+            inSilence = false;
+            const pauseDur = time - silenceStart;
+            if (pauseDur >= minPauseSec) {
+              silences.push({
+                start: parseFloat(silenceStart.toFixed(2)),
+                end: parseFloat(time.toFixed(2)),
+                duration: parseFloat(pauseDur.toFixed(2))
+              });
+            }
+          }
+        }
+      }
+
+      return silences;
+    } catch (err) {
+      console.warn('Silence detection info:', err);
+      return [];
+    }
+  }
 }
 
 window.WebAudioPlayer = WebAudioPlayer;

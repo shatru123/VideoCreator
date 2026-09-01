@@ -132,6 +132,11 @@ class VideoCanvasEngine {
     if (project.progressBar && project.progressBar.enabled) {
       this.renderProgressBar(ctx, width, height, project, timestamp);
     }
+
+    // 7. Render Audio-Reactive Spectrum Visualizer if enabled
+    if (project.audioVisualizer && project.audioVisualizer.enabled) {
+      this.renderAudioVisualizer(ctx, width, height, project, timestamp);
+    }
   }
 
   renderVideoTrack(ctx, track, timestamp, width, height) {
@@ -215,6 +220,8 @@ class VideoCanvasEngine {
   }
 
   renderSingleClip(ctx, clip, localTime, width, height) {
+    const speed = clip.speed || 1.0;
+    const effectiveLocalTime = localTime * speed;
     const isVideoClip = clip.mediaType === 'video' || (clip.source && (clip.source.includes('.mp4') || clip.source.includes('.webm') || clip.source.includes('video/')));
     let media = null;
     let mediaW = width, mediaH = height;
@@ -227,8 +234,8 @@ class VideoCanvasEngine {
       }
       mediaW = media.videoWidth || width;
       mediaH = media.videoHeight || height;
-      if (Math.abs(media.currentTime - localTime) > 0.08) {
-        media.currentTime = Math.min(media.duration || 9999, localTime);
+      if (Math.abs(media.currentTime - effectiveLocalTime) > 0.08) {
+        media.currentTime = Math.min(media.duration || 9999, effectiveLocalTime);
       }
     } else {
       media = this.imageCache.get(clip.source);
@@ -393,6 +400,11 @@ class VideoCanvasEngine {
       ctx.filter = filterString.trim();
     }
 
+    // Blend Mode
+    if (clip.blendMode && clip.blendMode !== 'normal') {
+      ctx.globalCompositeOperation = clip.blendMode;
+    }
+
     // Center pivot & Render media frame
     const drawW = mediaW * scale;
     const drawH = mediaH * scale;
@@ -409,7 +421,17 @@ class VideoCanvasEngine {
       ctx.scale(tf.flipX ? -1 : 1, tf.flipY ? -1 : 1);
     }
 
-    ctx.drawImage(media, -drawW * 0.5, -drawH * 0.5, drawW, drawH);
+    // Shape Masking
+    if (clip.mask && clip.mask !== 'none') {
+      this.applyShapeMask(ctx, clip.mask, drawW, drawH);
+    }
+
+    // Chroma Key (Green Screen) or standard draw
+    if (clip.chromaKey && clip.chromaKey.enabled) {
+      this.renderChromaKeyedMedia(ctx, media, drawW, drawH, clip.chromaKey);
+    } else {
+      ctx.drawImage(media, -drawW * 0.5, -drawH * 0.5, drawW, drawH);
+    }
 
     ctx.restore();
   }
@@ -977,6 +999,183 @@ class VideoCanvasEngine {
     clip.colorGrading.exposure = 0.15;
     clip.colorGrading.contrast = 65;
     clip.colorGrading.saturation = 125;
+  }
+
+  // --- Geometric Shape Masking (Circle, Rounded Rect, Star, Heart, Diamond) ---
+  applyShapeMask(ctx, shape, drawW, drawH) {
+    if (!shape || shape === 'none' || shape === 'rectangle') return;
+    const w = drawW, h = drawH;
+    const rx = -w * 0.5, ry = -h * 0.5;
+
+    ctx.beginPath();
+    if (shape === 'circle') {
+      const radius = Math.min(w, h) * 0.46;
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    } else if (shape === 'rounded_rect') {
+      ctx.roundRect(rx + w * 0.05, ry + h * 0.05, w * 0.9, h * 0.9, Math.min(w, h) * 0.12);
+    } else if (shape === 'star') {
+      const spikes = 5, outerR = Math.min(w, h) * 0.46, innerR = outerR * 0.45;
+      let rot = (Math.PI / 2) * 3;
+      const step = Math.PI / spikes;
+      ctx.moveTo(0, -outerR);
+      for (let i = 0; i < spikes; i++) {
+        let x = Math.cos(rot) * outerR;
+        let y = Math.sin(rot) * outerR;
+        ctx.lineTo(x, y);
+        rot += step;
+        x = Math.cos(rot) * innerR;
+        y = Math.sin(rot) * innerR;
+        ctx.lineTo(x, y);
+        rot += step;
+      }
+      ctx.lineTo(0, -outerR);
+      ctx.closePath();
+    } else if (shape === 'heart') {
+      const scaleH = Math.min(w, h) * 0.022;
+      ctx.moveTo(0, -8 * scaleH);
+      ctx.bezierCurveTo(12 * scaleH, -24 * scaleH, 24 * scaleH, -4 * scaleH, 0, 18 * scaleH);
+      ctx.bezierCurveTo(-24 * scaleH, -4 * scaleH, -12 * scaleH, -24 * scaleH, 0, -8 * scaleH);
+      ctx.closePath();
+    } else if (shape === 'diamond') {
+      ctx.moveTo(0, -h * 0.45);
+      ctx.lineTo(w * 0.45, 0);
+      ctx.lineTo(0, h * 0.45);
+      ctx.lineTo(-w * 0.45, 0);
+      ctx.closePath();
+    }
+    ctx.clip();
+  }
+
+  // --- Real-Time Chroma Keying (Green/Blue/Custom Screen Knockout) ---
+  renderChromaKeyedMedia(ctx, media, drawW, drawH, chromaKey) {
+    if (!this._chromaCanvas) {
+      this._chromaCanvas = document.createElement('canvas');
+      this._chromaCtx = this._chromaCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    const cw = Math.min(640, Math.max(64, Math.round(drawW)));
+    const ch = Math.min(360, Math.max(64, Math.round(drawH)));
+    if (this._chromaCanvas.width !== cw || this._chromaCanvas.height !== ch) {
+      this._chromaCanvas.width = cw;
+      this._chromaCanvas.height = ch;
+    }
+    const cctx = this._chromaCtx;
+    cctx.clearRect(0, 0, cw, ch);
+    cctx.drawImage(media, 0, 0, cw, ch);
+
+    const imgData = cctx.getImageData(0, 0, cw, ch);
+    const data = imgData.data;
+    const len = data.length;
+
+    const targetHex = chromaKey.color || '#00FF00';
+    const targetR = parseInt(targetHex.slice(1, 3), 16) || 0;
+    const targetG = parseInt(targetHex.slice(3, 5), 16) || 255;
+    const targetB = parseInt(targetHex.slice(5, 7), 16) || 0;
+    const tol = (chromaKey.tolerance || 45) * 1.8;
+    const smooth = (chromaKey.smoothness || 15) * 1.2;
+
+    for (let i = 0; i < len; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const dist = Math.sqrt((r - targetR) ** 2 + (g - targetG) ** 2 + (b - targetB) ** 2);
+      if (dist < tol) {
+        data[i + 3] = 0;
+      } else if (dist < tol + smooth) {
+        data[i + 3] = Math.round(((dist - tol) / smooth) * 255);
+      }
+    }
+    cctx.putImageData(imgData, 0, 0);
+    ctx.drawImage(this._chromaCanvas, -drawW * 0.5, -drawH * 0.5, drawW, drawH);
+  }
+
+  // --- Audio-Reactive Spectrum Visualizer (Equalizer Bars, Circle, Wave) ---
+  renderAudioVisualizer(ctx, width, height, project, timestamp) {
+    const viz = project.audioVisualizer || {};
+    const style = viz.style || 'bars';
+    const color = viz.color || '#38BDF8';
+    const numBars = 48;
+
+    ctx.save();
+    if (style === 'bars') {
+      const barW = (width * 0.8) / numBars;
+      const startX = width * 0.1;
+      const baseY = height * 0.88;
+
+      for (let i = 0; i < numBars; i++) {
+        const freq = Math.sin(timestamp * 8 + i * 0.4) * 0.4 + Math.cos(timestamp * 14 + i * 0.8) * 0.3 + 0.35;
+        const barH = Math.max(4, freq * (height * 0.18));
+        const x = startX + i * barW;
+
+        const grad = ctx.createLinearGradient(x, baseY, x, baseY - barH);
+        grad.addColorStop(0, color);
+        grad.addColorStop(1, '#A855F7');
+        ctx.fillStyle = grad;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.roundRect(x + 2, baseY - barH, barW - 4, barH, 4);
+        ctx.fill();
+      }
+    } else if (style === 'circle') {
+      const cx = width * 0.5, cy = height * 0.5;
+      const baseR = Math.min(width, height) * 0.22;
+      const count = 36;
+      ctx.strokeStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const mag = (Math.sin(timestamp * 10 + i * 0.6) * 0.3 + 0.7) * (height * 0.06);
+        const r = baseR + mag;
+        const px = cx + Math.cos(angle) * r;
+        const py = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    } else if (style === 'wave') {
+      const baseY = height * 0.86;
+      ctx.strokeStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      for (let x = 0; x < width; x += 10) {
+        const y = baseY + Math.sin(x * 0.015 + timestamp * 6) * 20 * Math.cos(timestamp * 3 + x * 0.005);
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // --- Real-Time Video Histogram / Scopes Calculator ---
+  calculateHistogram(sourceCanvas) {
+    if (!sourceCanvas) return null;
+    const c = document.createElement('canvas');
+    c.width = 160;
+    c.height = 90;
+    const cx = c.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(sourceCanvas, 0, 0, 160, 90);
+    const data = cx.getImageData(0, 0, 160, 90).data;
+
+    const rHist = new Uint32Array(256);
+    const gHist = new Uint32Array(256);
+    const bHist = new Uint32Array(256);
+    const lumHist = new Uint32Array(256);
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+      rHist[r]++;
+      gHist[g]++;
+      bHist[b]++;
+      lumHist[lum]++;
+    }
+
+    return { r: rHist, g: gHist, b: bHist, lum: lumHist };
   }
 
   easeInOut(t) {
