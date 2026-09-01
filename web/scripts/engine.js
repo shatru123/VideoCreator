@@ -143,7 +143,10 @@ class VideoCanvasEngine {
 
   renderSingleClip(ctx, clip, localTime, width, height) {
     const img = this.imageCache.get(clip.source);
-    if (!img) return;
+    if (!img) {
+      if (clip.source) this.loadImage(clip.source);
+      return;
+    }
 
     const progress = Math.min(1.0, Math.max(0.0, localTime / clip.duration));
     const easeT = this.easeInOut(progress);

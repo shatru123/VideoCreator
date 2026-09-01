@@ -2494,6 +2494,9 @@
       `;
       musicList.appendChild(item);
     });
+
+    // Also synchronize mobile media sheet
+    populateMobileMediaSheet();
   }
 
   function insertPhotoAtPlayhead(src, name = 'Photo') {
@@ -2502,10 +2505,15 @@
       videoTrack = { id: 'track-video-1', type: 'video', clips: [] };
       currentProject.timeline.tracks.push(videoTrack);
     }
+    let startT = currentTime;
+    if (startT === 0 && videoTrack.clips.length > 0) {
+      const last = videoTrack.clips[videoTrack.clips.length - 1];
+      startT = last.startTime + last.duration;
+    }
     const clip = {
-      id: `clip-photo-${Date.now()}`,
+      id: `clip-photo-${Date.now()}-${Math.floor(Math.random()*1000)}`,
       name: name,
-      startTime: currentTime,
+      startTime: startT,
       duration: 3.5,
       source: src,
       motion: 'ZoomIn',
@@ -2515,6 +2523,7 @@
       colorGrading: { exposure: 0, contrast: 50, saturation: 100 }
     };
     videoTrack.clips.push(clip);
+    videoTrack.clips.sort((a, b) => a.startTime - b.startTime);
     selectedClip = clip;
     recalculateDuration();
     refreshTimeline();
