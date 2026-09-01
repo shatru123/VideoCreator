@@ -724,6 +724,11 @@ class VideoWebExporter {
         }
       });
     }
+    if (this.engine && this.engine.videoCache) {
+      this.engine.videoCache.forEach((vid, src) => {
+        exportEngine.videoCache.set(src, vid);
+      });
+    }
 
     const ctx = exportCanvas.getContext('2d', { willReadFrequently: true });
     const framesData = [];

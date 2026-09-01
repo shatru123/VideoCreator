@@ -9,6 +9,7 @@
   let animFrameId = null;
   let lastPlayTimestamp = 0;
   let timelineZoom = 80;
+  let lastExportResult = null;
 
   const undoStack = [];
   const redoStack = [];
@@ -2922,6 +2923,22 @@
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
+
+          const fileObj = new File([result.blob], fileName, { type: result.blob.type || 'image/gif' });
+          if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
+            shareBtn.style.display = 'block';
+            shareBtn.onclick = async () => {
+              try {
+                await navigator.share({
+                  files: [fileObj],
+                  title: currentProject.metadata?.name || 'VideoCreator GIF',
+                  text: 'Created with VideoCreator Pro Studio'
+                });
+              } catch (err) {
+                if (err.name !== 'AbortError') console.warn('Share error:', err);
+              }
+            };
+          }
         } else if (format === 'batch') {
           const results = await exporter.exportBatch(currentProject, ['16:9', '9:16'], { resolution: res, fps: fps }, (p) => {
             progressFill.style.width = `${p.percentage}%`;

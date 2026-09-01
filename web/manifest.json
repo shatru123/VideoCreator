@@ -1,4 +1,5 @@
 {
+  "id": "./index.html",
   "name": "VideoCreator Pro Studio",
   "short_name": "VideoCreator",
   "description": "Universal 100% Free On-Device Video & Reels Creator Studio",
@@ -8,19 +9,45 @@
   "orientation": "any",
   "background_color": "#080A0F",
   "theme_color": "#4F46E5",
-  "categories": ["video", "multimedia", "productivity", "photo"],
+  "categories": [
+    "video",
+    "multimedia",
+    "productivity",
+    "photo"
+  ],
   "icons": [
     {
       "src": "assets/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "assets/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/screenshot.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "VideoCreator Pro Studio Timeline Editor"
     }
   ]
 }
