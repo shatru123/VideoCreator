@@ -172,10 +172,8 @@
     document.getElementById('menu-file-new')?.addEventListener('click', () => {
       closeAllDropdowns();
       if (confirm('Create a new project? Unsaved changes in the current project will be replaced.')) {
-        pushHistory();
+        discardCurrentSession();
         currentProject = createDefaultProject('My New Video', '16:9');
-        currentTime = 0;
-        selectedClip = null;
         switchScreen('editor');
         refreshTimeline();
         refreshMediaLibrary();
@@ -1582,32 +1580,82 @@
     } catch { }
   }
 
+  let isAutosaveDisabled = false;
+
+  function discardCurrentSession() {
+    isAutosaveDisabled = true;
+    try {
+      localStorage.removeItem('vc_autosave_snapshot');
+    } catch {}
+
+    const banner = document.getElementById('recovery-banner');
+    if (banner) banner.style.display = 'none';
+
+    pushHistory();
+    currentProject = createDefaultProject('Sunset Adventure', '16:9');
+    currentTime = 0;
+    selectedClip = null;
+    refreshTimeline();
+    refreshMediaLibrary();
+    updateInspector();
+    requestRender();
+
+    // Re-enable autosave for future edits after a brief pause
+    setTimeout(() => { isAutosaveDisabled = false; }, 2000);
+  }
+
   function setupAutosaveAndRecovery() {
+    const banner = document.getElementById('recovery-banner');
+    const restoreBtn = document.getElementById('btn-restore-recovery');
+    const discardBtn = document.getElementById('btn-discard-recovery');
+
+    if (banner) banner.style.display = 'none';
+
     try {
       const snapshot = localStorage.getItem('vc_autosave_snapshot');
       if (snapshot) {
-        const banner = document.getElementById('recovery-banner');
-        banner.style.display = 'flex';
+        const parsed = JSON.parse(snapshot);
+        // Only show recovery banner if the saved project has customized clips
+        const hasContent = parsed && parsed.timeline && parsed.timeline.tracks && parsed.timeline.tracks.some(t => t.clips && t.clips.length > 0);
+        if (hasContent && banner) {
+          banner.style.display = 'flex';
 
-        document.getElementById('btn-restore-recovery').addEventListener('click', () => {
-          pushHistory();
-          currentProject = JSON.parse(snapshot);
-          banner.style.display = 'none';
-          switchScreen('editor');
-        });
-
-        document.getElementById('btn-discard-recovery').addEventListener('click', () => {
-          localStorage.removeItem('vc_autosave_snapshot');
-          banner.style.display = 'none';
-        });
+          restoreBtn?.addEventListener('click', () => {
+            pushHistory();
+            currentProject = parsed;
+            banner.style.display = 'none';
+            switchScreen('editor');
+            refreshTimeline();
+            refreshMediaLibrary();
+            updateInspector();
+            requestRender();
+          });
+        }
       }
-    } catch { }
+    } catch (e) {
+      try { localStorage.removeItem('vc_autosave_snapshot'); } catch {}
+    }
+
+    discardBtn?.addEventListener('click', () => {
+      discardCurrentSession();
+      alert('✓ Unsaved project session discarded.');
+    });
+
+    document.getElementById('menu-file-discard')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      if (confirm('Discard current project session and reset to a clean workspace?')) {
+        discardCurrentSession();
+      }
+    });
 
     setInterval(() => {
+      if (isAutosaveDisabled) return;
       try {
-        localStorage.setItem('vc_autosave_snapshot', JSON.stringify(currentProject));
-      } catch { }
-    }, 10000);
+        if (currentProject && currentProject.timeline && currentProject.assets && currentProject.assets.length > 0) {
+          localStorage.setItem('vc_autosave_snapshot', JSON.stringify(currentProject));
+        }
+      } catch {}
+    }, 12000);
   }
 
   // --- Quick Create Wizard ---

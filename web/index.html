@@ -30,9 +30,9 @@
             <div class="menu-divider"></div>
             <button class="menu-item" id="menu-file-import-photo"><span>📷 Import Photos...</span><kbd>Ctrl+I</kbd></button>
             <button class="menu-item" id="menu-file-import-audio"><span>🎵 Import Audio...</span></button>
-            <div class="menu-divider"></div>
             <button class="menu-item" id="menu-file-export"><span>🚀 Export MP4 Video...</span><kbd>Ctrl+E</kbd></button>
             <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-file-discard" style="color:#F87171;"><span>🗑️ Discard Session</span></button>
             <button class="menu-item" id="menu-file-home"><span>🏠 Close to Home</span></button>
           </div>
         </div>
@@ -182,7 +182,7 @@
   </aside>
 
   <!-- Autosave Crash Recovery Banner -->
-  <div id="recovery-banner" style="display:none; background:#312E81; color:#E0E7FF; padding:8px 20px; font-size:12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #4338CA;">
+  <div id="recovery-banner" style="display:none; background:#312E81; color:#E0E7FF; padding:8px 20px; font-size:12px; justify-content:space-between; align-items:center; border-bottom:1px solid #4338CA;">
     <span>⚠️ An unsaved project session was recovered from your previous visit.</span>
     <div style="display:flex; gap:8px;">
       <button id="btn-restore-recovery" class="btn btn-primary btn-sm">Restore Session</button>
