@@ -644,22 +644,50 @@
 
           <!-- Section: AUDIO & SONG SECTION TRIMMER -->
           <div id="inspector-audio-section" style="display:none;">
-            <div class="inspector-section-title">🎵 AUDIO &amp; SONG SECTION</div>
+            <div class="inspector-section-title">🎵 AUDIO &amp; SONG SECTION TRIMMER</div>
             <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
-              <div style="background:#0D111A; padding:8px; border-radius:6px; border:1px solid #1E293B;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                  <span style="font-size:11px; font-weight:700; color:#FEF3C7;">🎵 Start Song From:</span>
-                  <span id="val-audio-offset" style="font-size:11px; font-weight:800; color:#38BDF8;">00:00.0</span>
+              
+              <!-- Start & End Time Box -->
+              <div style="background:#0D111A; padding:10px; border-radius:8px; border:1px solid #1E293B; display:flex; flex-direction:column; gap:8px;">
+                
+                <!-- Song Start Time -->
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label style="font-size:11px; font-weight:700; color:#FEF3C7;">▶ Song Start Time:</label>
+                    <span id="val-audio-start-time" style="font-size:11px; font-weight:800; color:#38BDF8;">00:00.0</span>
+                  </div>
+                  <input type="range" id="input-audio-start-time" min="0" max="300" step="0.5" value="0" style="width:100%; height:28px;">
                 </div>
-                <div style="font-size:10px; color:#94A3B8; margin-bottom:6px;">Apply specific section / chorus to your photos:</div>
-                <input type="range" id="input-audio-offset" min="0" max="300" step="0.5" value="0" style="width:100%; height:32px;">
-                <div style="display:flex; gap:4px; margin-top:6px; flex-wrap:wrap;">
-                  <button class="btn btn-secondary btn-sm btn-audio-jump" data-offset="0" style="font-size:9px; padding:2px 6px;">0:00 Intro</button>
-                  <button class="btn btn-secondary btn-sm btn-audio-jump" data-offset="30" style="font-size:9px; padding:2px 6px;">0:30 Verse</button>
-                  <button class="btn btn-secondary btn-sm btn-audio-jump" data-offset="60" style="font-size:9px; padding:2px 6px;">1:00 Chorus 🔥</button>
-                  <button class="btn btn-secondary btn-sm btn-audio-jump" data-offset="90" style="font-size:9px; padding:2px 6px;">1:30 Drop ⚡</button>
-                  <button class="btn btn-secondary btn-sm btn-audio-jump" data-offset="120" style="font-size:9px; padding:2px 6px;">2:00 Bridge</button>
+
+                <!-- Song End Time -->
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label style="font-size:11px; font-weight:700; color:#FEF3C7;">⏹ Song End Time:</label>
+                    <span id="val-audio-end-time" style="font-size:11px; font-weight:800; color:#EC4899;">00:17.5</span>
+                  </div>
+                  <input type="range" id="input-audio-end-time" min="0" max="300" step="0.5" value="17.5" style="width:100%; height:28px;">
                 </div>
+
+                <!-- Duration Summary & Match Photo Button -->
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px; border-top:1px solid rgba(255,255,255,0.06);">
+                  <span id="val-audio-selected-dur" style="font-size:10px; color:#94A3B8;">Selected: 17.5s (Matches Photos)</span>
+                  <button id="btn-audio-match-photos" class="btn btn-secondary btn-sm" style="font-size:9px; color:#38BDF8; padding:2px 6px;">⚡ Match Photos</button>
+                </div>
+
+                <!-- Quick Section Presets -->
+                <div style="font-size:10px; color:#64748B; margin-top:2px;">Quick Section Jumps:</div>
+                <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                  <button class="btn btn-secondary btn-sm btn-audio-preset" data-start="0" style="font-size:9px; padding:2px 6px;">0:00 Intro</button>
+                  <button class="btn btn-secondary btn-sm btn-audio-preset" data-start="30" style="font-size:9px; padding:2px 6px;">0:30 Verse</button>
+                  <button class="btn btn-secondary btn-sm btn-audio-preset" data-start="60" style="font-size:9px; padding:2px 6px;">1:00 Chorus 🔥</button>
+                  <button class="btn btn-secondary btn-sm btn-audio-preset" data-start="90" style="font-size:9px; padding:2px 6px;">1:30 Drop ⚡</button>
+                  <button class="btn btn-secondary btn-sm btn-audio-preset" data-start="120" style="font-size:9px; padding:2px 6px;">2:00 Bridge</button>
+                </div>
+
+                <!-- Preview Selected Audio Slice -->
+                <button id="btn-preview-audio-slice" class="btn btn-primary" style="width:100%; font-size:11px; padding:6px; margin-top:4px; background:linear-gradient(135deg, #3B82F6, #10B981);">
+                  🔊 Preview Selected Song Section
+                </button>
               </div>
 
               <!-- Audio Volume Slider -->

@@ -157,7 +157,7 @@ class WebAudioPlayer {
     this.ensureAudioContext();
     if (!this.currentTrackSrc) return;
 
-    const actualTime = (offset || 0) + timeSec;
+    const actualTime = Math.max(0, (offset || 0) + timeSec);
 
     if (this.isYouTubeActive && this.ytPlayer) {
       try {
@@ -183,15 +183,46 @@ class WebAudioPlayer {
 
     if (this.audioElement && !this.isYouTubeActive) {
       this.audioElement.volume = Math.max(0, Math.min(1, volume));
-      if (actualTime >= 0 && actualTime < (this.audioElement.duration || 99999)) {
-        this.audioElement.currentTime = actualTime;
-        this.audioElement.play().catch(() => {});
+
+      const doSeekAndPlay = () => {
+        try {
+          if (isFinite(actualTime) && actualTime >= 0) {
+            this.audioElement.currentTime = actualTime;
+          }
+        } catch (e) {}
+        this.audioElement.play().then(() => {
+          if (isFinite(actualTime) && Math.abs(this.audioElement.currentTime - actualTime) > 0.4) {
+            try { this.audioElement.currentTime = actualTime; } catch (e) {}
+          }
+        }).catch(() => {});
+      };
+
+      if (this.audioElement.readyState >= 1) {
+        doSeekAndPlay();
+      } else {
+        this.audioElement.addEventListener('loadedmetadata', doSeekAndPlay, { once: true });
+        this.audioElement.load();
       }
     }
     this.isPlaying = true;
   }
 
+  playSection(startSec, endSec, volume = 1.0) {
+    if (!this.audioElement) return;
+    this.pause();
+    const dur = Math.max(0.5, endSec - startSec);
+    this.playAt(0, volume, startSec);
+    if (this._sectionTimeout) clearTimeout(this._sectionTimeout);
+    this._sectionTimeout = setTimeout(() => {
+      this.pause();
+    }, dur * 1000);
+  }
+
   pause() {
+    if (this._sectionTimeout) {
+      clearTimeout(this._sectionTimeout);
+      this._sectionTimeout = null;
+    }
     if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
       try {
         this.ytPlayer.pauseVideo();
@@ -205,7 +236,7 @@ class WebAudioPlayer {
 
   seek(timeSec, offset = 0) {
     if (!this.currentTrackSrc) return;
-    const actualTime = (offset || 0) + timeSec;
+    const actualTime = Math.max(0, (offset || 0) + timeSec);
 
     if (this.isYouTubeActive && this.ytPlayer && typeof this.ytPlayer.seekTo === 'function') {
       try {
@@ -214,9 +245,11 @@ class WebAudioPlayer {
     }
 
     if (this.audioElement && !this.isYouTubeActive) {
-      if (actualTime >= 0 && actualTime < (this.audioElement.duration || 99999)) {
-        this.audioElement.currentTime = actualTime;
-      }
+      try {
+        if (isFinite(actualTime) && actualTime >= 0) {
+          this.audioElement.currentTime = actualTime;
+        }
+      } catch (e) {}
     }
   }
 

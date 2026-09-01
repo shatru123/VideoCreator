@@ -1052,21 +1052,41 @@
           </div>
         </div>
 
-        <!-- Song Start Offset / Section Selector -->
-        <div style="background:#0D111A; padding:10px; border-radius:8px; border:1px solid #1E293B;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <label style="font-size:12px; font-weight:700; color:#FEF3C7;">🎵 Start Song From:</label>
-            <span id="m-val-audio-offset" style="font-size:12px; font-weight:800; color:#38BDF8;">00:00.0</span>
+        <!-- Song Start & End Time Box -->
+        <div style="background:#0D111A; padding:12px; border-radius:8px; border:1px solid #1E293B; display:flex; flex-direction:column; gap:10px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="font-size:12px; font-weight:700; color:#FEF3C7;">▶ Song Start Time:</label>
+              <span id="m-val-audio-start" style="font-size:12px; font-weight:800; color:#38BDF8;">00:00.0</span>
+            </div>
+            <input type="range" id="m-input-audio-start" min="0" max="300" step="0.5" value="${audioClip?.sourceOffset || 0}" style="width:100%; height:32px;">
           </div>
-          <div style="font-size:11px; color:#94A3B8; margin-bottom:6px;">Choose which section/chorus plays over your photos:</div>
-          <input type="range" id="m-input-audio-offset" min="0" max="300" step="0.5" value="${audioClip?.sourceOffset || 0}" style="width:100%; height:34px;">
-          <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="0" style="font-size:10px; padding:4px 8px;">0:00 Intro</button>
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="30" style="font-size:10px; padding:4px 8px;">0:30 Verse</button>
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="60" style="font-size:10px; padding:4px 8px;">1:00 Chorus 🔥</button>
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="90" style="font-size:10px; padding:4px 8px;">1:30 Drop ⚡</button>
-            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-offset="120" style="font-size:10px; padding:4px 8px;">2:00 Bridge</button>
+
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="font-size:12px; font-weight:700; color:#FEF3C7;">⏹ Song End Time:</label>
+              <span id="m-val-audio-end" style="font-size:12px; font-weight:800; color:#EC4899;">00:17.5</span>
+            </div>
+            <input type="range" id="m-input-audio-end" min="0" max="300" step="0.5" value="${(audioClip?.sourceOffset || 0) + (audioClip?.duration || 17.5)}" style="width:100%; height:32px;">
           </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px; border-top:1px solid rgba(255,255,255,0.06);">
+            <span id="m-val-audio-dur" style="font-size:11px; color:#94A3B8;">Duration: ${(audioClip?.duration || 17.5).toFixed(1)}s</span>
+            <button id="m-btn-match-photos" class="btn btn-secondary btn-sm" style="font-size:10px; color:#38BDF8; padding:3px 8px;">⚡ Match Photos</button>
+          </div>
+
+          <div style="font-size:10px; color:#64748B;">Quick Section Jumps:</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="0" style="font-size:10px; padding:4px 8px;">0:00 Intro</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="30" style="font-size:10px; padding:4px 8px;">0:30 Verse</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="60" style="font-size:10px; padding:4px 8px;">1:00 Chorus 🔥</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="90" style="font-size:10px; padding:4px 8px;">1:30 Drop ⚡</button>
+            <button class="btn btn-secondary btn-sm m-btn-audio-jump" data-start="120" style="font-size:10px; padding:4px 8px;">2:00 Bridge</button>
+          </div>
+
+          <button id="m-btn-preview-audio-slice" class="btn btn-primary" style="width:100%; font-size:12px; padding:8px; background:linear-gradient(135deg, #3B82F6, #10B981);">
+            🔊 Preview Selected Song Section
+          </button>
         </div>
 
         <!-- Audio Volume -->
@@ -1098,36 +1118,94 @@
       autoBeatSyncPhotos();
     });
 
-    const offsetSlider = container.querySelector('#m-input-audio-offset');
-    const offsetValEl = container.querySelector('#m-val-audio-offset');
-    function updateOffsetDisplay(val) {
-      const mins = Math.floor(val / 60);
-      const secs = (val % 60).toFixed(1);
-      if (offsetValEl) offsetValEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
-    }
-    updateOffsetDisplay(audioClip?.sourceOffset || 0);
+    const mStartSlider = container.querySelector('#m-input-audio-start');
+    const mStartValEl = container.querySelector('#m-val-audio-start');
+    const mEndSlider = container.querySelector('#m-input-audio-end');
+    const mEndValEl = container.querySelector('#m-val-audio-end');
+    const mDurLabel = container.querySelector('#m-val-audio-dur');
 
-    offsetSlider?.addEventListener('input', (e) => {
-      const off = parseFloat(e.target.value);
-      if (audioClip) {
-        audioClip.sourceOffset = off;
-        audioClip.trimStart = off;
+    function formatTimeSecM(s) {
+      const mins = Math.floor(s / 60);
+      const secs = (s % 60).toFixed(1);
+      return `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
+    }
+
+    function syncMobileAudioSlice(newStart, newEnd) {
+      const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+      let visualDuration = 0;
+      if (videoTrack && videoTrack.clips.length > 0) {
+        visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
       }
-      updateOffsetDisplay(off);
-      audio.seek(currentTime, off);
+      if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
+
+      let start = Math.max(0, newStart !== undefined ? newStart : (audioClip?.sourceOffset || 0));
+      let end = newEnd !== undefined ? newEnd : (start + (audioClip?.duration || visualDuration));
+      if (end <= start) end = start + visualDuration;
+
+      if (audioClip) {
+        audioClip.sourceOffset = start;
+        audioClip.trimStart = start;
+        audioClip.duration = end - start;
+      }
+
+      if (mStartSlider) mStartSlider.value = start;
+      if (mStartValEl) mStartValEl.textContent = formatTimeSecM(start);
+      if (mEndSlider) mEndSlider.value = end;
+      if (mEndValEl) mEndValEl.textContent = formatTimeSecM(end);
+      if (mDurLabel) mDurLabel.textContent = `Duration: ${(end - start).toFixed(1)}s`;
+
+      audio.seek(currentTime, start);
+    }
+
+    const curS = audioClip?.sourceOffset || 0;
+    const curD = audioClip?.duration || 17.5;
+    syncMobileAudioSlice(curS, curS + curD);
+
+    mStartSlider?.addEventListener('input', (e) => {
+      const s = parseFloat(e.target.value);
+      const curDur = audioClip?.duration || 17.5;
+      syncMobileAudioSlice(s, s + curDur);
+    });
+
+    mEndSlider?.addEventListener('input', (e) => {
+      const end = parseFloat(e.target.value);
+      const start = audioClip?.sourceOffset || 0;
+      syncMobileAudioSlice(start, Math.max(start + 1.0, end));
+    });
+
+    container.querySelector('#m-btn-match-photos')?.addEventListener('click', () => {
+      const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+      let visualDuration = 0;
+      if (videoTrack && videoTrack.clips.length > 0) {
+        visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
+      }
+      if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
+      const start = audioClip?.sourceOffset || 0;
+      syncMobileAudioSlice(start, start + visualDuration);
+      alert(`⚡ Song matched to photos (${visualDuration.toFixed(1)}s)!`);
     });
 
     container.querySelectorAll('.m-btn-audio-jump').forEach(btn => {
       btn.addEventListener('click', () => {
-        const off = parseFloat(btn.dataset.offset || '0');
-        if (offsetSlider) offsetSlider.value = off;
-        if (audioClip) {
-          audioClip.sourceOffset = off;
-          audioClip.trimStart = off;
+        const s = parseFloat(btn.dataset.start || '0');
+        const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+        let visualDuration = 0;
+        if (videoTrack && videoTrack.clips.length > 0) {
+          visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
         }
-        updateOffsetDisplay(off);
-        audio.seek(currentTime, off);
+        if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
+        syncMobileAudioSlice(s, s + visualDuration);
       });
+    });
+
+    container.querySelector('#m-btn-preview-audio-slice')?.addEventListener('click', () => {
+      if (!audioClip || !audioClip.source) {
+        alert('Please import or select a song first!');
+        return;
+      }
+      const start = audioClip.sourceOffset || 0;
+      const dur = audioClip.duration || 17.5;
+      audio.playSection(start, start + dur, audioClip.volume || 1.0);
     });
 
     const volInput = container.querySelector('#m-input-vol');
@@ -2344,40 +2422,100 @@
     });
 
     // Audio & Song Section Trimmer Inspector Listeners
-    const audioOffsetSlider = document.getElementById('input-audio-offset');
-    const audioOffsetVal = document.getElementById('val-audio-offset');
+    const startSlider = document.getElementById('input-audio-start-time');
+    const startVal = document.getElementById('val-audio-start-time');
+    const endSlider = document.getElementById('input-audio-end-time');
+    const endVal = document.getElementById('val-audio-end-time');
+    const durLabel = document.getElementById('val-audio-selected-dur');
 
-    function updateInspectorOffsetDisplay(val) {
-      const mins = Math.floor(val / 60);
-      const secs = (val % 60).toFixed(1);
-      if (audioOffsetVal) audioOffsetVal.textContent = `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
+    function formatTimeSec(s) {
+      const mins = Math.floor(s / 60);
+      const secs = (s % 60).toFixed(1);
+      return `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
     }
 
-    audioOffsetSlider?.addEventListener('input', (e) => {
-      const off = parseFloat(e.target.value);
+    function syncAudioSlice(newStart, newEnd) {
       const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
       const audioClip = audioTrack?.clips[0];
-      if (audioClip) {
-        audioClip.sourceOffset = off;
-        audioClip.trimStart = off;
+      const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+      let visualDuration = 0;
+      if (videoTrack && videoTrack.clips.length > 0) {
+        visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
       }
-      updateInspectorOffsetDisplay(off);
-      audio.seek(currentTime, off);
+      if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
+
+      let start = Math.max(0, newStart !== undefined ? newStart : (audioClip?.sourceOffset || 0));
+      let end = newEnd !== undefined ? newEnd : (start + (audioClip?.duration || visualDuration));
+      if (end <= start) end = start + visualDuration;
+
+      if (audioClip) {
+        audioClip.sourceOffset = start;
+        audioClip.trimStart = start;
+        audioClip.duration = end - start;
+      }
+
+      if (startSlider) startSlider.value = start;
+      if (startVal) startVal.textContent = formatTimeSec(start);
+      if (endSlider) endSlider.value = end;
+      if (endVal) endVal.textContent = formatTimeSec(end);
+      if (durLabel) durLabel.textContent = `Selected: ${(end - start).toFixed(1)}s (Song Slice)`;
+
+      audio.seek(currentTime, start);
+    }
+
+    startSlider?.addEventListener('input', (e) => {
+      const s = parseFloat(e.target.value);
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const audioClip = audioTrack?.clips[0];
+      const curDur = audioClip?.duration || 17.5;
+      syncAudioSlice(s, s + curDur);
     });
 
-    document.querySelectorAll('.btn-audio-jump').forEach(btn => {
+    endSlider?.addEventListener('input', (e) => {
+      const end = parseFloat(e.target.value);
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const audioClip = audioTrack?.clips[0];
+      const start = audioClip?.sourceOffset || 0;
+      syncAudioSlice(start, Math.max(start + 1.0, end));
+    });
+
+    document.getElementById('btn-audio-match-photos')?.addEventListener('click', () => {
+      const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+      let visualDuration = 0;
+      if (videoTrack && videoTrack.clips.length > 0) {
+        visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
+      }
+      if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const audioClip = audioTrack?.clips[0];
+      const start = audioClip?.sourceOffset || 0;
+      syncAudioSlice(start, start + visualDuration);
+      alert(`⚡ Song slice matched to photos duration (${visualDuration.toFixed(1)}s)!`);
+    });
+
+    document.querySelectorAll('.btn-audio-preset').forEach(btn => {
       btn.addEventListener('click', () => {
-        const off = parseFloat(btn.dataset.offset || '0');
-        if (audioOffsetSlider) audioOffsetSlider.value = off;
-        const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
-        const audioClip = audioTrack?.clips[0];
-        if (audioClip) {
-          audioClip.sourceOffset = off;
-          audioClip.trimStart = off;
+        const s = parseFloat(btn.dataset.start || '0');
+        const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+        let visualDuration = 0;
+        if (videoTrack && videoTrack.clips.length > 0) {
+          visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
         }
-        updateInspectorOffsetDisplay(off);
-        audio.seek(currentTime, off);
+        if (visualDuration <= 0) visualDuration = currentProject.timeline.totalDuration || 14.0;
+        syncAudioSlice(s, s + visualDuration);
       });
+    });
+
+    document.getElementById('btn-preview-audio-slice')?.addEventListener('click', () => {
+      const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+      const audioClip = audioTrack?.clips[0];
+      if (!audioClip || !audioClip.source) {
+        alert('Please import or select a song first!');
+        return;
+      }
+      const start = audioClip.sourceOffset || 0;
+      const dur = audioClip.duration || 17.5;
+      audio.playSection(start, start + dur, audioClip.volume || 1.0);
     });
 
     const inspAudioVol = document.getElementById('input-inspector-audio-vol');
@@ -2454,15 +2592,28 @@
     const audioClip = audioTrack?.clips[0];
     if (audioSec) {
       audioSec.style.display = 'block';
-      const offsetInput = document.getElementById('input-audio-offset');
-      const offsetVal = document.getElementById('val-audio-offset');
-      const curOffset = audioClip?.sourceOffset || audioClip?.trimStart || 0;
-      if (offsetInput) offsetInput.value = curOffset;
-      if (offsetVal) {
-        const mins = Math.floor(curOffset / 60);
-        const secs = (curOffset % 60).toFixed(1);
-        offsetVal.textContent = `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
+      const startSlider = document.getElementById('input-audio-start-time');
+      const startVal = document.getElementById('val-audio-start-time');
+      const endSlider = document.getElementById('input-audio-end-time');
+      const endVal = document.getElementById('val-audio-end-time');
+      const durLabel = document.getElementById('val-audio-selected-dur');
+
+      function formatTimeSec(s) {
+        const mins = Math.floor(s / 60);
+        const secs = (s % 60).toFixed(1);
+        return `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
       }
+
+      const curStart = audioClip?.sourceOffset || audioClip?.trimStart || 0;
+      const curDur = audioClip?.duration || 17.5;
+      const curEnd = curStart + curDur;
+
+      if (startSlider) startSlider.value = curStart;
+      if (startVal) startVal.textContent = formatTimeSec(curStart);
+      if (endSlider) endSlider.value = curEnd;
+      if (endVal) endVal.textContent = formatTimeSec(curEnd);
+      if (durLabel) durLabel.textContent = `Selected: ${curDur.toFixed(1)}s (Song Slice)`;
+
       const volInput = document.getElementById('input-inspector-audio-vol');
       const volVal = document.getElementById('val-inspector-audio-vol');
       const curVol = audioClip?.volume !== undefined ? audioClip.volume : 1.0;
