@@ -1,7 +1,7 @@
 services:
   - type: web
     name: videocreator-web
-    env: node
+    runtime: node
     plan: free
     buildCommand: npm install
     startCommand: node server.js
