@@ -775,22 +775,21 @@ class VideoWebExporter {
     // 2. Logical Screen Descriptor
     writeShort(width);
     writeShort(height);
-    bytes.push(0xF5); // 64-color global color table flag (2^(5+1) = 64 colors)
+    bytes.push(0xF7); // 256-color global color table flag (2^(7+1) = 256 colors)
     bytes.push(0x00); // background color index
     bytes.push(0x00); // pixel aspect ratio
 
-    // 3. Global Color Table (64 Uniform RGB Palette)
-    const palette = [];
-    for (let r = 0; r < 4; r++) {
-      for (let g = 0; g < 4; g++) {
-        for (let b = 0; b < 4; b++) {
-          const pr = Math.round((r / 3) * 255);
-          const pg = Math.round((g / 3) * 255);
-          const pb = Math.round((b / 3) * 255);
-          palette.push([pr, pg, pb]);
-          bytes.push(pr, pg, pb);
+    // 3. Global Color Table (256 Colors: 6x6x6 color cube + 40 grayscale ramp)
+    for (let r = 0; r < 6; r++) {
+      for (let g = 0; g < 6; g++) {
+        for (let b = 0; b < 6; b++) {
+          bytes.push(Math.round(r * 51), Math.round(g * 51), Math.round(b * 51));
         }
       }
+    }
+    for (let i = 0; i < 40; i++) {
+      const v = Math.round((i / 39) * 255);
+      bytes.push(v, v, v);
     }
 
     // 4. Netscape 2.0 Loop Extension
@@ -800,12 +799,12 @@ class VideoWebExporter {
 
     // 5. Render Each Frame
     frames.forEach((imgData, frameIdx) => {
-      // Graphic Control Extension
+      // Graphic Control Extension (0x21 0xF9)
       bytes.push(0x21, 0xF9, 0x04, 0x04); // Disposal method 1 (do not dispose)
-      writeShort(delayCentisec || 8);
+      writeShort(delayCentisec || 10);
       bytes.push(0x00, 0x00);
 
-      // Image Descriptor
+      // Image Descriptor (0x2C)
       bytes.push(0x2C);
       writeShort(0); // left
       writeShort(0); // top
@@ -813,40 +812,30 @@ class VideoWebExporter {
       writeShort(height);
       bytes.push(0x00); // no local color table
 
-      // Frame Pixel Indexing to 64-color Palette
+      // Frame Pixel Indexing to 256-color Palette
       const data = imgData.data;
       const numPixels = width * height;
       const indexedPixels = new Uint8Array(numPixels);
 
       for (let i = 0; i < numPixels; i++) {
         const off = i * 4;
-        const r = Math.min(3, Math.floor(data[off] / 64));
-        const g = Math.min(3, Math.floor(data[off + 1] / 64));
-        const b = Math.min(3, Math.floor(data[off + 2] / 64));
-        indexedPixels[i] = (r * 16) + (g * 4) + b;
+        const r = Math.min(5, Math.floor(data[off] / 43));
+        const g = Math.min(5, Math.floor(data[off + 1] / 43));
+        const b = Math.min(5, Math.floor(data[off + 2] / 43));
+        indexedPixels[i] = (r * 36) + (g * 6) + b;
       }
 
-      // Uncompressed/Literal LZW Sub-blocks
-      const minCodeSize = 6;
+      // LZW Compression
+      const minCodeSize = 8;
       bytes.push(minCodeSize);
 
-      const clearCode = 1 << minCodeSize; // 64
-      const eoiCode = clearCode + 1;       // 65
-
-      let subBlock = [clearCode];
-      for (let i = 0; i < numPixels; i++) {
-        subBlock.push(indexedPixels[i]);
-        if (subBlock.length >= 254) {
-          bytes.push(subBlock.length);
-          for (let b = 0; b < subBlock.length; b++) bytes.push(subBlock[b]);
-          subBlock = [];
-        }
-      }
-
-      subBlock.push(eoiCode);
-      if (subBlock.length > 0) {
-        bytes.push(subBlock.length);
-        for (let b = 0; b < subBlock.length; b++) bytes.push(subBlock[b]);
+      const lzwBytes = this._lzwCompress(minCodeSize, indexedPixels);
+      let offset = 0;
+      while (offset < lzwBytes.length) {
+        const chunk = Math.min(254, lzwBytes.length - offset);
+        bytes.push(chunk);
+        for (let c = 0; c < chunk; c++) bytes.push(lzwBytes[offset + c]);
+        offset += chunk;
       }
       bytes.push(0x00); // Block Terminator
 
@@ -857,6 +846,67 @@ class VideoWebExporter {
     bytes.push(0x3B);
 
     return new Blob([new Uint8Array(bytes)], { type: 'image/gif' });
+  }
+
+  // --- LZW Compression Engine for GIF ---
+  _lzwCompress(minCodeSize, pixels) {
+    const clearCode = 1 << minCodeSize;
+    const eoiCode = clearCode + 1;
+    let codeSize = minCodeSize + 1;
+    let nextCode = clearCode + 2;
+    let maxCode = (1 << codeSize);
+
+    let dict = new Map();
+    const outputBytes = [];
+    let bitBuffer = 0;
+    let bitCount = 0;
+
+    function writeBits(code, bits) {
+      bitBuffer |= (code << bitCount);
+      bitCount += bits;
+      while (bitCount >= 8) {
+        outputBytes.push(bitBuffer & 0xFF);
+        bitBuffer >>= 8;
+        bitCount -= 8;
+      }
+    }
+
+    writeBits(clearCode, codeSize);
+    let prefix = pixels[0];
+
+    for (let i = 1; i < pixels.length; i++) {
+      const k = pixels[i];
+      const key = (prefix << 8) | k;
+
+      if (dict.has(key)) {
+        prefix = dict.get(key);
+      } else {
+        writeBits(prefix, codeSize);
+        if (nextCode < 4096) {
+          dict.set(key, nextCode++);
+          if (nextCode > maxCode && codeSize < 12) {
+            codeSize++;
+            maxCode = (1 << codeSize);
+          }
+        } else {
+          writeBits(clearCode, codeSize);
+          dict.clear();
+          codeSize = minCodeSize + 1;
+          maxCode = (1 << codeSize);
+          nextCode = clearCode + 2;
+        }
+        prefix = k;
+      }
+    }
+
+    writeBits(prefix, codeSize);
+    writeBits(eoiCode, codeSize);
+
+    if (bitCount > 0) {
+      outputBytes.push(bitBuffer & 0xFF);
+    }
+
+    return new Uint8Array(outputBytes);
   }
 
   // --- Multi-Resolution Batch Exporter (1-Click Multi-Format Export) ---

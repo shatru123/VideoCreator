@@ -2888,6 +2888,8 @@
       if (directDownloadBtn) directDownloadBtn.style.display = 'none';
     });
 
+    let lastExportResult = null;
+
     exportBtn.addEventListener('click', async () => {
       const format = document.getElementById('export-format-select')?.value || 'mp4';
       const res = document.getElementById('export-resolution-select')?.value || '1080';
