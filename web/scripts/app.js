@@ -2889,14 +2889,34 @@
 
   function recalculateDuration() {
     let max = 0;
-    const visualTracks = currentProject.timeline.tracks.filter(t => t.type === 'video' || t.type === 'overlay');
-    visualTracks.forEach(track => {
-      track.clips.forEach(clip => {
-        const end = clip.startTime + clip.duration;
+    const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+    if (videoTrack && videoTrack.clips.length > 0) {
+      videoTrack.clips.forEach(clip => {
+        const end = (clip.startTime || 0) + (clip.duration || 0);
         if (end > max) max = end;
       });
-    });
+    } else {
+      const visualTracks = currentProject.timeline.tracks.filter(t => t.type === 'video' || t.type === 'overlay');
+      visualTracks.forEach(track => {
+        track.clips.forEach(clip => {
+          const end = (clip.startTime || 0) + (clip.duration || 0);
+          if (end > max) max = end;
+        });
+      });
+    }
+
+    // Visual clips length determines the total timeline duration
+    max = Math.max(max, 3.0);
     currentProject.timeline.totalDuration = max;
+
+    // Auto-fit audio tracks to match photos length exactly
+    const audioTrack = currentProject.timeline.tracks.find(t => t.type === 'audio');
+    if (audioTrack && audioTrack.clips.length > 0) {
+      audioTrack.clips.forEach(ac => {
+        ac.startTime = 0;
+        ac.duration = max; // Matches photo reel length!
+      });
+    }
   }
 
   function setAspectRatio(ratio) {
@@ -3709,27 +3729,34 @@
         currentProject.timeline.tracks.push(track);
       }
 
+      // Calculate current photos / visual duration
+      const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+      let visualDuration = 0;
+      if (videoTrack && videoTrack.clips.length > 0) {
+        visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
+      }
+      if (visualDuration <= 0) {
+        visualDuration = currentProject.timeline.totalDuration || 14.0;
+      }
+
       if (trackType === 'audio') {
         // Clear previous sample or background audio
         track.clips = [];
         audio.loadAudio(src);
       }
 
+      const clipDuration = (trackType === 'audio') ? visualDuration : duration;
       const newClip = {
         id: `clip-${trackType}-${Date.now()}`,
         name: name,
-        startTime: currentTime,
-        duration: duration,
+        startTime: trackType === 'audio' ? 0 : currentTime,
+        duration: clipDuration,
         source: src,
         volume: 1.0
       };
       track.clips.push(newClip);
 
-      currentProject.timeline.totalDuration = Math.max(
-        currentProject.timeline.totalDuration || 14.0,
-        currentTime + duration
-      );
-
+      recalculateDuration();
       refreshTimeline();
       requestRender();
     }
@@ -3788,21 +3815,26 @@
         audioTrack.clips = [];
         audio.loadAudio(audioInfo.src);
 
+        const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
+        let visualDuration = 0;
+        if (videoTrack && videoTrack.clips.length > 0) {
+          visualDuration = videoTrack.clips.reduce((acc, c) => Math.max(acc, (c.startTime || 0) + (c.duration || 0)), 0);
+        }
+        if (visualDuration <= 0) {
+          visualDuration = currentProject.timeline.totalDuration || 14.0;
+        }
+
         const newClip = {
           id: `clip-audio-${Date.now()}`,
           name: audioInfo.title || 'YouTube Audio Stream',
-          startTime: currentTime,
-          duration: audioInfo.duration || 14.0,
+          startTime: 0,
+          duration: visualDuration, // Auto-trimmed to photos length!
           source: audioInfo.src,
           volume: 1.0
         };
         audioTrack.clips.push(newClip);
 
-        currentProject.timeline.totalDuration = Math.max(
-          currentProject.timeline.totalDuration || 14.0,
-          newClip.startTime + newClip.duration
-        );
-
+        recalculateDuration();
         refreshTimeline();
         requestRender();
         setTimeout(() => {

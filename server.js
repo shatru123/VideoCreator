@@ -51,9 +51,16 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    const ytdlpPath = fs.existsSync('/opt/homebrew/bin/yt-dlp')
-      ? '/opt/homebrew/bin/yt-dlp'
-      : (fs.existsSync('/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp') ? '/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp' : 'yt-dlp');
+    const localBin = path.join(__dirname, 'bin', 'yt-dlp');
+    const ytdlpPath = fs.existsSync(localBin)
+      ? localBin
+      : (fs.existsSync('/opt/homebrew/bin/yt-dlp')
+        ? '/opt/homebrew/bin/yt-dlp'
+        : (fs.existsSync('/usr/local/bin/yt-dlp')
+          ? '/usr/local/bin/yt-dlp'
+          : (fs.existsSync('/usr/bin/yt-dlp')
+            ? '/usr/bin/yt-dlp'
+            : (fs.existsSync('/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp') ? '/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp' : 'yt-dlp'))));
 
     const outPattern = path.join(assetsDir, `yt_cache_${cleanId}.%(ext)s`);
     const cmd = `"${ytdlpPath}" --extractor-args "youtube:player_client=ios,android,mweb" -x --audio-format mp3 -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
