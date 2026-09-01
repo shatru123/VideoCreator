@@ -2,11 +2,13 @@
  * VideoCreator — Universal High-Performance Video Exporter
  * 
  * Supports:
- * 1. WebCodecs + Mp4Muxer (H.264 / AVC1 + AAC in standard ISO-BMFF MP4 container)
+ * 1. Mobile-Optimized WebCodecs + Mp4Muxer (H.264 / AVC1 + AAC in standard ISO-BMFF MP4 container)
  *    - 100% WhatsApp, Instagram, TikTok, iPhone & Android social media sharing compatibility.
+ *    - Macroblock-aligned dimensions (divisible by 16) for universal mobile GPU hardware encoding.
+ *    - Adaptive profile discovery via `VideoEncoder.isConfigSupported`.
  *    - Guaranteed full duration with fast-start 'moov' box metadata.
- *    - Offline frame-by-frame rendering: never drops frames or throttles.
- * 2. MediaRecorder + EBML/MP4 Duration Header Fixer fallback.
+ *    - Offline frame-by-frame rendering: never drops frames or throttles on mobile.
+ * 2. Deterministic MediaRecorder + EBML & ISO-BMFF MP4 Duration Header Fixer fallback.
  */
 
 class VideoWebExporter {
@@ -22,7 +24,7 @@ class VideoWebExporter {
 
     if (canUseWebCodecs) {
       try {
-        console.log('[VideoWebExporter] Using WebCodecs + Mp4Muxer universal MP4 pipeline.');
+        console.log('[VideoWebExporter] Attempting WebCodecs + Mp4Muxer export...');
         return await this.exportWithWebCodecs(project, options, onProgress);
       } catch (err) {
         console.warn('[VideoWebExporter] WebCodecs pipeline fallback due to:', err);
@@ -52,19 +54,59 @@ class VideoWebExporter {
       }
     }
 
-    // Check Audio availability
+    // Discover supported AVC / H.264 codec
+    const candidateCodecs = [
+      'avc1.42001f', // Baseline Profile Level 3.1 (most compatible on mobile)
+      'avc1.42E01E', // Constrained Baseline Level 3.0
+      'avc1.4D401F', // Main Profile Level 3.1
+      'avc1.4d002a', // Main Profile Level 4.2
+      'avc1.64001F', // High Profile Level 3.1
+      'avc1.640028'  // High Profile Level 4.0
+    ];
+
+    let selectedCodec = null;
+    for (const c of candidateCodecs) {
+      try {
+        const support = await VideoEncoder.isConfigSupported({
+          codec: c,
+          width: targetWidth,
+          height: targetHeight,
+          bitrate: bitrate,
+          framerate: fps
+        });
+        if (support && support.supported) {
+          selectedCodec = c;
+          break;
+        }
+      } catch (e) {}
+    }
+    if (!selectedCodec) selectedCodec = 'avc1.42001f';
+
+    // Check Audio availability and AudioEncoder support
     const audioTrack = project.timeline.tracks.find(t => t.type === 'audio');
     const voiceTrack = project.timeline.tracks.find(t => t.type === 'voiceover');
     const hasAudio = (audioTrack && audioTrack.clips.length > 0 && audioTrack.clips[0].source) || 
                      (voiceTrack && voiceTrack.clips.length > 0 && voiceTrack.clips[0].source);
 
     let audioBuffer = null;
-    if (hasAudio) {
-      audioBuffer = await this._mixProjectAudio(project, totalDuration);
-    }
+    let canEncodeAudio = false;
 
-    // AudioEncoder support check
-    const canEncodeAudio = hasAudio && audioBuffer && typeof window.AudioEncoder !== 'undefined';
+    if (hasAudio && typeof window.AudioEncoder !== 'undefined') {
+      try {
+        const audioSupport = await AudioEncoder.isConfigSupported({
+          codec: 'mp4a.40.2',
+          numberOfChannels: 2,
+          sampleRate: 44100,
+          bitrate: 192000
+        });
+        if (audioSupport && audioSupport.supported) {
+          audioBuffer = await this._mixProjectAudio(project, totalDuration);
+          canEncodeAudio = !!audioBuffer;
+        }
+      } catch (e) {
+        console.warn('AudioEncoder check warning:', e);
+      }
+    }
 
     // Setup Mp4Muxer
     const muxer = new window.Mp4Muxer.Muxer({
@@ -90,10 +132,8 @@ class VideoWebExporter {
       error: (e) => { videoEncoderError = e; console.error('VideoEncoder error:', e); }
     });
 
-    // H.264 Baseline Profile Level 3.1 or Main Profile Level 4.2
-    const avcCodec = targetWidth >= 1920 ? 'avc1.4d002a' : 'avc1.42001f';
     videoEncoder.configure({
-      codec: avcCodec,
+      codec: selectedCodec,
       width: targetWidth,
       height: targetHeight,
       bitrate: bitrate,
@@ -119,7 +159,7 @@ class VideoWebExporter {
       await this._encodeAudioBuffer(audioBuffer, audioEncoder);
     }
 
-    // Render Video Frames Step-by-Step
+    // Render Video Frames Step-by-Step (Deterministic Timeline Clock)
     const totalFrames = Math.max(1, Math.ceil(totalDuration * fps));
     const frameDurationUs = Math.round(1000000 / fps);
 
@@ -260,10 +300,12 @@ class VideoWebExporter {
         let rawBlob = new Blob(chunks, { type: selectedMime });
         const isMp4 = selectedMime.toLowerCase().includes('mp4');
 
-        // Patch duration for WebM / MP4 so WhatsApp / Social media get full length
+        // Patch duration for both WebM and MP4 so WhatsApp & social media read full length
         let patchedBlob = rawBlob;
         try {
-          if (!isMp4) {
+          if (isMp4) {
+            patchedBlob = await this._fixMp4Duration(rawBlob, totalDuration);
+          } else {
             patchedBlob = await this._fixWebmDuration(rawBlob, totalDuration * 1000);
           }
         } catch (e) {
@@ -283,19 +325,29 @@ class VideoWebExporter {
         audioElem.play().catch(() => {});
       }
 
-      const startWallClock = performance.now();
+      const totalFrames = Math.max(1, Math.ceil(totalDuration * fps));
+      const frameIntervalMs = 1000 / fps;
+      let frameIdx = 0;
+
       const renderProject = {
         ...project,
         canvas: { ...project.canvas, width: targetWidth, height: targetHeight }
       };
 
-      function renderLoop() {
-        const elapsedSec = (performance.now() - startWallClock) / 1000;
-        const currentTimestamp = Math.min(totalDuration, elapsedSec);
+      // Deterministic frame delivery for MediaRecorder
+      const renderInterval = setInterval(() => {
+        if (frameIdx >= totalFrames) {
+          clearInterval(renderInterval);
+          setTimeout(() => {
+            if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+          }, 300);
+          return;
+        }
 
-        exportEngine.render(renderProject, currentTimestamp);
+        const currentTimestamp = (frameIdx / fps);
+        exportEngine.render(renderProject, Math.min(totalDuration, currentTimestamp));
 
-        const pct = Math.min(100, Math.round((currentTimestamp / totalDuration) * 100));
+        const pct = Math.min(100, Math.round(((frameIdx + 1) / totalFrames) * 100));
         if (onProgress) {
           onProgress({
             percentage: pct,
@@ -304,23 +356,16 @@ class VideoWebExporter {
           });
         }
 
-        if (elapsedSec >= totalDuration) {
-          setTimeout(() => {
-            if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-          }, 300);
-          return;
-        }
-
-        requestAnimationFrame(renderLoop);
-      }
-
-      requestAnimationFrame(renderLoop);
+        frameIdx++;
+      }, frameIntervalMs);
     });
   }
 
   // --- Audio Mixing Helper ---
   async _mixProjectAudio(project, durationSec) {
-    const actx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    const actx = new AudioContextClass({ sampleRate: 44100 });
     const sampleRate = 44100;
     const totalSamples = Math.ceil(durationSec * sampleRate);
     const mixedBuffer = actx.createBuffer(2, totalSamples, sampleRate);
@@ -360,7 +405,7 @@ class VideoWebExporter {
       }
     }
 
-    // Normalize & clamp to avoid clipping
+    // Normalize & clamp
     for (let i = 0; i < totalSamples; i++) {
       leftChannel[i] = Math.max(-1.0, Math.min(1.0, leftChannel[i]));
       rightChannel[i] = Math.max(-1.0, Math.min(1.0, rightChannel[i]));
@@ -402,7 +447,7 @@ class VideoWebExporter {
     }
   }
 
-  // --- Dimension and Parameter Calculator ---
+  // --- Dimension and Parameter Calculator (Aligned to Macroblocks) ---
   _getExportDimensions(project, options) {
     let targetWidth = project.canvas.width;
     let targetHeight = project.canvas.height;
@@ -416,32 +461,79 @@ class VideoWebExporter {
       else if (isPortrait) { targetWidth = 2160; targetHeight = 3840; }
       else { targetWidth = 3840; targetHeight = 2160; }
     } else if (res === '1080') {
-      if (isSquare) { targetWidth = 1080; targetHeight = 1080; }
-      else if (isPortrait) { targetWidth = 1080; targetHeight = 1920; }
-      else { targetWidth = 1920; targetHeight = 1080; }
+      if (isSquare) { targetWidth = 1088; targetHeight = 1088; }
+      else if (isPortrait) { targetWidth = 1088; targetHeight = 1920; }
+      else { targetWidth = 1920; targetHeight = 1088; }
     } else if (res === '720') {
       if (isSquare) { targetWidth = 720; targetHeight = 720; }
       else if (isPortrait) { targetWidth = 720; targetHeight = 1280; }
       else { targetWidth = 1280; targetHeight = 720; }
     } else if (res === '480') {
       if (isSquare) { targetWidth = 480; targetHeight = 480; }
-      else if (isPortrait) { targetWidth = 480; targetHeight = 854; }
-      else { targetWidth = 854; targetHeight = 480; }
+      else if (isPortrait) { targetWidth = 480; targetHeight = 864; }
+      else { targetWidth = 864; targetHeight = 480; }
     }
 
-    // Codecs require dimensions to be multiples of 2
-    targetWidth = targetWidth - (targetWidth % 2);
-    targetHeight = targetHeight - (targetHeight % 2);
+    // Enforce 16-pixel macroblock alignment for universal mobile hardware encoders
+    targetWidth = Math.floor(targetWidth / 16) * 16;
+    targetHeight = Math.floor(targetHeight / 16) * 16;
 
     const fps = parseInt(options.fps) || 30;
     const totalDuration = project.timeline.totalDuration || 5.0;
-    const defaultBitrate = res === '4k' ? 24000000 : (res === '1080' ? 10000000 : 5000000);
+    const defaultBitrate = res === '4k' ? 24000000 : (res === '1080' ? 8000000 : 4000000);
     const bitrate = options.bitrate || defaultBitrate;
 
     return { targetWidth, targetHeight, fps, totalDuration, bitrate };
   }
 
-  // --- EBML WebM Duration Patcher ---
+  // --- ISO-BMFF MP4 Duration Patcher (for iOS Safari MediaRecorder) ---
+  async _fixMp4Duration(blob, durationSec) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    const view = new DataView(arrayBuffer);
+
+    let pos = 0;
+    while (pos < data.length - 8) {
+      let size = view.getUint32(pos, false);
+      const boxType = String.fromCharCode(data[pos+4], data[pos+5], data[pos+6], data[pos+7]);
+
+      if (size === 1 && pos + 16 <= data.length) {
+        size = Number(view.getBigUint64(pos + 8, false));
+      } else if (size === 0) {
+        size = data.length - pos;
+      }
+      if (size < 8) break;
+
+      if (boxType === 'moov') {
+        let subPos = pos + 8;
+        const moovEnd = Math.min(data.length, pos + size);
+        while (subPos < moovEnd - 8) {
+          const subSize = view.getUint32(subPos, false);
+          const subType = String.fromCharCode(data[subPos+4], data[subPos+5], data[subPos+6], data[subPos+7]);
+          if (subSize < 8 || subPos + subSize > moovEnd) break;
+
+          if (subType === 'mvhd') {
+            const version = data[subPos + 8];
+            if (version === 0 && subPos + 28 <= moovEnd) {
+              const timescale = view.getUint32(subPos + 20, false);
+              const durVal = Math.round(durationSec * (timescale || 1000));
+              view.setUint32(subPos + 24, durVal, false);
+            } else if (version === 1 && subPos + 40 <= moovEnd) {
+              const timescale = view.getUint32(subPos + 28, false);
+              const durVal = BigInt(Math.round(durationSec * (timescale || 1000)));
+              view.setBigUint64(subPos + 32, durVal, false);
+            }
+          }
+          subPos += subSize;
+        }
+      }
+      pos += size;
+    }
+
+    return new Blob([data.buffer], { type: 'video/mp4' });
+  }
+
+  // --- EBML WebM Duration Patcher (for Android Chrome MediaRecorder) ---
   async _fixWebmDuration(blob, durationMs) {
     const arrayBuffer = await blob.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
