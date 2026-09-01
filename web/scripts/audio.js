@@ -96,8 +96,7 @@ class WebAudioPlayer {
 
     // Generate high-fidelity studio audio buffer for this track
     const dur = 60.0;
-    const audioBuf = await this.generateStockMusicTrack('lofi', dur);
-    const blobUrl = this.audioBufferToWav(audioBuf);
+    const blobUrl = await this.generateStockMusicTrack('lofi', dur);
 
     this.isYouTubeActive = false;
     this.currentTrackSrc = blobUrl;
@@ -326,6 +325,10 @@ class WebAudioPlayer {
     return offlineCtx.startRendering().then(renderedBuffer => {
       return this.audioBufferToWavUrl(renderedBuffer);
     });
+  }
+
+  audioBufferToWav(buffer) {
+    return this.audioBufferToWavUrl(buffer);
   }
 
   audioBufferToWavUrl(buffer) {

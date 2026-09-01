@@ -3687,9 +3687,7 @@
       modal.querySelectorAll('.btn-insert-stock-track').forEach(btn => {
         btn.addEventListener('click', async () => {
           const stockType = btn.dataset.stock || 'lofi';
-          const buffer = await audio.generateStockMusicTrack(stockType, 30);
-          const wavBlob = audio.audioBufferToWav(buffer);
-          const url = URL.createObjectURL(wavBlob);
+          const url = await audio.generateStockMusicTrack(stockType, 30);
           insertAudioClipOntoTimeline(`Stock ${stockType.toUpperCase()} Beats`, url, 30.0);
           audio.loadAudio(url);
           modal?.classList.remove('active');
