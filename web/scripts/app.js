@@ -3250,26 +3250,54 @@
 
     let deferredInstallPrompt = null;
     const installBtn = document.getElementById('btn-install-pwa');
+    const mobileInstallBtn = document.getElementById('btn-mobile-install-pwa');
+    const menuFileInstall = document.getElementById('menu-file-install-pwa');
+    const menuHelpInstall = document.getElementById('menu-help-install-pwa');
+    const pwaModal = document.getElementById('pwa-install-modal');
+    const closePwaModal = document.getElementById('btn-close-pwa-modal');
+    const triggerPwaInstall = document.getElementById('btn-trigger-pwa-install');
+
+    function openPwaModal() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then(({ outcome }) => {
+          console.log('[PWA] User response:', outcome);
+          deferredInstallPrompt = null;
+        });
+      } else if (pwaModal) {
+        pwaModal.classList.add('active');
+      }
+    }
+
+    if (installBtn) installBtn.addEventListener('click', openPwaModal);
+    if (mobileInstallBtn) mobileInstallBtn.addEventListener('click', openPwaModal);
+    if (menuFileInstall) menuFileInstall.addEventListener('click', openPwaModal);
+    if (menuHelpInstall) menuHelpInstall.addEventListener('click', openPwaModal);
+    if (closePwaModal && pwaModal) closePwaModal.addEventListener('click', () => pwaModal.classList.remove('active'));
+    
+    if (triggerPwaInstall) {
+      triggerPwaInstall.addEventListener('click', () => {
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          deferredInstallPrompt.userChoice.then(() => {
+            deferredInstallPrompt = null;
+            if (pwaModal) pwaModal.classList.remove('active');
+          });
+        } else {
+          alert('To install on this browser:\n\n• Chrome / Edge Desktop: Click the ⊕ icon in your address bar or browser menu.\n• iPhone / iPad: Tap Safari Share ⎋ -> Add to Home Screen ⊞\n• Android: Tap Chrome Menu ⋮ -> Install App');
+        }
+      });
+    }
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredInstallPrompt = e;
-      if (installBtn) {
-        installBtn.style.display = 'inline-flex';
-        installBtn.onclick = async () => {
-          if (!deferredInstallPrompt) return;
-          deferredInstallPrompt.prompt();
-          const { outcome } = await deferredInstallPrompt.userChoice;
-          console.log('[PWA] User response to install:', outcome);
-          deferredInstallPrompt = null;
-          installBtn.style.display = 'none';
-        };
-      }
+      if (installBtn) installBtn.style.display = 'inline-flex';
     });
 
     window.addEventListener('appinstalled', () => {
       console.log('[PWA] VideoCreator successfully installed!');
-      if (installBtn) installBtn.style.display = 'none';
+      if (pwaModal) pwaModal.classList.remove('active');
     });
   }
 
