@@ -30,25 +30,28 @@ const server = http.createServer((req, res) => {
 
   // YouTube Real Audio Extraction API
   if (req.url.startsWith('/api/youtube-audio')) {
-    const urlObj = new URL(req.url, `http://${req.headers.host}`);
-    const id = urlObj.searchParams.get('id') || '';
-    const cleanId = id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 11);
+    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const videoId = parsedUrl.searchParams.get('id');
+    const cleanId = (videoId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+
     if (!cleanId) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: 'Invalid video ID' }));
+      res.end(JSON.stringify({ ok: false, error: 'Missing or invalid YouTube video ID' }));
       return;
     }
 
     const assetsDir = path.join(WEB_DIR, 'assets');
     if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
 
-    const cacheFile = path.join(assetsDir, `yt_cache_${cleanId}.mp3`);
-    const relativeUrl = `assets/yt_cache_${cleanId}.mp3`;
-
-    if (fs.existsSync(cacheFile) && fs.statSync(cacheFile).size > 1000) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, audioUrl: relativeUrl }));
-      return;
+    // Check if any cached audio file exists for this video
+    const existingFiles = fs.readdirSync(assetsDir).filter(f => f.startsWith(`yt_cache_${cleanId}.`));
+    if (existingFiles.length > 0) {
+      const existingFile = path.join(assetsDir, existingFiles[0]);
+      if (fs.statSync(existingFile).size > 1000) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, audioUrl: `assets/${existingFiles[0]}` }));
+        return;
+      }
     }
 
     const localBin = path.join(__dirname, 'bin', 'yt-dlp');
@@ -63,16 +66,20 @@ const server = http.createServer((req, res) => {
             : (fs.existsSync('/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp') ? '/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp' : 'yt-dlp'))));
 
     const outPattern = path.join(assetsDir, `yt_cache_${cleanId}.%(ext)s`);
-    const cmd = `"${ytdlpPath}" --extractor-args "youtube:player_client=ios,android,mweb" -x --audio-format mp3 -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
+    const cmd = `"${ytdlpPath}" --extractor-args "youtube:player_client=ios,android,mweb" -f "ba/b" -x --audio-format mp3 -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}" || "${ytdlpPath}" --extractor-args "youtube:player_client=ios,android,mweb" -f "ba/b" -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
 
     exec(cmd, (err) => {
-      if (fs.existsSync(cacheFile) && fs.statSync(cacheFile).size > 1000) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, audioUrl: relativeUrl }));
-      } else {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'Extraction failed: ' + (err ? err.message : 'Unknown') }));
+      const downloadedFiles = fs.existsSync(assetsDir) ? fs.readdirSync(assetsDir).filter(f => f.startsWith(`yt_cache_${cleanId}.`)) : [];
+      if (downloadedFiles.length > 0) {
+        const file = path.join(assetsDir, downloadedFiles[0]);
+        if (fs.statSync(file).size > 1000) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, audioUrl: `assets/${downloadedFiles[0]}` }));
+          return;
+        }
       }
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'Extraction failed: ' + (err ? err.message : 'Unknown') }));
     });
     return;
   }
