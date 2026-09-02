@@ -6,6 +6,11 @@ class WebAudioPlayer {
     this.isPlaying = false;
     this.currentTrackSrc = null;
 
+    // YouTube IFrame Player State (initialized ONCE, never reset by ensureAudioContext)
+    this.isYouTubeActive = false;
+    this.ytPlayer = null;
+    this.ytApiReadyPromise = null;
+
     // Microphone Recording State
     this.mediaRecorder = null;
     this.recordedChunks = [];
@@ -22,9 +27,6 @@ class WebAudioPlayer {
     if (this.audioCtx && this.audioCtx.state === 'suspended') {
       this.audioCtx.resume();
     }
-    this.isYouTubeActive = false;
-    this.ytPlayer = null;
-    this.ytApiReadyPromise = null;
   }
 
   // --- YouTube Video ID Extractor & IFrame API Loader ---
