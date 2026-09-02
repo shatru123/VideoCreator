@@ -185,11 +185,12 @@ class WebAudioPlayer {
 
       this.isYouTubeActive = true;
       this.currentTrackSrc = originalUrl || `https://www.youtube.com/watch?v=${videoId}`;
+      this.activeAudioBuffer = null;
       if (this.audioElement) {
         this.audioElement.pause();
       }
 
-      if (onProgress) onProgress(100, '✅ YouTube audio player connected!');
+      if (onProgress) onProgress(100, `✅ "${meta.title || 'YouTube Song'}" is active!`);
 
       return {
         src: this.currentTrackSrc,
@@ -213,7 +214,7 @@ class WebAudioPlayer {
     const dock = document.getElementById('yt-player-dock');
     if (dock) dock.style.display = 'none';
 
-    if (onProgress) onProgress(100, '✅ Real YouTube audio track ready!');
+    if (onProgress) onProgress(100, `✅ "${meta.title || 'YouTube Song'}" ready!`);
 
     return {
       src: audioUrl,
@@ -226,6 +227,10 @@ class WebAudioPlayer {
   }
 
   async loadAudio(src) {
+    if (!src) return Promise.resolve();
+    if (this.currentTrackSrc === src && (this.isYouTubeActive || this.activeAudioBuffer)) {
+      return Promise.resolve();
+    }
     const ytId = this.extractYouTubeVideoId(src);
     if (ytId) {
       return this.loadYouTubeAudio(ytId, src);
