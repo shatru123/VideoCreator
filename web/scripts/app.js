@@ -961,18 +961,19 @@
     container.innerHTML = '';
 
     const FILTER_PRESETS = [
-      { id: 'none', name: 'Original', desc: 'Natural color', gradient: 'linear-gradient(135deg, #374151, #1F2937)' },
-      { id: 'cinematic', name: 'Cinematic 35mm', desc: 'Warm contrast & filmic shadows', gradient: 'linear-gradient(135deg, #78350F, #1E1B4B)' },
-      { id: 'teal-orange', name: 'Teal & Orange', desc: 'Blockbuster color grade', gradient: 'linear-gradient(135deg, #0E7490, #C2410C)' },
-      { id: 'sunset', name: 'Sunset Glow', desc: 'Golden hour radiance', gradient: 'linear-gradient(135deg, #B45309, #BE123C)' },
-      { id: 'vintage', name: 'Vintage 70s', desc: 'Nostalgic sepia film', gradient: 'linear-gradient(135deg, #713F12, #451A03)' },
-      { id: 'noir', name: 'Noir B&W', desc: 'High contrast monochrome', gradient: 'linear-gradient(135deg, #000000, #4B5563)' },
-      { id: 'vibrant', name: 'Vibrant Vivid', desc: 'Punchy saturated colors', gradient: 'linear-gradient(135deg, #15803D, #0284C7)' },
-      { id: 'cyberpunk', name: 'Cyberpunk Neon', desc: 'Ultraviolet & magenta glow', gradient: 'linear-gradient(135deg, #701A75, #4338CA)' }
+      { id: 'none', name: 'Original Natural', desc: 'No color grade', gradient: 'linear-gradient(135deg, #374151, #1F2937)', icon: '📷' },
+      { id: 'cinematic', name: 'Cinematic 35mm', desc: 'Filmic shadows & warm contrast', gradient: 'linear-gradient(135deg, #78350F, #1E1B4B)', icon: '🎬' },
+      { id: 'teal-orange', name: 'Teal & Orange', desc: 'Hollywood blockbuster grade', gradient: 'linear-gradient(135deg, #0E7490, #C2410C)', icon: '🌅' },
+      { id: 'sunset', name: 'Sunset Glow', desc: 'Golden hour radiance', gradient: 'linear-gradient(135deg, #B45309, #BE123C)', icon: '☀️' },
+      { id: 'vintage', name: 'Vintage 90s', desc: 'Sepia film nostalgia', gradient: 'linear-gradient(135deg, #713F12, #451A03)', icon: '🎞️' },
+      { id: 'noir', name: 'Noir B&W', desc: 'High contrast monochrome', gradient: 'linear-gradient(135deg, #000000, #4B5563)', icon: '🖤' },
+      { id: 'vibrant', name: 'Vibrant Pop', desc: 'Punchy saturated colors', gradient: 'linear-gradient(135deg, #15803D, #0284C7)', icon: '🌺' },
+      { id: 'cyberpunk', name: 'Cyberpunk Neon', desc: 'Ultraviolet & magenta glow', gradient: 'linear-gradient(135deg, #701A75, #4338CA)', icon: '⚡' }
     ];
 
     const currentFilter = selectedClip?.filterPreset || 'none';
 
+    // Grid of filter cards
     const grid = document.createElement('div');
     grid.className = 'filters-grid';
 
@@ -980,9 +981,9 @@
       const card = document.createElement('div');
       card.className = `filter-card ${currentFilter === f.id ? 'active' : ''}`;
       card.innerHTML = `
-        <div class="filter-swatch" style="background:${f.gradient}; color:#FFF;">🎨</div>
+        <div class="filter-swatch" style="background:${f.gradient}; color:#FFF;">${f.icon}</div>
         <div class="filter-title">${f.name}</div>
-        <div style="font-size:9px; color:#94A3B8; text-align:center;">${f.desc}</div>
+        <div style="font-size:9.5px; color:#94A3B8; text-align:center;">${f.desc}</div>
       `;
 
       card.addEventListener('click', () => {
@@ -990,7 +991,6 @@
         if (selectedClip) {
           selectedClip.filterPreset = f.id;
         } else {
-          // Apply to all clips on video track
           const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
           if (videoTrack) {
             videoTrack.clips.forEach(c => { c.filterPreset = f.id; });
@@ -998,6 +998,9 @@
         }
         populateMobileFiltersSheet();
         requestRender();
+        if (window.showToast) {
+          window.showToast(`🎨 Applied filter: ${f.name}`, 'info');
+        }
       });
 
       grid.appendChild(card);
@@ -1005,12 +1008,13 @@
 
     container.appendChild(grid);
 
-    // Apply to all button
+    // Apply to all photos button
     const applyAllBtn = document.createElement('button');
-    applyAllBtn.className = 'btn btn-secondary';
-    applyAllBtn.style.marginTop = '10px';
+    applyAllBtn.className = 'btn btn-primary';
+    applyAllBtn.style.marginTop = '14px';
     applyAllBtn.style.width = '100%';
-    applyAllBtn.textContent = '✨ Apply Filter to All Photos';
+    applyAllBtn.style.padding = '10px';
+    applyAllBtn.textContent = '✨ Apply Filter to All Project Photos';
     applyAllBtn.addEventListener('click', () => {
       pushHistory();
       const activeFilter = selectedClip?.filterPreset || 'cinematic';
@@ -1018,9 +1022,12 @@
       if (videoTrack) {
         videoTrack.clips.forEach(c => { c.filterPreset = activeFilter; });
       }
-      alert('✨ Applied filter to all photos in project!');
       requestRender();
+      if (window.showToast) {
+        window.showToast('✨ Filter applied to all photos!', 'success');
+      }
     });
+
     container.appendChild(applyAllBtn);
   }
 
@@ -2460,18 +2467,35 @@
 
   function populateReelsTemplates() {
     const list = document.getElementById('library-reels-list');
+    if (!list) return;
     list.innerHTML = '';
+
     window.VideoCreatorTemplates.forEach(t => {
       const card = document.createElement('div');
-      card.className = 'reel-card-thumb';
+      card.className = 'reel-template-card';
+      
+      const icon = t.name.split(' ')[0] || '✨';
+      const cleanName = t.name.replace(/^[^s]+s*/, '');
+      const paceBadge = t.photoDuration ? `${t.photoDuration}s cuts` : 'Reel';
+
       card.innerHTML = `
-        <div style="font-size:16px;">📷</div>
-        <div style="font-size:8px; margin-top:2px;">${t.name.split(' ')[0]}</div>
+        <div class="reel-template-icon">
+          <span>${icon}</span>
+          <span class="reel-template-badge">${paceBadge}</span>
+        </div>
+        <div>
+          <div class="reel-template-title">${cleanName}</div>
+          <div class="reel-template-desc">${t.description || 'Smooth cinematic cuts and beat-matched rhythm.'}</div>
+        </div>
       `;
+
       card.title = `${t.name} (${t.aspectRatio})`;
       card.addEventListener('click', () => {
         pushHistory();
         applyStyleToAllClips(t);
+        if (window.showToast) {
+          window.showToast(`✨ Applied template: ${t.name}`, 'success');
+        }
       });
       list.appendChild(card);
     });
