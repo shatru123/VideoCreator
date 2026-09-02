@@ -1,67 +1,34 @@
-const CACHE_NAME = 'videocreator-v3.4';
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  './styles/app.css',
-  './scripts/app.js',
-  './scripts/engine.js',
-  './scripts/audio.js',
-  './scripts/export.js',
-  './scripts/templates.js',
-  './scripts/mp4-muxer.min.js',
-  './assets/icon-192.png',
-  './assets/icon-512.png',
-  './assets/icon-maskable-192.png',
-  './assets/icon-maskable-512.png',
-  './assets/apple-touch-icon.png'
-];
+const CACHE_NAME = 'videocreator-v4.0';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
+      return Promise.all(keys.map(k => caches.delete(k)));
     }).then(() => self.clients.claim())
   );
 });
 
-// Network-first for dynamic code (JS/CSS/HTML) with automatic cache update and offline fallback
+// Network-first policy: NEVER cache API calls, scripts, or dynamic audio assets
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  
+  const url = new URL(event.request.url);
+
+  // Exclude API calls, scripts, and audio from cache
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/scripts/') || url.pathname.includes('yt_cache_')) {
+    return; // Pass directly to network
+  }
+
   event.respondWith(
-    fetch(event.request).then((networkResponse) => {
-      if (networkResponse && networkResponse.status === 200) {
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-      }
-      return networkResponse;
-    }).catch(() => {
-      return caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('./index.html');
-        }
-      });
-    })
+    fetch(event.request, { cache: 'no-cache' })
+      .then((networkResponse) => {
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request);
+      })
   );
 });

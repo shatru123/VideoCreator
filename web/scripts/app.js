@@ -4186,8 +4186,19 @@
 
   // --- Progressive Web App (PWA) Offline & Desktop Install Service ---
   function setupPWAInstall() {
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        keys.forEach(k => {
+          if (k !== 'videocreator-v4.0') {
+            caches.delete(k);
+          }
+        });
+      });
+    }
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').then(reg => {
+        reg.update();
         console.log('[PWA] Service Worker active, offline studio ready:', reg.scope);
       }).catch(err => {
         console.warn('[PWA] Service Worker registration failed:', err);
@@ -4461,7 +4472,7 @@
       });
     }
 
-    function insertAudioClipOntoTimeline(name, src, duration, trackType = 'audio') {
+    async function insertAudioClipOntoTimeline(name, src, duration, trackType = 'audio') {
       pushHistory();
       let track = currentProject.timeline.tracks.find(t => t.type === trackType);
       if (!track) {
@@ -4488,7 +4499,7 @@
       if (trackType === 'audio') {
         // Clear previous sample or background audio
         track.clips = [];
-        audio.loadAudio(src);
+        await audio.loadAudio(src);
       }
 
       const clipDuration = (trackType === 'audio') ? visualDuration : duration;
@@ -4504,6 +4515,8 @@
 
       recalculateDuration();
       refreshTimeline();
+      updateInspector();
+      populateMobileAudioSheet();
       requestRender();
     }
   }
@@ -4559,7 +4572,7 @@
 
         // Replace any old sample background music
         audioTrack.clips = [];
-        audio.loadAudio(audioInfo.src);
+        await audio.loadAudio(audioInfo.src);
 
         const videoTrack = currentProject.timeline.tracks.find(t => t.type === 'video');
         let visualDuration = 0;
@@ -4582,7 +4595,11 @@
 
         recalculateDuration();
         refreshTimeline();
+        updateInspector();
+        populateMobileAudioSheet();
         requestRender();
+        audio.playSection(0, 3.0, 1.0);
+
         setTimeout(() => {
           if (progCont) progCont.style.display = 'none';
           modal?.classList.remove('active');

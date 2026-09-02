@@ -34,6 +34,28 @@ class WebAudioPlayer {
     if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
       return trimmed;
     }
+
+    try {
+      const cleanUrl = trimmed.startsWith('http://') || trimmed.startsWith('https://') ? trimmed : `https://${trimmed}`;
+      const urlObj = new URL(cleanUrl);
+      
+      // 1. ?v= parameter (handles playlists & radio: watch?v=ID&list=...)
+      if (urlObj.searchParams.has('v')) {
+        const v = urlObj.searchParams.get('v');
+        if (/^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
+      }
+      
+      // 2. youtu.be/ID
+      if (urlObj.hostname.includes('youtu.be')) {
+        const id = urlObj.pathname.replace(/^\/+/, '').split('/')[0];
+        if (/^[a-zA-Z0-9_-]{11}$/.test(id)) return id;
+      }
+
+      // 3. /shorts/ID or /embed/ID or /v/ID or /live/ID
+      const matchPath = urlObj.pathname.match(/\/(shorts|embed|v|live)\/([a-zA-Z0-9_-]{11})/i);
+      if (matchPath && matchPath[2]) return matchPath[2];
+    } catch (e) {}
+
     const regExp = /(?:(?:youtube\.com|youtube-nocookie\.com|youtu\.be|music\.youtube\.com|m\.youtube\.com)\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|live|shorts|watch)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
     const match = trimmed.match(regExp);
     return match ? match[1] : null;
