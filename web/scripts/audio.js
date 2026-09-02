@@ -229,6 +229,50 @@ class WebAudioPlayer {
     };
   }
 
+  async downloadYouTubeMP3(videoId, title) {
+    const safeName = (title || 'youtube-audio').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_');
+    
+    // Try server-side cached file first
+    const extensions = ['mp3', 'm4a', 'mp4', 'opus', 'ogg'];
+    for (const ext of extensions) {
+      const cacheUrl = `/assets/yt_cache_${videoId}.${ext}`;
+      try {
+        const resp = await fetch(cacheUrl, { method: 'HEAD' });
+        if (resp.ok) {
+          // File exists on server - download it
+          const link = document.createElement('a');
+          link.href = cacheUrl;
+          link.download = `${safeName}.${ext}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          return { ok: true, format: ext };
+        }
+      } catch (e) {}
+    }
+    
+    // Try fetching via API
+    try {
+      const resp = await fetch(`/api/youtube-audio?id=${videoId}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.ok && data.audioUrl) {
+          const link = document.createElement('a');
+          link.href = data.audioUrl;
+          const ext = data.audioUrl.split('.').pop() || 'mp3';
+          link.download = `${safeName}.${ext}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          return { ok: true, format: ext };
+        }
+      }
+    } catch (e) {}
+    
+    // Server extraction unavailable
+    return { ok: false, error: 'Audio file not available for download on this server. Try on localhost.' };
+  }
+
   async loadAudio(src) {
     if (!src) return Promise.resolve();
     if (this.currentTrackSrc === src && (this.isYouTubeActive || this.activeAudioBuffer)) {

@@ -4381,6 +4381,12 @@
           if (progStatus) progStatus.textContent = status;
         });
         insertAudioClipOntoTimeline(audioInfo.title || 'YouTube Audio Stream', audioInfo.src, audioInfo.duration || 14.0);
+        const dlBtn = document.getElementById('btn-unified-download-mp3');
+        if (dlBtn) {
+          dlBtn.disabled = false;
+          dlBtn.dataset.videoId = audioInfo.videoId || '';
+          dlBtn.dataset.title = audioInfo.title || 'YouTube Audio';
+        }
         setTimeout(() => {
           if (progCont) progCont.style.display = 'none';
           modal?.classList.remove('active');
@@ -4394,6 +4400,32 @@
         ytBtn.textContent = '⚡ Stream YouTube Audio & Add to Timeline';
       }
     });
+
+    const dlBtn = document.getElementById('btn-unified-download-mp3');
+    if (dlBtn) {
+      dlBtn.addEventListener('click', async () => {
+        const videoId = dlBtn.dataset.videoId;
+        const title = dlBtn.dataset.title;
+        if (!videoId) { alert('Please stream a YouTube song first.'); return; }
+        dlBtn.disabled = true;
+        dlBtn.textContent = '⏳ Preparing download...';
+        try {
+          const result = await audio.downloadYouTubeMP3(videoId, title);
+          if (result.ok) {
+            dlBtn.textContent = '✅ Downloaded!';
+            setTimeout(() => { dlBtn.textContent = '⬇️ Download MP3'; dlBtn.disabled = false; }, 2000);
+          } else {
+            alert(result.error || 'Download not available.');
+            dlBtn.textContent = '⬇️ Download MP3';
+            dlBtn.disabled = false;
+          }
+        } catch (err) {
+          alert('Download failed: ' + err.message);
+          dlBtn.textContent = '⬇️ Download MP3';
+          dlBtn.disabled = false;
+        }
+      });
+    }
 
     // 3. Live Microphone Voiceover Handlers
     const startMicBtn = document.getElementById('btn-unified-start-mic');
