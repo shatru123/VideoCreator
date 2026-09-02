@@ -2360,6 +2360,95 @@
 
   // --- Studio Editor ---
   function setupEditor() {
+
+    // ═══════════════════════════════════════════════════════════════
+    // FLEXIBLE & EXPANDABLE TIMELINE LOGIC (Desktop & Mobile)
+    // ═══════════════════════════════════════════════════════════════
+    const timelineContainer = document.getElementById('timeline-container');
+    const resizeHandle = document.getElementById('timeline-resize-handle');
+    const btnToggleHeight = document.getElementById('btn-toggle-timeline-height');
+
+    let isDraggingTimeline = false;
+    let startY = 0;
+    let startHeight = 0;
+    let isExpandedMode = false;
+
+    function setTimelineHeight(heightPx) {
+      const minH = 120;
+      const maxH = Math.floor(window.innerHeight * 0.65);
+      const clamped = Math.max(minH, Math.min(maxH, heightPx));
+      
+      document.documentElement.style.setProperty('--timeline-height', `${clamped}px`);
+      if (timelineContainer) timelineContainer.style.height = `${clamped}px`;
+      
+      isExpandedMode = clamped > 240;
+      if (btnToggleHeight) {
+        btnToggleHeight.innerHTML = isExpandedMode ? '⤡' : '⤢';
+        btnToggleHeight.title = isExpandedMode ? 'Collapse Timeline' : 'Expand Timeline';
+      }
+      
+      try { localStorage.setItem('videocreator_timeline_height', clamped); } catch (e) {}
+      if (typeof requestRender === 'function') requestRender();
+    }
+
+    // Restore saved height
+    try {
+      const savedH = parseInt(localStorage.getItem('videocreator_timeline_height'), 10);
+      if (savedH && savedH >= 120 && savedH <= window.innerHeight * 0.65) {
+        setTimelineHeight(savedH);
+      }
+    } catch (e) {}
+
+    // Toggle button click
+    btnToggleHeight?.addEventListener('click', () => {
+      const isMobile = window.innerWidth <= 767;
+      if (!isExpandedMode) {
+        const targetH = isMobile ? Math.min(320, Math.floor(window.innerHeight * 0.55)) : 360;
+        setTimelineHeight(targetH);
+        if (window.showToast) window.showToast('Timeline expanded ⤢', 'info');
+      } else {
+        const targetH = isMobile ? 160 : 220;
+        setTimelineHeight(targetH);
+        if (window.showToast) window.showToast('Timeline collapsed ⤡', 'info');
+      }
+    });
+
+    // Touch & Mouse Drag Handlers
+    function onPointerDown(e) {
+      isDraggingTimeline = true;
+      startY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+      startHeight = timelineContainer ? timelineContainer.offsetHeight : 220;
+      resizeHandle?.classList.add('dragging');
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    function onPointerMove(e) {
+      if (!isDraggingTimeline) return;
+      const currentY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+      const deltaY = startY - currentY; // Dragging up increases height
+      setTimelineHeight(startHeight + deltaY);
+    }
+
+    function onPointerUp() {
+      if (!isDraggingTimeline) return;
+      isDraggingTimeline = false;
+      resizeHandle?.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    // Bind touch & mouse events
+    if (resizeHandle) {
+      resizeHandle.addEventListener('mousedown', onPointerDown);
+      resizeHandle.addEventListener('touchstart', onPointerDown, { passive: true });
+    }
+
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('touchmove', onPointerMove, { passive: true });
+    window.addEventListener('mouseup', onPointerUp);
+    window.addEventListener('touchend', onPointerUp);
+
     document.getElementById('btn-play-pause').addEventListener('click', togglePlayPause);
     document.getElementById('btn-step-backward').addEventListener('click', () => seek(currentTime - 1 / 30));
     document.getElementById('btn-step-forward').addEventListener('click', () => seek(currentTime + 1 / 30));

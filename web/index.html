@@ -756,9 +756,14 @@
       </div>
 
       <!-- Bottom: MULTI-TRACK TIMELINE -->
-      <footer class="timeline-container">
+      <footer id="timeline-container" class="timeline-container">
+        <!-- Draggable Resize Handle for Mobile & Desktop -->
+        <div id="timeline-resize-handle" class="timeline-resize-handle" title="Drag up or down to resize timeline">
+          <div class="resize-pill"></div>
+        </div>
         <div class="timeline-toolbar">
           <div class="timeline-tool-group">
+            <button id="btn-toggle-timeline-height" class="btn btn-secondary btn-sm" title="Expand / Collapse Timeline Height" style="padding:2px 6px; font-size:11px; color:#818CF8;">⤢</button>
             <span class="timeline-heading">TIMELINE</span>
             <button id="btn-undo" class="btn btn-secondary btn-sm" title="Undo (Ctrl+Z)">↶</button>
             <button id="btn-redo" class="btn btn-secondary btn-sm" title="Redo (Ctrl+Shift+Z)">↷</button>
