@@ -25,9 +25,44 @@ const MIME_TYPES = {
   '.ogg': 'audio/ogg'
 };
 
+const https = require('https');
 const { exec } = require('child_process');
 
-const server = http.createServer((req, res) => {
+function ensureYtDlpBinary() {
+  const binDir = path.join(__dirname, 'bin');
+  if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
+  const target = path.join(binDir, 'yt-dlp');
+  if (fs.existsSync(target) && fs.statSync(target).size > 10000) {
+    return Promise.resolve(target);
+  }
+
+  return new Promise((resolve) => {
+    function fetchBinary(url) {
+      https.get(url, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return fetchBinary(res.headers.location);
+        }
+        if (res.statusCode === 200) {
+          const file = fs.createWriteStream(target);
+          res.pipe(file);
+          file.on('finish', () => {
+            file.close();
+            try { fs.chmodSync(target, '755'); } catch (e) {}
+            resolve(target);
+          });
+        } else {
+          resolve(target);
+        }
+      }).on('error', () => resolve(target));
+    }
+    fetchBinary('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp');
+  });
+}
+
+// Prefetch binary quietly on boot
+ensureYtDlpBinary();
+
+const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -59,6 +94,8 @@ const server = http.createServer((req, res) => {
         return;
       }
     }
+
+    await ensureYtDlpBinary();
 
     const localLinux = path.join(__dirname, 'bin', 'yt-dlp_linux');
     const localBin = path.join(__dirname, 'bin', 'yt-dlp');

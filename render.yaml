@@ -3,8 +3,11 @@ services:
     name: videocreator-web
     runtime: node
     plan: free
+    branch: main
+    autoDeploy: true
     buildCommand: npm install
     startCommand: node server.js
     envVars:
       - key: PORT
         value: 10000
+
