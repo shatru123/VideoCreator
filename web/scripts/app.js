@@ -1705,61 +1705,214 @@
   function populateMobileTitlesSheet() {
     const container = document.getElementById('mobile-titles-content');
     if (!container) return;
+    container.innerHTML = '';
+
+    const overlayTrack = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+    const allTextClips = overlayTrack?.clips || [];
+    let activeClip = selectedClip?.overlay ? selectedClip : (allTextClips.find(c => currentTime >= (c.startTime || 0) && currentTime <= (c.startTime || 0) + (c.duration || 3.5)) || allTextClips[0]);
+
+    const activeText = activeClip?.overlay?.text || activeClip?.socialBadge?.handle || '';
+    const activeFont = activeClip?.overlay?.fontFamily || 'Inter';
+    const activeAnim = activeClip?.overlay?.entryAnimation || 'Pop';
+    const activeSize = activeClip?.overlay?.fontSize || 52;
+    const activeColor = activeClip?.overlay?.colorHex || '#FFFFFF';
+
     container.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <label style="font-size:12px; color:#94A3B8;">Title Text Content</label>
-        <input type="text" id="m-input-text-content" class="btn btn-secondary" style="width:100%; text-align:left; min-height:44px;" value="CAPTURING THE MAGIC OF THE SUNSET">
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        
+        <!-- Live Text Editor Section -->
+        <div style="background:#0F172A; padding:12px; border-radius:10px; border:1px solid #38BDF8;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:12px; font-weight:800; color:#38BDF8;">✏️ EDIT TEXT ON VIDEO</span>
+            ${activeClip ? `<button id="m-btn-delete-active-text" class="btn btn-secondary btn-sm" style="color:#EF4444; font-size:10px; padding:3px 6px;">🗑️ Delete</button>` : ''}
+          </div>
 
-        <label style="font-size:12px; color:#94A3B8;">Font Typography</label>
-        <select id="m-select-text-font" class="btn btn-secondary" style="width:100%; min-height:44px;">
-          <option value="Inter">Inter (Clean Modern)</option>
-          <option value="Impact">Impact (Bold Poster)</option>
-          <option value="Playfair Display">Playfair Display (Luxury)</option>
-          <option value="Cinzel">Cinzel (Cinematic)</option>
-          <option value="Georgia">Georgia (Classic Serif)</option>
-        </select>
+          <label style="font-size:11px; color:#94A3B8; margin-bottom:4px; display:block;">Text Content:</label>
+          <textarea id="m-input-edit-text" class="btn btn-secondary" rows="2" style="width:100%; text-align:left; font-size:13px; font-weight:700; padding:8px; resize:vertical; background:#0B0E14; border:1px solid #334155; line-height:1.4;" placeholder="Type your title or caption here...">${activeText}</textarea>
 
-        <label style="font-size:12px; color:#94A3B8;">Entrance Animation</label>
-        <select id="m-select-text-anim" class="btn btn-secondary" style="width:100%; min-height:44px;">
-          <option value="Pop">Pop &amp; Bounce</option>
-          <option value="SlideUp">Slide Up</option>
-          <option value="Fade">Smooth Fade</option>
-        </select>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+            <div>
+              <label style="font-size:10px; color:#94A3B8;">Font Family</label>
+              <select id="m-select-edit-font" class="btn btn-secondary" style="width:100%; font-size:11px; padding:6px;">
+                <option value="Inter" ${activeFont === 'Inter' ? 'selected' : ''}>Inter (Clean)</option>
+                <option value="Impact" ${activeFont === 'Impact' ? 'selected' : ''}>Impact (Bold)</option>
+                <option value="Playfair Display" ${activeFont === 'Playfair Display' ? 'selected' : ''}>Playfair (Luxury)</option>
+                <option value="Cinzel" ${activeFont === 'Cinzel' ? 'selected' : ''}>Cinzel (Cinema)</option>
+                <option value="Georgia" ${activeFont === 'Georgia' ? 'selected' : ''}>Georgia (Serif)</option>
+                <option value="Courier New" ${activeFont === 'Courier New' ? 'selected' : ''}>Courier (Typewriter)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10px; color:#94A3B8;">Animation</label>
+              <select id="m-select-edit-anim" class="btn btn-secondary" style="width:100%; font-size:11px; padding:6px;">
+                <option value="Pop" ${activeAnim === 'Pop' ? 'selected' : ''}>Pop &amp; Bounce</option>
+                <option value="SlideUp" ${activeAnim === 'SlideUp' ? 'selected' : ''}>Slide Up</option>
+                <option value="Fade" ${activeAnim === 'Fade' ? 'selected' : ''}>Smooth Fade</option>
+                <option value="Typewriter" ${activeAnim === 'Typewriter' ? 'selected' : ''}>Typewriter</option>
+              </select>
+            </div>
+          </div>
 
-        <button id="m-btn-add-title-playhead" class="btn btn-primary" style="padding:14px; margin-top:8px;">➕ Add Title at Playhead</button>
+          <!-- Text Size Slider -->
+          <div style="margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:#94A3B8; margin-bottom:2px;">
+              <span>Font Size</span>
+              <span id="m-val-text-size">${activeSize}px</span>
+            </div>
+            <input type="range" id="m-input-text-size" min="20" max="110" value="${activeSize}" style="width:100%; height:32px;">
+          </div>
+
+          <!-- Color Chips -->
+          <div style="margin-top:8px;">
+            <label style="font-size:10px; color:#94A3B8; margin-bottom:4px; display:block;">Text Color Presets:</label>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn btn-secondary btn-sm m-chip-color" data-color="#FFFFFF" style="padding:4px 8px; font-size:10px; color:#FFFFFF; border:1px solid rgba(255,255,255,0.3);">⚪ White</button>
+              <button class="btn btn-secondary btn-sm m-chip-color" data-color="#FEF08A" style="padding:4px 8px; font-size:10px; color:#FEF08A; border:1px solid #FEF08A;">🟡 Gold</button>
+              <button class="btn btn-secondary btn-sm m-chip-color" data-color="#38BDF8" style="padding:4px 8px; font-size:10px; color:#38BDF8; border:1px solid #38BDF8;">💎 Cyan</button>
+              <button class="btn btn-secondary btn-sm m-chip-color" data-color="#F43F5E" style="padding:4px 8px; font-size:10px; color:#F43F5E; border:1px solid #F43F5E;">🌸 Pink</button>
+              <button class="btn btn-secondary btn-sm m-chip-color" data-color="#F97316" style="padding:4px 8px; font-size:10px; color:#F97316; border:1px solid #F97316;">🔥 Orange</button>
+            </div>
+          </div>
+
+          <!-- Position Presets -->
+          <div style="margin-top:8px;">
+            <label style="font-size:10px; color:#94A3B8; margin-bottom:4px; display:block;">Position on Screen:</label>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-secondary btn-sm m-btn-pos" data-pos="top" style="flex:1; font-size:11px; padding:6px;">⬆️ Top</button>
+              <button class="btn btn-secondary btn-sm m-btn-pos" data-pos="center" style="flex:1; font-size:11px; padding:6px;">⏺ Center</button>
+              <button class="btn btn-secondary btn-sm m-btn-pos" data-pos="bottom" style="flex:1; font-size:11px; padding:6px;">⬇️ Bottom</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ➕ Add New Title Button -->
+        <button id="m-btn-add-title-playhead" class="btn btn-primary" style="padding:12px; font-size:13px; font-weight:800; background:linear-gradient(135deg, #3B82F6, #10B981);">
+          ➕ Add New Title at Playhead
+        </button>
+
       </div>
     `;
 
+    // Live Text Editing Listeners
+    const textarea = container.querySelector('#m-input-edit-text');
+    function ensureActiveOverlay() {
+      let track = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+      if (!track) {
+        track = { id: 'track-overlay-1', type: 'overlay', clips: [] };
+        currentProject.timeline.tracks.push(track);
+      }
+      if (!activeClip) {
+        activeClip = {
+          id: `clip-title-${Date.now()}`,
+          startTime: currentTime,
+          duration: 3.5,
+          overlay: {
+            text: textarea?.value || 'NEW TITLE',
+            fontFamily: 'Inter',
+            fontSize: 52,
+            colorHex: '#FFFFFF',
+            backgroundColorHex: 'rgba(0,0,0,0.6)',
+            entryAnimation: 'Pop',
+            animationDuration: 0.6
+          },
+          transform: { anchorX: 0.5, anchorY: 0.85 }
+        };
+        track.clips.push(activeClip);
+      }
+      return activeClip;
+    }
+
+    textarea?.addEventListener('input', (e) => {
+      const clip = ensureActiveOverlay();
+      if (clip.overlay) clip.overlay.text = e.target.value;
+      if (clip.socialBadge) clip.socialBadge.handle = e.target.value;
+      refreshTimeline();
+      requestRender();
+    });
+
+    container.querySelector('#m-select-edit-font')?.addEventListener('change', (e) => {
+      const clip = ensureActiveOverlay();
+      if (clip.overlay) clip.overlay.fontFamily = e.target.value;
+      requestRender();
+    });
+
+    container.querySelector('#m-select-edit-anim')?.addEventListener('change', (e) => {
+      const clip = ensureActiveOverlay();
+      if (clip.overlay) clip.overlay.entryAnimation = e.target.value;
+      requestRender();
+    });
+
+    container.querySelector('#m-input-text-size')?.addEventListener('input', (e) => {
+      const clip = ensureActiveOverlay();
+      const val = parseInt(e.target.value);
+      container.querySelector('#m-val-text-size').textContent = `${val}px`;
+      if (clip.overlay) clip.overlay.fontSize = val;
+      requestRender();
+    });
+
+    container.querySelectorAll('.m-chip-color').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const clip = ensureActiveOverlay();
+        const color = btn.dataset.color;
+        if (clip.overlay) clip.overlay.colorHex = color;
+        requestRender();
+      });
+    });
+
+    container.querySelectorAll('.m-btn-pos').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const clip = ensureActiveOverlay();
+        if (!clip.transform) clip.transform = { anchorX: 0.5, anchorY: 0.85 };
+        const pos = btn.dataset.pos;
+        if (pos === 'top') clip.transform.anchorY = 0.15;
+        else if (pos === 'center') clip.transform.anchorY = 0.5;
+        else clip.transform.anchorY = 0.85;
+        requestRender();
+      });
+    });
+
+    container.querySelector('#m-btn-delete-active-text')?.addEventListener('click', () => {
+      if (!activeClip) return;
+      pushHistory();
+      const track = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+      if (track) {
+        track.clips = track.clips.filter(c => c !== activeClip);
+      }
+      activeClip = null;
+      selectedClip = null;
+      refreshTimeline();
+      requestRender();
+      populateMobileTitlesSheet();
+    });
+
     container.querySelector('#m-btn-add-title-playhead')?.addEventListener('click', () => {
       pushHistory();
-      let overlayTrack = currentProject.timeline.tracks.find(t => t.type === 'overlay');
-      if (!overlayTrack) {
-        overlayTrack = { id: 'track-overlay-1', type: 'overlay', clips: [] };
-        currentProject.timeline.tracks.push(overlayTrack);
+      let track = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+      if (!track) {
+        track = { id: 'track-overlay-1', type: 'overlay', clips: [] };
+        currentProject.timeline.tracks.push(track);
       }
-      const textVal = container.querySelector('#m-input-text-content').value || 'Title';
-      const fontVal = container.querySelector('#m-select-text-font').value || 'Inter';
-      const animVal = container.querySelector('#m-select-text-anim').value || 'Pop';
-
-      overlayTrack.clips.push({
+      const newClip = {
         id: `clip-title-${Date.now()}`,
         startTime: currentTime,
         duration: 3.5,
         overlay: {
-          text: textVal,
-          fontFamily: fontVal,
+          text: 'NEW TITLE ✨',
+          fontFamily: 'Inter',
           fontSize: 52,
           colorHex: '#FFFFFF',
           backgroundColorHex: 'rgba(0,0,0,0.6)',
-          entryAnimation: animVal,
+          entryAnimation: 'Pop',
           animationDuration: 0.6
         },
         transform: { anchorX: 0.5, anchorY: 0.85 }
-      });
+      };
+      track.clips.push(newClip);
+      selectedClip = newClip;
       recalculateDuration();
       refreshTimeline();
       requestRender();
-      closeBottomSheets();
+      populateMobileTitlesSheet();
     });
   }
 
@@ -2487,15 +2640,81 @@
     });
 
     // Text Inspector Inputs
-    document.getElementById('input-text-content').addEventListener('input', (e) => {
-      if (selectedClip && selectedClip.overlay) {
-        selectedClip.overlay.text = e.target.value;
+    function getActiveOrFirstOverlay() {
+      let target = selectedClip;
+      if (!target || (!target.overlay && !target.socialBadge)) {
+        const overlayTrack = currentProject.timeline.tracks.find(t => t.type === 'overlay');
+        target = overlayTrack?.clips.find(c => currentTime >= (c.startTime || 0) && currentTime <= (c.startTime || 0) + (c.duration || 3.5)) || overlayTrack?.clips[0];
+        if (target) selectedClip = target;
+      }
+      return target;
+    }
+
+    document.getElementById('input-text-content')?.addEventListener('input', (e) => {
+      const clip = getActiveOrFirstOverlay();
+      if (clip) {
+        if (clip.overlay) clip.overlay.text = e.target.value;
+        if (clip.socialBadge) clip.socialBadge.handle = e.target.value;
         refreshTimeline();
+        requestRender();
       }
     });
 
-    document.getElementById('select-text-font').addEventListener('change', (e) => {
-      if (selectedClip && selectedClip.overlay) selectedClip.overlay.fontFamily = e.target.value;
+    document.getElementById('select-text-font')?.addEventListener('change', (e) => {
+      const clip = getActiveOrFirstOverlay();
+      if (clip && clip.overlay) {
+        clip.overlay.fontFamily = e.target.value;
+        requestRender();
+      }
+    });
+
+    document.getElementById('select-text-anim')?.addEventListener('change', (e) => {
+      const clip = getActiveOrFirstOverlay();
+      if (clip && clip.overlay) {
+        clip.overlay.entryAnimation = e.target.value;
+        requestRender();
+      }
+    });
+
+    document.getElementById('input-text-size')?.addEventListener('input', (e) => {
+      const clip = getActiveOrFirstOverlay();
+      const val = parseInt(e.target.value);
+      const valEl = document.getElementById('val-text-size');
+      if (valEl) valEl.textContent = `${val}px`;
+      if (clip && clip.overlay) {
+        clip.overlay.fontSize = val;
+        requestRender();
+      }
+    });
+
+    document.getElementById('input-text-color')?.addEventListener('input', (e) => {
+      const clip = getActiveOrFirstOverlay();
+      if (clip && clip.overlay) {
+        clip.overlay.colorHex = e.target.value;
+        requestRender();
+      }
+    });
+
+    document.getElementById('input-text-bg-color')?.addEventListener('input', (e) => {
+      const clip = getActiveOrFirstOverlay();
+      if (clip && clip.overlay) {
+        clip.overlay.backgroundColorHex = e.target.value;
+        requestRender();
+      }
+    });
+
+    document.querySelectorAll('.btn-text-pos').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const clip = getActiveOrFirstOverlay();
+        if (clip) {
+          if (!clip.transform) clip.transform = { anchorX: 0.5, anchorY: 0.85 };
+          const pos = btn.dataset.pos;
+          if (pos === 'top') clip.transform.anchorY = 0.15;
+          else if (pos === 'center') clip.transform.anchorY = 0.5;
+          else clip.transform.anchorY = 0.85;
+          requestRender();
+        }
+      });
     });
 
     // Motion, Transition & Particle Selectors
@@ -2891,8 +3110,20 @@
       titleLabel.textContent = selectedClip.socialBadge ? 'SOCIAL BADGE' : 'TITLES OVERLAY';
       textSec.style.display = 'block';
       const ov = selectedClip.overlay || selectedClip.socialBadge || {};
-      document.getElementById('input-text-content').value = ov.handle || ov.text || '';
-      document.getElementById('select-text-font').value = ov.fontFamily || 'Inter';
+      const txtInput = document.getElementById('input-text-content');
+      if (txtInput) txtInput.value = ov.handle || ov.text || '';
+      const fontSelect = document.getElementById('select-text-font');
+      if (fontSelect) fontSelect.value = ov.fontFamily || 'Inter';
+      const animSelect = document.getElementById('select-text-anim');
+      if (animSelect) animSelect.value = ov.entryAnimation || 'Pop';
+      const sizeInput = document.getElementById('input-text-size');
+      const sizeVal = document.getElementById('val-text-size');
+      if (sizeInput) sizeInput.value = ov.fontSize || 52;
+      if (sizeVal) sizeVal.textContent = `${ov.fontSize || 52}px`;
+      const colorInput = document.getElementById('input-text-color');
+      if (colorInput) colorInput.value = ov.colorHex || '#FFFFFF';
+      const bgInput = document.getElementById('input-text-bg-color');
+      if (bgInput) bgInput.value = ov.backgroundColorHex && ov.backgroundColorHex.startsWith('#') ? ov.backgroundColorHex : '#000000';
     }
   }
 
@@ -3569,6 +3800,17 @@
     const progressContainer = document.getElementById('export-progress-group');
     const progressFill = document.getElementById('export-progress-fill');
     const progressLabel = document.getElementById('export-progress-label');
+    const titleInput = document.getElementById('input-export-video-title');
+
+    function prepareExportModal() {
+      if (titleInput) {
+        titleInput.value = (currentProject.metadata?.name || 'My_Video_Reel').replace(/[^a-zA-Z0-9_-]/g, '_');
+      }
+    }
+
+    document.getElementById('btn-export-video')?.addEventListener('click', prepareExportModal);
+    document.getElementById('btn-mobile-export')?.addEventListener('click', prepareExportModal);
+    document.getElementById('menu-file-export-video')?.addEventListener('click', prepareExportModal);
 
     document.getElementById('btn-close-export').addEventListener('click', () => {
       modal.classList.remove('active');
@@ -3582,6 +3824,11 @@
       const format = document.getElementById('export-format-select')?.value || 'mp4';
       const res = document.getElementById('export-resolution-select')?.value || '1080';
       const fps = parseInt(document.getElementById('export-fps-select')?.value) || 30;
+
+      const rawTitle = titleInput?.value || currentProject.metadata?.name || 'My_Video_Reel';
+      const cleanTitle = rawTitle.trim().replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_') || 'My_Video_Reel';
+      if (!currentProject.metadata) currentProject.metadata = {};
+      currentProject.metadata.name = cleanTitle;
 
       exportBtn.disabled = true;
       shareBtn.style.display = 'none';
@@ -3598,7 +3845,7 @@
           });
           lastExportResult = result;
           progressLabel.textContent = '✓ Animated GIF Created Successfully!';
-          const fileName = `${(currentProject.metadata?.name || 'meme').replace(/[^a-zA-Z0-9_-]/g, '_')}.gif`;
+          const fileName = `${cleanTitle}.gif`;
           if (directDownloadBtn) {
             directDownloadBtn.href = result.url;
             directDownloadBtn.download = fileName;
@@ -3618,7 +3865,7 @@
               try {
                 await navigator.share({
                   files: [fileObj],
-                  title: currentProject.metadata?.name || 'VideoCreator GIF',
+                  title: cleanTitle,
                   text: 'Created with VideoCreator Pro Studio'
                 });
               } catch (err) {
@@ -3635,8 +3882,7 @@
           results.forEach(item => {
             const a = document.createElement('a');
             a.href = item.result.url;
-            const baseName = (currentProject.metadata?.name || 'video').replace(/[^a-zA-Z0-9_-]/g, '_');
-            a.download = `${baseName}_${item.format.replace(':', 'x')}.${item.result.ext}`;
+            a.download = `${cleanTitle}_${item.format.replace(':', 'x')}.${item.result.ext}`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -3650,7 +3896,7 @@
           lastExportResult = result;
           progressLabel.textContent = '✓ Video Rendered Successfully!';
 
-          const fileName = `${(currentProject.metadata?.name || 'video').replace(/[^a-zA-Z0-9_-]/g, '_')}.${result.ext}`;
+          const fileName = `${cleanTitle}.${result.ext}`;
 
           // Set direct download button
           if (directDownloadBtn) {
@@ -3675,7 +3921,7 @@
               try {
                 await navigator.share({
                   files: [fileObj],
-                  title: currentProject.metadata?.name || 'VideoCreator Story',
+                  title: cleanTitle,
                   text: 'Created with VideoCreator Pro Studio'
                 });
               } catch (err) {

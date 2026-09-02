@@ -215,25 +215,43 @@ class WebAudioPlayer {
         try { this.ytPlayer.pauseVideo(); } catch (e) {}
       }
       this.currentTrackSrc = src;
-      this.audioElement.src = src;
+      this.activeAudioBuffer = null; // Clear old song buffer immediately!
+
+      if (this.audioElement) {
+        this.audioElement.pause();
+        this.audioElement.src = src;
+      }
 
       // Decode into Web Audio buffer for sample-accurate slice playback & instant seeking
       this.ensureAudioContext();
       if (this.audioCtx && src) {
-        try {
-          const resp = await fetch(src);
-          const ab = await resp.arrayBuffer();
-          this.activeAudioBuffer = await this.audioCtx.decodeAudioData(ab);
-        } catch (e) {
-          console.warn('Audio buffer decode notice:', e);
-        }
+        this._loadPromise = (async () => {
+          try {
+            const resp = await fetch(src);
+            if (resp.ok) {
+              const ab = await resp.arrayBuffer();
+              const decoded = await this.audioCtx.decodeAudioData(ab);
+              if (this.currentTrackSrc === src) {
+                this.activeAudioBuffer = decoded;
+              }
+            }
+          } catch (e) {
+            console.warn('Audio buffer decode notice:', e);
+          }
+        })();
+        return this._loadPromise;
       }
+      return Promise.resolve();
     }
   }
 
-  playAt(timeSec, volume = 1.0, offset = 0, maxDuration = 0) {
+  async playAt(timeSec, volume = 1.0, offset = 0, maxDuration = 0) {
     this.ensureAudioContext();
     if (!this.currentTrackSrc) return;
+
+    if (this._loadPromise) {
+      try { await this._loadPromise; } catch (e) {}
+    }
 
     const actualTime = Math.max(0, (offset || 0) + timeSec);
 

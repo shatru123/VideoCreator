@@ -625,20 +625,57 @@
 
           <!-- Section: TEXT & ANIMATIONS -->
           <div id="inspector-text-section" style="display:none;">
-            <div class="inspector-section-title">TEXT &amp; TITLES</div>
+            <div class="inspector-section-title">🔤 TEXT &amp; TITLES EDITOR</div>
             <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-              <label style="font-size:11px; color:#94A3B8;">Title Content</label>
-              <input type="text" id="input-text-content" class="btn btn-secondary" style="width:100%; text-align:left;" value="CAPTURING THE MAGIC OF THE SUNSET">
+              <label style="font-size:11px; font-weight:700; color:#FEF3C7;">Edit Text on Video:</label>
+              <textarea id="input-text-content" class="btn btn-secondary" rows="2" style="width:100%; text-align:left; font-size:12px; font-weight:700; padding:8px; resize:vertical; background:#0B0E14; border:1px solid #334155; line-height:1.4;"></textarea>
 
-              <label style="font-size:11px; color:#94A3B8;">Font Family</label>
-              <select id="select-text-font" class="btn btn-secondary" style="width:100%;">
-                <option value="Inter">Inter (Clean Modern)</option>
-                <option value="Impact">Impact (Bold Poster)</option>
-                <option value="Playfair Display">Playfair Display (Luxury)</option>
-                <option value="Cinzel">Cinzel (Cinematic)</option>
-                <option value="Georgia">Georgia (Classic Serif)</option>
-                <option value="Courier New">Courier New (Typewriter)</option>
-              </select>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                <div>
+                  <label style="font-size:10px; color:#94A3B8;">Font Typography</label>
+                  <select id="select-text-font" class="btn btn-secondary" style="width:100%; font-size:11px; padding:4px;">
+                    <option value="Inter">Inter (Clean)</option>
+                    <option value="Impact">Impact (Bold)</option>
+                    <option value="Playfair Display">Playfair (Luxury)</option>
+                    <option value="Cinzel">Cinzel (Cinema)</option>
+                    <option value="Georgia">Georgia (Serif)</option>
+                    <option value="Courier New">Courier (Retro)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:10px; color:#94A3B8;">Entrance FX</label>
+                  <select id="select-text-anim" class="btn btn-secondary" style="width:100%; font-size:11px; padding:4px;">
+                    <option value="Pop">Pop &amp; Bounce</option>
+                    <option value="SlideUp">Slide Up</option>
+                    <option value="Fade">Smooth Fade</option>
+                    <option value="Typewriter">Typewriter</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Text Size & Color Pickers -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                <div>
+                  <div style="display:flex; justify-content:space-between; font-size:10px; color:#94A3B8; margin-bottom:2px;">
+                    <span>Font Size</span>
+                    <span id="val-text-size">52px</span>
+                  </div>
+                  <input type="range" id="input-text-size" min="20" max="110" value="52" style="width:100%;">
+                </div>
+                <div style="display:flex; gap:6px; align-items:center; padding-top:10px;">
+                  <label style="font-size:10px; color:#94A3B8;">Color:</label>
+                  <input type="color" id="input-text-color" value="#FFFFFF" style="width:28px; height:24px; border:none; border-radius:4px; cursor:pointer; background:none;">
+                  <label style="font-size:10px; color:#94A3B8;">Box:</label>
+                  <input type="color" id="input-text-bg-color" value="#000000" style="width:28px; height:24px; border:none; border-radius:4px; cursor:pointer; background:none;">
+                </div>
+              </div>
+
+              <!-- Position Presets -->
+              <div style="display:flex; gap:4px; margin-top:2px;">
+                <button class="btn btn-secondary btn-sm btn-text-pos" data-pos="top" style="flex:1; font-size:9px; padding:3px;">Top</button>
+                <button class="btn btn-secondary btn-sm btn-text-pos" data-pos="center" style="flex:1; font-size:9px; padding:3px;">Center</button>
+                <button class="btn btn-secondary btn-sm btn-text-pos" data-pos="bottom" style="flex:1; font-size:9px; padding:3px;">Bottom</button>
+              </div>
             </div>
           </div>
 
@@ -920,6 +957,12 @@
       <p style="font-size:12px; color:var(--text-secondary); line-height:1.4;">
         Renders your video directly in browser with universal player compatibility (playable on QuickTime, Windows Media Player, iPhone, Android, and Web).
       </p>
+
+      <!-- Video Title / Rename Option -->
+      <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:4px;">
+        <label style="font-size:11px; font-weight:700; color:#FEF3C7;">📝 Video Title / File Name:</label>
+        <input type="text" id="input-export-video-title" class="btn btn-secondary" style="width:100%; text-align:left; font-size:13px; font-weight:700; padding:10px; background:#0B0E14; border:1px solid #334155;" value="My_Video_Reel" placeholder="Enter custom video title...">
+      </div>
 
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:11px; font-weight:700; color:#94A3B8;">Export Output Format</label>
@@ -1431,11 +1474,11 @@
   </div>
 
   <!-- Scripts -->
-  <script src="scripts/templates.js?v=3.3"></script>
-  <script src="scripts/mp4-muxer.min.js?v=3.3"></script>
-  <script src="scripts/engine.js?v=3.3"></script>
-  <script src="scripts/audio.js?v=3.3"></script>
-  <script src="scripts/export.js?v=3.3"></script>
-  <script src="scripts/app.js?v=3.3"></script>
+  <script src="scripts/templates.js?v=3.4"></script>
+  <script src="scripts/mp4-muxer.min.js?v=3.4"></script>
+  <script src="scripts/engine.js?v=3.4"></script>
+  <script src="scripts/audio.js?v=3.4"></script>
+  <script src="scripts/export.js?v=3.4"></script>
+  <script src="scripts/app.js?v=3.4"></script>
 </body>
 </html>
