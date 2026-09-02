@@ -4537,24 +4537,66 @@
     });
 
     const dlBtn = document.getElementById('btn-unified-download-mp3');
+    const mp3ProgCont = document.getElementById('mp3-download-progress-container');
+    const mp3ProgStatus = document.getElementById('mp3-download-status');
+    const mp3ProgPercent = document.getElementById('mp3-download-percent');
+    const mp3ProgFill = document.getElementById('mp3-download-bar-fill');
+
+    function updateMp3Progress(percent, status) {
+      if (mp3ProgCont) mp3ProgCont.style.display = 'block';
+      if (mp3ProgStatus) mp3ProgStatus.textContent = status;
+      if (mp3ProgPercent) mp3ProgPercent.textContent = `${percent}%`;
+      if (mp3ProgFill) mp3ProgFill.style.width = `${percent}%`;
+    }
+
     if (dlBtn) {
       dlBtn.addEventListener('click', async () => {
-        const videoId = dlBtn.dataset.videoId;
-        const title = dlBtn.dataset.title;
-        if (!videoId) { alert('Please stream a YouTube song first.'); return; }
+        let videoId = dlBtn.dataset.videoId;
+        let title = dlBtn.dataset.title;
+
+        // If not streamed yet, extract video ID directly from input field
+        if (!videoId) {
+          const rawUrl = (ytInput?.value || '').trim();
+          if (rawUrl) {
+            const m = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+            if (m) videoId = m[1];
+          }
+        }
+
+        if (!videoId) {
+          alert('Please enter a YouTube video URL or stream a song first.');
+          return;
+        }
+
         dlBtn.disabled = true;
-        dlBtn.textContent = '⏳ Preparing download...';
+        dlBtn.textContent = '⏳ Downloading MP3...';
+        updateMp3Progress(15, '⚡ Connecting to YouTube Audio Extractor...');
+
         try {
-          const result = await audio.downloadYouTubeMP3(videoId, title);
+          setTimeout(() => updateMp3Progress(40, '🎵 Extracting high-bitrate audio stream...'), 400);
+          setTimeout(() => updateMp3Progress(75, '📦 Packaging MP3 file for download...'), 800);
+
+          const result = await audio.downloadYouTubeMP3(videoId, title || 'youtube_audio');
+          
           if (result.ok) {
+            updateMp3Progress(100, '✅ Download complete!');
             dlBtn.textContent = '✅ Downloaded!';
-            setTimeout(() => { dlBtn.textContent = '⬇️ Download MP3'; dlBtn.disabled = false; }, 2000);
+            setTimeout(() => {
+              if (mp3ProgCont) mp3ProgCont.style.display = 'none';
+              dlBtn.textContent = '⬇️ Download MP3';
+              dlBtn.disabled = false;
+            }, 2500);
           } else {
+            updateMp3Progress(0, '❌ ' + (result.error || 'Download failed'));
             alert(result.error || 'Download not available.');
-            dlBtn.textContent = '⬇️ Download MP3';
-            dlBtn.disabled = false;
+            setTimeout(() => {
+              if (mp3ProgCont) mp3ProgCont.style.display = 'none';
+              dlBtn.textContent = '⬇️ Download MP3';
+              dlBtn.disabled = false;
+            }, 3000);
           }
         } catch (err) {
+          updateMp3Progress(0, '❌ Error: ' + err.message);
           alert('Download failed: ' + err.message);
           dlBtn.textContent = '⬇️ Download MP3';
           dlBtn.disabled = false;
@@ -4670,12 +4712,21 @@
       }
 
       const clipDuration = (trackType === 'audio') ? visualDuration : duration;
+      let extractedVid = null;
+      if (src) {
+        const m = src.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+        if (m) extractedVid = m[1];
+      }
+
       const newClip = {
         id: `clip-${trackType}-${Date.now()}`,
         name: name,
         startTime: trackType === 'audio' ? 0 : currentTime,
         duration: clipDuration,
         source: src,
+        audioUrl: extractedVid ? `/assets/yt_cache_${extractedVid}.m4a` : src,
+        videoId: extractedVid,
+        isYouTube: Boolean(extractedVid),
         volume: 1.0
       };
       track.clips.push(newClip);
