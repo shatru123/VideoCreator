@@ -3,7 +3,7 @@
 > **A rich, modern, cross-platform video creation and editing studio available for both Desktop (.NET 8 / Avalonia / FFmpeg) and Web (HTML5 Canvas / Web Audio / GitHub Pages).**
 
 ### 👨‍💻 Created by: **Shatrughna Ambhore**
-* 📧 **Email**: [ambhoreshtrughna@gmail.com](mailto:ambhoreshtrughna@gmail.com)
+* 📧 **Email**: [ambhoreshatrughna@gmail.com](mailto:ambhoreshatrughna@gmail.com)
 * 📞 **Phone / WhatsApp**: `+91 9604466334`
 * 🌐 **Live Web Studio**: [https://shatru123.github.io/VideoCreator/](https://shatru123.github.io/VideoCreator/)
 * 🐙 **GitHub Repository**: [https://github.com/shatru123/VideoCreator](https://github.com/shatru123/VideoCreator)
@@ -112,7 +112,7 @@ python3 -m http.server 8080 -d web
 ## 👨‍💻 Author & Creator
 
 * **Creator**: **Shatrughna Ambhore**
-* **Email**: [ambhoreshtrughna@gmail.com](mailto:ambhoreshtrughna@gmail.com)
+* **Email**: [ambhoreshatrughna@gmail.com](mailto:ambhoreshatrughna@gmail.com)
 * **Phone / WhatsApp**: `+91 9604466334`
 * **GitHub**: [@shatru123](https://github.com/shatru123)
 

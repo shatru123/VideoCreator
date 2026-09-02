@@ -31,10 +31,18 @@ const { exec } = require('child_process');
 function ensureYtDlpBinary() {
   const binDir = path.join(__dirname, 'bin');
   if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
-  const target = path.join(binDir, 'yt-dlp');
-  if (fs.existsSync(target) && fs.statSync(target).size > 10000) {
+  
+  const isLinux = process.platform === 'linux';
+  const binName = isLinux ? 'yt-dlp_linux' : 'yt-dlp';
+  const target = path.join(binDir, binName);
+  
+  if (fs.existsSync(target) && fs.statSync(target).size > 50000) {
     return Promise.resolve(target);
   }
+
+  const downloadUrl = isLinux 
+    ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux'
+    : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
 
   return new Promise((resolve) => {
     function fetchBinary(url) {
@@ -55,7 +63,7 @@ function ensureYtDlpBinary() {
         }
       }).on('error', () => resolve(target));
     }
-    fetchBinary('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp');
+    fetchBinary(downloadUrl);
   });
 }
 
@@ -84,17 +92,18 @@ const server = http.createServer(async (req, res) => {
     const assetsDir = path.join(WEB_DIR, 'assets');
     if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
 
-    // Check if any cached audio file exists for this video
+    // 1. Check if any cached audio file exists for this video
     const existingFiles = fs.readdirSync(assetsDir).filter(f => f.startsWith(`yt_cache_${cleanId}.`));
     if (existingFiles.length > 0) {
       const existingFile = path.join(assetsDir, existingFiles[0]);
       if (fs.statSync(existingFile).size > 1000) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, audioUrl: `/assets/${existingFiles[0]}` }));
+        res.end(JSON.stringify({ ok: true, audioUrl: `/assets/${existingFiles[0]}`, videoId: cleanId }));
         return;
       }
     }
 
+    // 2. Try yt-dlp local execution
     await ensureYtDlpBinary();
 
     const localLinux = path.join(__dirname, 'bin', 'yt-dlp_linux');
@@ -114,21 +123,72 @@ const server = http.createServer(async (req, res) => {
     const outPattern = path.join(assetsDir, `yt_cache_${cleanId}.%(ext)s`);
     const cmd = `"${ytdlpPath}" --no-playlist --extractor-args "youtube:player_client=android,ios,web_safari,mweb" -f "ba[ext=m4a]/ba/b" -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
 
-    exec(cmd, (err) => {
+    exec(cmd, async (err) => {
       const downloadedFiles = fs.existsSync(assetsDir) ? fs.readdirSync(assetsDir).filter(f => f.startsWith(`yt_cache_${cleanId}.`)) : [];
       if (downloadedFiles.length > 0) {
         const file = path.join(assetsDir, downloadedFiles[0]);
         if (fs.statSync(file).size > 1000) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: true, audioUrl: `/assets/${downloadedFiles[0]}` }));
+          res.end(JSON.stringify({ ok: true, audioUrl: `/assets/${downloadedFiles[0]}`, videoId: cleanId }));
           return;
         }
       }
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: 'Extraction failed: ' + (err ? err.message : 'Unknown') }));
+
+      // 3. Fallback: Public Invidious / Stream Proxy
+      try {
+        const invidiousInstances = [
+          `https://invidious.nerdvpn.de/api/v1/videos/${cleanId}`,
+          `https://inv.tux.pizza/api/v1/videos/${cleanId}`,
+          `https://vid.puffyan.us/api/v1/videos/${cleanId}`
+        ];
+
+        for (const instUrl of invidiousInstances) {
+          try {
+            const fetchRes = await new Promise((resolve, reject) => {
+              const req = https.get(instUrl, { timeout: 4000 }, (r) => {
+                let d = '';
+                r.on('data', chunk => d += chunk);
+                r.on('end', () => {
+                  try { resolve(JSON.parse(d)); } catch (e) { resolve(null); }
+                });
+              });
+              req.on('error', () => resolve(null));
+              req.on('timeout', () => { req.destroy(); resolve(null); });
+            });
+
+            if (fetchRes && fetchRes.adaptiveFormats) {
+              const audioFormat = fetchRes.adaptiveFormats.find(f => f.type && f.type.startsWith('audio/'));
+              if (audioFormat && audioFormat.url) {
+                const destPath = path.join(assetsDir, `yt_cache_${cleanId}.m4a`);
+                const dlOk = await new Promise((resolve) => {
+                  const outStream = fs.createWriteStream(destPath);
+                  https.get(audioFormat.url, (streamRes) => {
+                    if (streamRes.statusCode === 200) {
+                      streamRes.pipe(outStream);
+                      outStream.on('finish', () => { outStream.close(); resolve(true); });
+                    } else {
+                      resolve(false);
+                    }
+                  }).on('error', () => resolve(false));
+                });
+
+                if (dlOk && fs.existsSync(destPath) && fs.statSync(destPath).size > 1000) {
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ ok: true, audioUrl: `/assets/yt_cache_${cleanId}.m4a`, videoId: cleanId }));
+                  return;
+                }
+              }
+            }
+          } catch (e) {}
+        }
+      } catch (e) {}
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'YouTube direct stream unavailable on cloud without local yt-dlp. Audio is streamed in real-time via YouTube player.' }));
     });
     return;
   }
+
 
   let safePath = path.normalize(decodeURIComponent(req.url.split('?')[0])).replace(/^(\.\.[\/])+/, '');
   if (safePath === '/' || safePath === '') safePath = '/index.html';

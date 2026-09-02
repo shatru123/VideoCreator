@@ -428,7 +428,7 @@
                     <TextBlock Text="Created with ❤️ by Shatrughna Ambhore" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                    <TextBlock Text="📧 ambhoreshtrughna@gmail.com" FontSize="11" Foreground="#60A5FA"/>
+                    <TextBlock Text="📧 ambhoreshatrughna@gmail.com" FontSize="11" Foreground="#60A5FA"/>
                     <TextBlock Text="📞 +91 9604466334" FontSize="11" Foreground="#34D399"/>
                 </StackPanel>
             </Grid>

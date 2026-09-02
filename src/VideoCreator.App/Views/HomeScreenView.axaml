@@ -35,7 +35,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                                 <TextBlock Text="👨‍💻 Created by Shatrughna Ambhore" FontSize="13" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
                                 <TextBlock Text="•" FontSize="13" Foreground="#475569" VerticalAlignment="Center"/>
-                                <TextBlock Text="📧 ambhoreshtrughna@gmail.com" FontSize="13" Foreground="#60A5FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="📧 ambhoreshatrughna@gmail.com" FontSize="13" Foreground="#60A5FA" VerticalAlignment="Center"/>
                                 <TextBlock Text="•" FontSize="13" Foreground="#475569" VerticalAlignment="Center"/>
                                 <TextBlock Text="📞 +91 9604466334" FontSize="13" Foreground="#34D399" VerticalAlignment="Center"/>
                             </StackPanel>
@@ -158,7 +158,7 @@
                         <TextBlock Text="Created with ❤️ by Shatrughna Ambhore" FontSize="12" Foreground="#94A3B8"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                        <TextBlock Text="📧 ambhoreshtrughna@gmail.com" FontSize="12" Foreground="#60A5FA"/>
+                        <TextBlock Text="📧 ambhoreshatrughna@gmail.com" FontSize="12" Foreground="#60A5FA"/>
                         <TextBlock Text="📞 +91 9604466334" FontSize="12" Foreground="#34D399"/>
                     </StackPanel>
                 </Grid>

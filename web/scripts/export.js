@@ -470,9 +470,48 @@ class VideoWebExporter {
             } catch (err) {}
           }
 
-          if (!clipBuf && (clip.source?.includes('youtube') || clip.source?.includes('youtu.be') || clip.isYouTube)) {
-            if (typeof audio !== 'undefined' && audio.generateStockMusicBuffer) {
-              clipBuf = await audio.generateStockMusicBuffer('pop', durationSec);
+          if (!clipBuf && (clip.source?.includes('youtube') || clip.source?.includes('youtu.be') || clip.isYouTube || clip.videoId)) {
+            let vid = clip.videoId;
+            if (!vid && clip.source) {
+              const m = clip.source.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+              if (m) vid = m[1];
+            }
+
+            if (vid) {
+              // 1. Try pre-cached local audio file on server
+              const extensions = ['m4a', 'mp3', 'webm', 'opus', 'mp4'];
+              for (const ext of extensions) {
+                try {
+                  const cacheResp = await fetch(`/assets/yt_cache_${vid}.${ext}`);
+                  if (cacheResp.ok) {
+                    const ab = await cacheResp.arrayBuffer();
+                    clipBuf = await actx.decodeAudioData(ab);
+                    if (clipBuf) break;
+                  }
+                } catch (e) {}
+              }
+
+              // 2. Try on-demand server audio extraction API
+              if (!clipBuf) {
+                try {
+                  const apiResp = await fetch(`/api/youtube-audio?id=${vid}`);
+                  if (apiResp.ok) {
+                    const apiData = await apiResp.json();
+                    if (apiData.ok && apiData.audioUrl) {
+                      const streamResp = await fetch(apiData.audioUrl);
+                      if (streamResp.ok) {
+                        const ab = await streamResp.arrayBuffer();
+                        clipBuf = await actx.decodeAudioData(ab);
+                      }
+                    }
+                  }
+                } catch (e) {}
+              }
+            }
+
+            // 3. Fallback: High-quality generated cinematic audio buffer
+            if (!clipBuf && typeof audio !== 'undefined' && audio.generateStockMusicBuffer) {
+              clipBuf = await audio.generateStockMusicBuffer('cinematic', durationSec);
             }
           }
 

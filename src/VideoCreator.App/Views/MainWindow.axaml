@@ -39,7 +39,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="Created by Shatrughna Ambhore" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
                             <TextBlock Text="|" FontSize="11" Foreground="#475569" VerticalAlignment="Center"/>
-                            <TextBlock Text="📧 ambhoreshtrughna@gmail.com" FontSize="11" Foreground="#60A5FA" VerticalAlignment="Center"/>
+                            <TextBlock Text="📧 ambhoreshatrughna@gmail.com" FontSize="11" Foreground="#60A5FA" VerticalAlignment="Center"/>
                             <TextBlock Text="📞 +91 9604466334" FontSize="11" Foreground="#34D399" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>

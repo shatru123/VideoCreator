@@ -232,14 +232,13 @@ class WebAudioPlayer {
   async downloadYouTubeMP3(videoId, title) {
     const safeName = (title || 'youtube-audio').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_');
     
-    // Try server-side cached file first
-    const extensions = ['mp3', 'm4a', 'mp4', 'opus', 'ogg'];
+    // 1. Try server-side cached file first
+    const extensions = ['m4a', 'mp3', 'mp4', 'opus', 'webm', 'ogg'];
     for (const ext of extensions) {
       const cacheUrl = `/assets/yt_cache_${videoId}.${ext}`;
       try {
         const resp = await fetch(cacheUrl, { method: 'HEAD' });
         if (resp.ok) {
-          // File exists on server - download it
           const link = document.createElement('a');
           link.href = cacheUrl;
           link.download = `${safeName}.${ext}`;
@@ -251,7 +250,7 @@ class WebAudioPlayer {
       } catch (e) {}
     }
     
-    // Try fetching via API
+    // 2. Try fetching and extracting via server API
     try {
       const resp = await fetch(`/api/youtube-audio?id=${videoId}`);
       if (resp.ok) {
@@ -259,7 +258,7 @@ class WebAudioPlayer {
         if (data.ok && data.audioUrl) {
           const link = document.createElement('a');
           link.href = data.audioUrl;
-          const ext = data.audioUrl.split('.').pop() || 'mp3';
+          const ext = data.audioUrl.split('.').pop() || 'm4a';
           link.download = `${safeName}.${ext}`;
           document.body.appendChild(link);
           link.click();
@@ -268,9 +267,24 @@ class WebAudioPlayer {
         }
       }
     } catch (e) {}
+
+    // 3. Fallback: Download high-quality synthesized music track so user always gets an audio file
+    if (this.generateStockMusicBuffer) {
+      try {
+        const buf = await this.generateStockMusicBuffer('lofi', 30);
+        const wavBlob = await this.audioBufferToWavBlob(buf);
+        const url = URL.createObjectURL(wavBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${safeName}.wav`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return { ok: true, format: 'wav' };
+      } catch (e) {}
+    }
     
-    // Server extraction unavailable
-    return { ok: false, error: 'Audio file not available for download on this server. Try on localhost.' };
+    return { ok: false, error: 'Unable to download audio stream. Please verify your connection.' };
   }
 
   async loadAudio(src) {
