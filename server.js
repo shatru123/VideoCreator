@@ -112,7 +112,7 @@ const server = http.createServer(async (req, res) => {
               : (fs.existsSync('/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp') ? '/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp' : 'yt-dlp')))));
 
     const outPattern = path.join(assetsDir, `yt_cache_${cleanId}.%(ext)s`);
-    const cmd = `"${ytdlpPath}" --no-playlist --extractor-args "youtube:player_client=tv_embedded,android_creator,web_embedded,mweb,ios" -f "ba[ext=m4a]/ba/b" -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
+    const cmd = `"${ytdlpPath}" --no-playlist --extractor-args "youtube:player_client=android,ios,web_safari,mweb" -f "ba[ext=m4a]/ba/b" -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
 
     exec(cmd, (err) => {
       const downloadedFiles = fs.existsSync(assetsDir) ? fs.readdirSync(assetsDir).filter(f => f.startsWith(`yt_cache_${cleanId}.`)) : [];
