@@ -18,7 +18,11 @@ const MIME_TYPES = {
   '.mp4': 'video/mp4',
   '.webm': 'video/webm',
   '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav'
+  '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.opus': 'audio/opus',
+  '.ogg': 'audio/ogg'
 };
 
 const { exec } = require('child_process');
@@ -56,19 +60,22 @@ const server = http.createServer((req, res) => {
       }
     }
 
+    const localLinux = path.join(__dirname, 'bin', 'yt-dlp_linux');
     const localBin = path.join(__dirname, 'bin', 'yt-dlp');
-    const ytdlpPath = fs.existsSync(localBin)
-      ? localBin
-      : (fs.existsSync('/opt/homebrew/bin/yt-dlp')
-        ? '/opt/homebrew/bin/yt-dlp'
-        : (fs.existsSync('/usr/local/bin/yt-dlp')
-          ? '/usr/local/bin/yt-dlp'
-          : (fs.existsSync('/usr/bin/yt-dlp')
-            ? '/usr/bin/yt-dlp'
-            : (fs.existsSync('/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp') ? '/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp' : 'yt-dlp'))));
+    const ytdlpPath = (fs.existsSync(localLinux) && process.platform === 'linux')
+      ? localLinux
+      : (fs.existsSync(localBin)
+        ? localBin
+        : (fs.existsSync('/opt/homebrew/bin/yt-dlp')
+          ? '/opt/homebrew/bin/yt-dlp'
+          : (fs.existsSync('/usr/local/bin/yt-dlp')
+            ? '/usr/local/bin/yt-dlp'
+            : (fs.existsSync('/usr/bin/yt-dlp')
+              ? '/usr/bin/yt-dlp'
+              : (fs.existsSync('/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp') ? '/Users/shatrughnaambhore/Library/Python/3.9/bin/yt-dlp' : 'yt-dlp')))));
 
     const outPattern = path.join(assetsDir, `yt_cache_${cleanId}.%(ext)s`);
-    const cmd = `"${ytdlpPath}" --extractor-args "youtube:player_client=ios,android,mweb" -f "ba/b" -x --audio-format mp3 -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}" || "${ytdlpPath}" --extractor-args "youtube:player_client=ios,android,mweb" -f "ba/b" -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
+    const cmd = `"${ytdlpPath}" --no-playlist --extractor-args "youtube:player_client=ios,android,mweb" -f "ba[ext=m4a]/ba/b" -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
 
     exec(cmd, (err) => {
       const downloadedFiles = fs.existsSync(assetsDir) ? fs.readdirSync(assetsDir).filter(f => f.startsWith(`yt_cache_${cleanId}.`)) : [];
