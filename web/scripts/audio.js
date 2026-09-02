@@ -137,16 +137,18 @@ class WebAudioPlayer {
 
     // 2. If running on Hosted Site (Render / Vercel / GitHub Pages), use the direct YouTube IFrame Player!
     if (!audioUrl) {
-      if (onProgress) onProgress(80, '✨ Initializing YouTube IFrame Audio Bridge...');
+      if (onProgress) onProgress(80, '✨ Connecting YouTube Audio Stream...');
       await this.initYouTubeIFrameAPI();
 
       const dock = document.getElementById('yt-player-dock');
       if (dock) dock.style.display = 'block';
+      const dockTitle = document.getElementById('yt-dock-title');
+      if (dockTitle) dockTitle.textContent = `🎵 ${meta.title || 'YouTube Stream'}`;
 
       if (!this.ytPlayer) {
         await new Promise((resolve) => {
           this.ytPlayer = new window.YT.Player('hidden-yt-audio-player', {
-            height: '105',
+            height: '135',
             width: '100%',
             videoId: videoId,
             playerVars: {
@@ -156,8 +158,7 @@ class WebAudioPlayer {
               fs: 0,
               modestbranding: 1,
               playsinline: 1,
-              rel: 0,
-              origin: window.location.origin
+              rel: 0
             },
             events: {
               onReady: (event) => {
@@ -190,7 +191,7 @@ class WebAudioPlayer {
         this.audioElement.pause();
       }
 
-      if (onProgress) onProgress(100, `✅ "${meta.title || 'YouTube Song'}" is active!`);
+      if (onProgress) onProgress(100, `✅ "${meta.title || 'YouTube Song'}" ready!`);
 
       return {
         src: this.currentTrackSrc,

@@ -1120,12 +1120,12 @@
   </div>
 
   <!-- Floating YouTube Live Stream Audio Dock -->
-  <div id="yt-player-dock" style="display:none; position:fixed; bottom:16px; right:16px; width:200px; height:135px; border-radius:10px; overflow:hidden; z-index:1000; background:#0B0E14; border:1px solid #3B82F6; box-shadow:0 12px 32px rgba(0,0,0,0.85);">
-    <div style="display:flex; justify-content:space-between; align-items:center; background:#141824; padding:4px 8px; font-size:10px; color:#94A3B8;">
-      <span style="display:flex; align-items:center; gap:4px; color:#F87171; font-weight:800;">🔴 YouTube Stream</span>
-      <button id="btn-toggle-yt-dock" style="background:none; border:none; color:#94A3B8; cursor:pointer; font-size:12px; font-weight:800;" title="Minimize/Expand">_</button>
+  <div id="yt-player-dock" style="display:none; position:fixed; bottom:70px; right:16px; width:240px; height:170px; border-radius:12px; overflow:hidden; z-index:9000; background:#0F172A; border:1.5px solid #38BDF8; box-shadow:0 16px 40px rgba(0,0,0,0.9);">
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#1E293B; padding:6px 10px; font-size:11px; color:#F8FAFC;">
+      <span id="yt-dock-title" style="display:flex; align-items:center; gap:6px; color:#38BDF8; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">🎵 YouTube Stream</span>
+      <button id="btn-toggle-yt-dock" style="background:none; border:none; color:#94A3B8; cursor:pointer; font-size:14px; font-weight:800;" title="Minimize/Expand">✕</button>
     </div>
-    <div id="hidden-yt-audio-player" style="width:100%; height:105px;"></div>
+    <div id="hidden-yt-audio-player" style="width:100%; height:135px;"></div>
   </div>
 
   <!-- Unified All-in-One Audio Hub Modal (Upload / YouTube / Record / Stock) -->
