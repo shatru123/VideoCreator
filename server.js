@@ -78,6 +78,70 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Expires', '0');
 
   // YouTube Real Audio Extraction API
+  
+  // Direct MP3/M4A Download Endpoint with Content-Disposition Attachment
+  if (req.url.startsWith('/api/download-audio')) {
+    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const videoId = parsedUrl.searchParams.get('id');
+    const customName = parsedUrl.searchParams.get('name') || 'youtube_audio';
+    const cleanId = (videoId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    const safeName = customName.replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_') || 'youtube_audio';
+
+    if (!cleanId) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Missing or invalid YouTube video ID');
+      return;
+    }
+
+    const assetsDir = path.join(WEB_DIR, 'assets');
+    if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
+
+    // Function to stream the audio file as an attachment
+    function streamAttachment(filePath) {
+      const ext = path.extname(filePath).replace('.', '') || 'mp3';
+      const stat = fs.statSync(filePath);
+      const mime = ext === 'm4a' || ext === 'mp4' ? 'audio/mp4' : 'audio/mpeg';
+      
+      res.writeHead(200, {
+        'Content-Type': mime,
+        'Content-Length': stat.size,
+        'Content-Disposition': `attachment; filename="${safeName}.${ext}"`,
+        'Cache-Control': 'no-cache'
+      });
+      fs.createReadStream(filePath).pipe(res);
+    }
+
+    // 1. Check existing cached files
+    const existingFiles = fs.readdirSync(assetsDir).filter(f => f.startsWith(`yt_cache_${cleanId}.`));
+    if (existingFiles.length > 0) {
+      const existingFile = path.join(assetsDir, existingFiles[0]);
+      if (fs.statSync(existingFile).size > 1000) {
+        streamAttachment(existingFile);
+        return;
+      }
+    }
+
+    // 2. Extract on demand
+    ensureYtDlpBinary().then((ytdlpPath) => {
+      const outPattern = path.join(assetsDir, `yt_cache_${cleanId}.%(ext)s`);
+      const cmd = `"${ytdlpPath}" --no-playlist --extractor-args "youtube:player_client=android,ios,web_safari,mweb" -f "ba[ext=m4a]/ba/b" -o "${outPattern}" "https://www.youtube.com/watch?v=${cleanId}"`;
+
+      exec(cmd, (err) => {
+        const downloadedFiles = fs.readdirSync(assetsDir).filter(f => f.startsWith(`yt_cache_${cleanId}.`));
+        if (downloadedFiles.length > 0) {
+          const file = path.join(assetsDir, downloadedFiles[0]);
+          if (fs.statSync(file).size > 1000) {
+            streamAttachment(file);
+            return;
+          }
+        }
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Failed to extract YouTube audio stream.');
+      });
+    });
+    return;
+  }
+
   if (req.url.startsWith('/api/youtube-audio')) {
     const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const videoId = parsedUrl.searchParams.get('id');
@@ -206,6 +270,16 @@ const server = http.createServer(async (req, res) => {
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const totalSize = stats.size;
     const rangeHeader = req.headers.range;
+
+    if (req.method === 'HEAD') {
+      res.writeHead(200, {
+        'Content-Length': totalSize,
+        'Accept-Ranges': 'bytes',
+        'Content-Type': contentType
+      });
+      res.end();
+      return;
+    }
 
     if (rangeHeader) {
       const parts = rangeHeader.replace(/bytes=/, '').split('-');

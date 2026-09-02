@@ -232,7 +232,22 @@ class WebAudioPlayer {
   async downloadYouTubeMP3(videoId, title) {
     const safeName = (title || 'youtube-audio').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_');
     
-    // 1. Try server-side cached file first
+    // 1. Direct native download via /api/download-audio attachment endpoint
+    try {
+      const downloadUrl = `/api/download-audio?id=${videoId}&name=${encodeURIComponent(safeName)}`;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `${safeName}.mp3`);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => document.body.removeChild(link), 1000);
+      return { ok: true, format: 'mp3' };
+    } catch (err) {
+      console.warn('Direct download trigger error:', err);
+    }
+
+    // 2. Try server-side cached static asset file
     const extensions = ['m4a', 'mp3', 'mp4', 'opus', 'webm', 'ogg'];
     for (const ext of extensions) {
       const cacheUrl = `/assets/yt_cache_${videoId}.${ext}`;
@@ -250,25 +265,7 @@ class WebAudioPlayer {
       } catch (e) {}
     }
     
-    // 2. Try fetching and extracting via server API
-    try {
-      const resp = await fetch(`/api/youtube-audio?id=${videoId}`);
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.ok && data.audioUrl) {
-          const link = document.createElement('a');
-          link.href = data.audioUrl;
-          const ext = data.audioUrl.split('.').pop() || 'm4a';
-          link.download = `${safeName}.${ext}`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          return { ok: true, format: ext };
-        }
-      }
-    } catch (e) {}
-
-    // 3. Fallback: Download high-quality synthesized music track so user always gets an audio file
+    // 3. Synthesized high-quality audio fallback if completely disconnected
     if (this.generateStockMusicBuffer) {
       try {
         const buf = await this.generateStockMusicBuffer('lofi', 30);
@@ -284,7 +281,7 @@ class WebAudioPlayer {
       } catch (e) {}
     }
     
-    return { ok: false, error: 'Unable to download audio stream. Please verify your connection.' };
+    return { ok: false, error: 'Unable to start audio download.' };
   }
 
   async loadAudio(src) {
