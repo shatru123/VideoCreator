@@ -1555,3 +1555,64 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
     grid-template-columns: 1fr;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   YOUTUBE FLOATING MONITOR STYLES
+   ═══════════════════════════════════════════════════════════════ */
+.yt-floating-monitor {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  width: 260px;
+  background: rgba(17, 20, 30, 0.96);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 8000;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.yt-floating-monitor.minimized .yt-dock-body {
+  display: none !important;
+}
+
+.yt-dock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #181C2B;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.yt-dock-title {
+  color: var(--accent-cyan);
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.btn-dock-action {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.btn-dock-action:hover {
+  color: #FFFFFF;
+}
+
+.yt-dock-body {
+  padding: 10px;
+}

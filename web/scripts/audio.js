@@ -143,14 +143,14 @@ class WebAudioPlayer {
       await this.initYouTubeIFrameAPI();
 
       const dock = document.getElementById('yt-player-dock');
-      if (dock) dock.style.display = 'block';
+      /* Background audio mode by default */
       const dockTitle = document.getElementById('yt-dock-title');
       if (dockTitle) dockTitle.textContent = `🎵 ${meta.title || 'YouTube Stream'}`;
 
       if (!this.ytPlayer) {
         await new Promise((resolve) => {
           this.ytPlayer = new window.YT.Player('hidden-yt-audio-player', {
-            height: '135',
+            height: '150',
             width: '100%',
             videoId: videoId,
             playerVars: {

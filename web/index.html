@@ -68,6 +68,7 @@
         <div class="menu-dropdown">
           <button class="menu-dropdown-trigger" type="button">View</button>
           <div class="menu-dropdown-content">
+            <button class="menu-item" id="menu-view-yt-monitor"><span>📺 Toggle YouTube Monitor</span></button>
             <button class="menu-item" id="menu-view-fullscreen"><span>⛶ Fullscreen Preview</span><kbd>F</kbd></button>
             <button class="menu-item" id="menu-view-aspect-16-9"><span>📐 Aspect 16:9 Landscape</span></button>
             <button class="menu-item" id="menu-view-aspect-9-16"><span>📱 Aspect 9:16 Vertical Reel</span></button>
@@ -177,6 +178,7 @@
     <div class="drawer-content">
       <div class="drawer-section-title">NAVIGATION</div>
       <div class="drawer-nav-list">
+        <button id="mobile-nav-yt-monitor" class="drawer-nav-item"><span>📺 YouTube Audio Monitor</span></button>
         <button id="mobile-nav-home" class="drawer-nav-item active">🏠 Home Screen</button>
         <button id="mobile-nav-wizard" class="drawer-nav-item">⚡ Quick Video Generator</button>
         <button id="mobile-nav-editor" class="drawer-nav-item">🎞 Full Studio Editor</button>
@@ -1126,13 +1128,26 @@
     </div>
   </div>
 
-  <!-- Floating YouTube Live Stream Audio Dock -->
-  <div id="yt-player-dock" style="display:none; position:fixed; bottom:70px; right:16px; width:240px; height:170px; border-radius:12px; overflow:hidden; z-index:9000; background:#0F172A; border:1.5px solid #38BDF8; box-shadow:0 16px 40px rgba(0,0,0,0.9);">
-    <div style="display:flex; justify-content:space-between; align-items:center; background:#1E293B; padding:6px 10px; font-size:11px; color:#F8FAFC;">
-      <span id="yt-dock-title" style="display:flex; align-items:center; gap:6px; color:#38BDF8; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">🎵 YouTube Stream</span>
-      <button id="btn-toggle-yt-dock" style="background:none; border:none; color:#94A3B8; cursor:pointer; font-size:14px; font-weight:800;" title="Minimize/Expand">✕</button>
+  <!-- Background YouTube Audio Container (Plays audio seamlessly without blocking UI) -->
+  <div id="yt-bg-audio-container" style="position:fixed; bottom:-9999px; right:-9999px; width:200px; height:150px; opacity:0.01; pointer-events:none; z-index:-10;">
+    <div id="hidden-yt-audio-player"></div>
+  </div>
+
+  <!-- Optional Floating YouTube Monitor (Hidden by default, toggleable via View Menu & Drawer) -->
+  <div id="yt-player-dock" class="yt-floating-monitor" style="display:none;">
+    <div class="yt-dock-header">
+      <span id="yt-dock-title" class="yt-dock-title">🎵 YouTube Stream</span>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <button id="btn-minimize-yt-dock" class="btn-dock-action" title="Minimize">—</button>
+        <button id="btn-close-yt-dock" class="btn-dock-action" title="Hide Monitor">✕</button>
+      </div>
     </div>
-    <div id="hidden-yt-audio-player" style="width:100%; height:135px;"></div>
+    <div id="yt-monitor-view" class="yt-dock-body">
+      <div style="font-size:11px; color:#94A3B8; text-align:center; padding:20px 10px;">
+        <span>🎵 YouTube Audio Playing in Background</span>
+        <div style="font-size:10px; color:#64748B; margin-top:4px;">Controls are synced with video timeline</div>
+      </div>
+    </div>
   </div>
 
   <!-- Unified All-in-One Audio Hub Modal (Upload / YouTube / Record / Stock) -->

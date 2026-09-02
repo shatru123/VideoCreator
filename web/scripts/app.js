@@ -647,9 +647,31 @@
     });
 
     // YouTube Stream Floating Dock Toggle
-    document.getElementById('btn-toggle-yt-dock')?.addEventListener('click', () => {
-      const dock = document.getElementById('yt-player-dock');
-      if (dock) dock.classList.toggle('dock-minimized');
+    // YouTube Floating Monitor Controls
+    const ytDock = document.getElementById('yt-player-dock');
+    document.getElementById('btn-minimize-yt-dock')?.addEventListener('click', () => {
+      if (ytDock) ytDock.classList.toggle('minimized');
+    });
+
+    document.getElementById('btn-close-yt-dock')?.addEventListener('click', () => {
+      if (ytDock) ytDock.style.display = 'none';
+      if (window.showToast) window.showToast('YouTube audio continues playing in background 🎵', 'info');
+    });
+
+    // Toggle Monitor from View Menu
+    document.getElementById('menu-view-yt-monitor')?.addEventListener('click', () => {
+      closeAllDropdowns();
+      if (ytDock) {
+        ytDock.style.display = (ytDock.style.display === 'none' || !ytDock.style.display) ? 'block' : 'none';
+      }
+    });
+
+    // Toggle Monitor from Mobile Drawer
+    document.getElementById('mobile-nav-yt-monitor')?.addEventListener('click', () => {
+      closeMobileDrawer();
+      if (ytDock) {
+        ytDock.style.display = (ytDock.style.display === 'none' || !ytDock.style.display) ? 'block' : 'none';
+      }
     });
 
     // Mobile Drawer Media Buttons
