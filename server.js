@@ -77,8 +77,22 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
-  // YouTube Real Audio Extraction API
-  
+  // Health check endpoints for Render keep-alive schedulers (UptimeRobot, cron-job.org, etc.)
+  const urlPath = req.url.split('?')[0];
+  if (urlPath === '/health' || urlPath === '/healthz' || urlPath === '/api/health' || urlPath === '/ping') {
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    });
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'VideoCreator Pro Studio',
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString()
+    }));
+    return;
+  }
+
   // Direct MP3/M4A Download Endpoint with Content-Disposition Attachment
   if (req.url.startsWith('/api/download-audio')) {
     const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
